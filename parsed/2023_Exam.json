@@ -1,0 +1,686 @@
+{
+  "exam_id": "2023_Exam",
+  "year": 2023,
+  "total_marks": 94,
+  "source_file": "2023_Exam.pdf",
+  "processed_at": "2026-06-21T15:53:01.306312",
+  "questions": [
+    {
+      "q_id": "Q1a",
+      "text": "How is cross-correlation filtering G = F ⊗ I defined, given an image I and a filter F? Write the formula and explain the variables.",
+      "marks": 3,
+      "format": "explain_derive",
+      "topics": [
+        "Image Filtering and Convolution"
+      ]
+    },
+    {
+      "q_id": "Q1b",
+      "text": "We want to apply this 2D convolutional filter ([-1,0,1; -2,0,2; -1,0,1]) as two separate 1D convolutional filters sequentially for more efficiency. Write two separate 1D convolutional filters that, applied sequentially, would produce the same result as the single 2D convolutional filter.",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Image Filtering and Convolution"
+      ]
+    },
+    {
+      "q_id": "Q1c",
+      "text": "How many operations (addition, multiplication) would it take to apply sequentially two 1D 1×3 filters compared to one equivalent 2D filter 3×3? Give the number of operations per pixel for each case, in the general case ignoring boundary artifacts and assuming same padding at the image boundaries.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Image Filtering and Convolution"
+      ]
+    },
+    {
+      "q_id": "Q1d",
+      "text": "How do you need to modify a 2D cross-correlation filter to represent a 2D convolution filter?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Image Filtering and Convolution"
+      ]
+    },
+    {
+      "q_id": "Q1e",
+      "text": "Write down the steps of the Canny Edge Detector algorithm.",
+      "marks": 4,
+      "format": "short_answer",
+      "topics": [
+        "Edge Detection"
+      ]
+    },
+    {
+      "q_id": "Q1f",
+      "text": "Explain hysteresis thresholding. Why is it better than a simple thresholding?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Edge Detection"
+      ]
+    },
+    {
+      "q_id": "Q1g",
+      "text": "If we have a photo with salt and pepper noise, what problem(s) might we face when applying the Canny Edge Detection algorithm? What might be a possible approach to mitigate the problem?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Edge Detection",
+        "Image Filtering and Convolution"
+      ]
+    },
+    {
+      "q_id": "Q2a",
+      "text": "The Harris corner response function R can be expressed by the eigenvalues λ1 and λ2 of the second-moment matrix. Explain the influence of the image content on these eigenvalues.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2b",
+      "text": "Briefly describe what automatic scale selection is in the context of feature descriptors and how it works.",
+      "marks": 2,
+      "format": "short_answer",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2ci",
+      "text": "To which of these transformations is the Harris Detector invariant? Justify your answer! — Affine transformations?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2cii",
+      "text": "To which of these transformations is the Harris Detector invariant? Justify your answer! — Euclidean transformations?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2d",
+      "text": "Once keypoints have been extracted, we want to extract features for matching using SIFT. What is the dimension of a SIFT feature descriptor? Explain how you get to this number in words.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2ei",
+      "text": "To estimate a homography H we solve an equation of the form Ah=0. Derive the equations for the matrix entries A given a single correspondence pair (pl, pr), where pr = Hpl.",
+      "marks": 6,
+      "format": "explain_derive",
+      "topics": [
+        "Homography and Image Alignment"
+      ]
+    },
+    {
+      "q_id": "Q2eii",
+      "text": "How many correspondence pairs are needed to estimate a homography? Justify your answer.",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Homography and Image Alignment"
+      ]
+    },
+    {
+      "q_id": "Q3ai",
+      "text": "We want to segment an image using the Markov Random Fields formulation and the graph-cut algorithm. Write the energy function E(x,y), explaining all the variables used. What is the role of each term?",
+      "marks": 4,
+      "format": "explain_derive",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts"
+      ]
+    },
+    {
+      "q_id": "Q3aii",
+      "text": "Given the energy function E(x,y), and the goal of finding the segmentation label x-hat, what would be the optimization objective?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts"
+      ]
+    },
+    {
+      "q_id": "Q3bi",
+      "text": "Assume that we express color likelihood by a histogram p({r,g,b}|c), expand the posterior probability for the class label c given the observed pixel color {r,g,b}.",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts"
+      ]
+    },
+    {
+      "q_id": "Q3bii",
+      "text": "You used the graph-cut algorithm on top of MRFs to obtain segmentation results from your model and applied it iteratively reusing predicted masks. What parameters are updated every iteration and why?",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts"
+      ]
+    },
+    {
+      "q_id": "Q3ci",
+      "text": "Describe the steps of the RANSAC algorithm for the simple case of line fitting.",
+      "marks": 4,
+      "format": "explain_derive",
+      "topics": [
+        "RANSAC and Robust Estimation"
+      ]
+    },
+    {
+      "q_id": "Q3cii",
+      "text": "What changes do we need to make to RANSAC to apply it to the task of ground plane fitting in 3D point clouds?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "RANSAC and Robust Estimation"
+      ]
+    },
+    {
+      "q_id": "Q3ciii1",
+      "text": "Given the constraints of finding the ground plane in a 3D point cloud without labels using only positional information, explain why K-Means would be a poor choice.",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Clustering and Mixture Models",
+        "RANSAC and Robust Estimation"
+      ]
+    },
+    {
+      "q_id": "Q3ciii2",
+      "text": "Given the constraints of finding the ground plane in a 3D point cloud without labels using only positional information, explain why MaxFlow would be a poor choice.",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts",
+        "RANSAC and Robust Estimation"
+      ]
+    },
+    {
+      "q_id": "Q3ciii3",
+      "text": "Given the constraints of finding the ground plane in a 3D point cloud without labels using only positional information, explain why Mixture of Gaussians would be a poor choice.",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Clustering and Mixture Models",
+        "RANSAC and Robust Estimation"
+      ]
+    },
+    {
+      "q_id": "Q4a",
+      "text": "Briefly outline the overall approach of sliding-window object detection.",
+      "marks": 2,
+      "format": "short_answer",
+      "topics": [
+        "Sliding-Window Object Detection"
+      ]
+    },
+    {
+      "q_id": "Q4b",
+      "text": "Explain the concept of a linear SVM classifier, i.e. what do we aim to find, what do we aim to maximize? Use words, not formulas.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Support Vector Machines"
+      ]
+    },
+    {
+      "q_id": "Q4c",
+      "text": "What is the kernel trick, how does it work and why is it useful?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Support Vector Machines"
+      ]
+    },
+    {
+      "q_id": "Q4d",
+      "text": "Given a dataset of 1000 RGB images of pedestrians, is it possible to train a linear SVM with HOG features on the given dataset to detect pedestrians in a sliding-window fashion? Justify your answer.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Sliding-Window Object Detection",
+        "Support Vector Machines"
+      ]
+    },
+    {
+      "q_id": "Q4e",
+      "text": "Boosting is used to build a strong classifier out of several weak classifiers. After training a new weak classifier hm(x), what values do we need to adjust and in which direction?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Boosting and Ensemble Classifiers"
+      ]
+    },
+    {
+      "q_id": "Q4f",
+      "text": "Explain how the weak classifiers used in the Viola-Jones detector work, i.e. how are the features computed and classified?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Boosting and Ensemble Classifiers",
+        "Sliding-Window Object Detection"
+      ]
+    },
+    {
+      "q_id": "Q4g",
+      "text": "The Roerei-detector extends the Viola-Jones detector by using an irregular pattern of rectangles to compute the features for detection. Assume we want to use different shapes instead of rectangles, e.g. circles or triangles. Explain the most significant disadvantage of this idea. What could be a potential advantage?",
+      "marks": 3,
+      "format": "explain_derive",
+      "topics": [
+        "Boosting and Ensemble Classifiers",
+        "Sliding-Window Object Detection"
+      ]
+    },
+    {
+      "q_id": "Q5a",
+      "text": "What is the main difference and advantage of a CNN over the traditional fully-connected Multi-Layer Perceptron (MLP)?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5bi",
+      "text": "A block consists of Convolution, ReLU, BatchNorm. Suppose you want to extract feature maps from RGBD images of size 100×100 using a single block with kernel size 3×3, bias, stride 1, zero padding of size 1. How many learned parameters do we need for a single block if the output depth is 10?",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5bii",
+      "text": "What is the number of parameters if we use an image of size 1000×1000 (same block definition)?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5biii",
+      "text": "If we were to stack three more identical blocks, what is the receptive field that activates a pixel in the 4th layer of the CNN? Ignore the effect of BatchNorm on the receptive field.",
+      "marks": 1,
+      "format": "explain_derive",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5biv",
+      "text": "You want to keep the same number of convolutions, but improve the receptive field of the model by adding some additional layers to the model. What methods can you suggest to improve the receptive field?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5c",
+      "text": "What would the 4×4 input ([3,1,1,8; 6,2,2,4; 2,5,2,3; 1,3,1,7]) look like after sequentially applying 2×2 Max Pooling, and Max Unpooling operations with stride s=2? What is the difference between Unpooling and Max Unpooling?",
+      "marks": 3,
+      "format": "explain_derive",
+      "topics": [
+        "Convolutional Neural Networks",
+        "Semantic Segmentation with Deep Learning"
+      ]
+    },
+    {
+      "q_id": "Q5di",
+      "text": "For the first set of images showing a convolution operation, write the name of the convolution operation, the kernel size k, the input size i, the stride s, and the padding size p.",
+      "marks": 2,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5dii",
+      "text": "For the second set of images showing a convolution operation, write the name of the convolution operation, the kernel size k, the input size i, the stride s, and the padding size p.",
+      "marks": 2,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5diii",
+      "text": "For the third set of images showing a convolution operation, write the name of the convolution operation, the kernel size k, the input size i, the stride s, and the padding size p.",
+      "marks": 2,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5e",
+      "text": "Given a minibatch of n samples (xi, ti), write a formula for the Cross-Entropy loss and explain the variables used.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Neural Network Training and Loss Functions"
+      ]
+    },
+    {
+      "q_id": "Q5f",
+      "text": "Is it possible to use cross-entropy loss for both semantic segmentation and classification? If not, suggest an alternative.",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Neural Network Training and Loss Functions",
+        "Semantic Segmentation with Deep Learning"
+      ]
+    },
+    {
+      "q_id": "Q5g",
+      "text": "Why do we want to use an encoder-decoder architecture for segmentation? Why do we want to use skip connections between encoder and decoder?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Semantic Segmentation with Deep Learning"
+      ]
+    },
+    {
+      "q_id": "Q6a",
+      "text": "Write a function that computes the camera center based on the camera projection matrix. Use python syntax or pseudo-code and assume numpy is imported. Loops are not allowed.",
+      "marks": 2,
+      "format": "write_code_or_proof",
+      "topics": [
+        "Camera Models and Projection"
+      ]
+    },
+    {
+      "q_id": "Q6b",
+      "text": "Given a stereo setup with two cameras, name all the requested elements (image plane, focal length, projected point, etc.) in the provided image.",
+      "marks": 3,
+      "format": "short_answer",
+      "topics": [
+        "Stereo Vision and Epipolar Geometry"
+      ]
+    },
+    {
+      "q_id": "Q6c",
+      "text": "Derive the epipolar constraint, given the calibration (rotation R and translation T) and the points X′ and X. Explicitly give the equation for the essential matrix E.",
+      "marks": 6,
+      "format": "explain_derive",
+      "topics": [
+        "Stereo Vision and Epipolar Geometry"
+      ]
+    },
+    {
+      "q_id": "Q6d",
+      "text": "Assume you want to estimate a homography with RANSAC and you know that the proportion of outliers is given by δ. Derive the equation for the minimum number of iterations k needed such that the probability P(fail) of all iterations to fail is less than ε.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "RANSAC and Robust Estimation",
+        "Homography and Image Alignment"
+      ]
+    },
+    {
+      "q_id": "Q6e",
+      "text": "In projective Structure-from-Motion (SfM), given m images of n fixed 3D points Xj visible in each image, projective SfM can only be solved when 2mn ≥ 11m + 3n − 15. Explain the reasoning behind the different terms.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Structure from Motion"
+      ]
+    }
+  ],
+  "per_topic": {
+    "Image Filtering and Convolution": {
+      "marks_total": 8,
+      "mark_fraction": 0.0851,
+      "format_distribution": {
+        "explain_derive": 0.75,
+        "short_answer": 0.25
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Edge Detection": {
+      "marks_total": 9,
+      "mark_fraction": 0.0957,
+      "format_distribution": {
+        "short_answer": 0.444,
+        "explain_derive": 0.556
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Image Filtering and Convolution"
+      ],
+      "is_new_topic": false
+    },
+    "Feature Detection and Description": {
+      "marks_total": 8,
+      "mark_fraction": 0.0851,
+      "format_distribution": {
+        "explain_derive": 0.5,
+        "short_answer": 0.5
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Image Filtering and Convolution"
+      ],
+      "is_new_topic": false
+    },
+    "Homography and Image Alignment": {
+      "marks_total": 8,
+      "mark_fraction": 0.0851,
+      "format_distribution": {
+        "explain_derive": 0.875,
+        "short_answer": 0.125
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Feature Detection and Description"
+      ],
+      "is_new_topic": false
+    },
+    "Image Segmentation with MRF and Graph Cuts": {
+      "marks_total": 8,
+      "mark_fraction": 0.0851,
+      "format_distribution": {
+        "explain_derive": 0.875,
+        "short_answer": 0.125
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Clustering and Mixture Models"
+      ],
+      "is_new_topic": false
+    },
+    "RANSAC and Robust Estimation": {
+      "marks_total": 9,
+      "mark_fraction": 0.0957,
+      "format_distribution": {
+        "explain_derive": 0.778,
+        "short_answer": 0.222
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Clustering and Mixture Models": {
+      "marks_total": 2,
+      "mark_fraction": 0.0213,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Sliding-Window Object Detection": {
+      "marks_total": 6,
+      "mark_fraction": 0.0638,
+      "format_distribution": {
+        "short_answer": 0.333,
+        "explain_derive": 0.667
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Feature Detection and Description",
+        "Support Vector Machines"
+      ],
+      "is_new_topic": false
+    },
+    "Support Vector Machines": {
+      "marks_total": 5,
+      "mark_fraction": 0.0532,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Boosting and Ensemble Classifiers": {
+      "marks_total": 6,
+      "mark_fraction": 0.0638,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Convolutional Neural Networks": {
+      "marks_total": 14,
+      "mark_fraction": 0.1489,
+      "format_distribution": {
+        "short_answer": 0.357,
+        "explain_derive": 0.643
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Image Filtering and Convolution",
+        "Neural Network Training and Loss Functions"
+      ],
+      "is_new_topic": false
+    },
+    "Neural Network Training and Loss Functions": {
+      "marks_total": 2.5,
+      "mark_fraction": 0.0266,
+      "format_distribution": {
+        "explain_derive": 0.8,
+        "short_answer": 0.2
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Semantic Segmentation with Deep Learning": {
+      "marks_total": 4.5,
+      "mark_fraction": 0.0479,
+      "format_distribution": {
+        "explain_derive": 0.778,
+        "short_answer": 0.222
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Convolutional Neural Networks",
+        "Neural Network Training and Loss Functions"
+      ],
+      "is_new_topic": false
+    },
+    "Camera Models and Projection": {
+      "marks_total": 2,
+      "mark_fraction": 0.0213,
+      "format_distribution": {
+        "write_code_or_proof": 1.0
+      },
+      "dominant_format": "write_code_or_proof",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Stereo Vision and Epipolar Geometry": {
+      "marks_total": 9,
+      "mark_fraction": 0.0957,
+      "format_distribution": {
+        "short_answer": 0.333,
+        "explain_derive": 0.667
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Camera Models and Projection"
+      ],
+      "is_new_topic": false
+    },
+    "Structure from Motion": {
+      "marks_total": 2,
+      "mark_fraction": 0.0213,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Camera Models and Projection",
+        "Stereo Vision and Epipolar Geometry",
+        "RANSAC and Robust Estimation"
+      ],
+      "is_new_topic": false
+    }
+  }
+}
