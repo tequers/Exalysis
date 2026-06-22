@@ -47,7 +47,8 @@ SCRIPT_DIR    = Path(__file__).parent
 TAXONOMY_FILE = SCRIPT_DIR / "taxonomy.json"
 PARSED_DIR    = SCRIPT_DIR / "parsed"
 OUTPUT_XLSX   = SCRIPT_DIR / "Exam_ROI_Pipeline.xlsx"
-MODEL         = "claude-sonnet-4-6"
+MODEL_STAGE1  = "claude-haiku-4-5-20251001"
+MODEL_STAGE2  = "claude-sonnet-4-6"
 MAX_RETRIES   = 3
 
 # Format → integer score (MVP scale 1–3)
@@ -119,12 +120,12 @@ def _client():
     key = os.environ.get("ANTHROPIC_API_KEY") or "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"
     return anthropic.Anthropic(api_key=key)
 
-def call_claude(system: str, user: str, max_tokens: int = 8192) -> str:
+def call_claude(system: str, user: str, max_tokens: int = 8192, model: str = MODEL_STAGE2) -> str:
     client = _client()
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             msg = client.messages.create(
-                model=MODEL,
+                model=model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": user}],
@@ -172,7 +173,7 @@ def stage1_extract(exam_text: str, total_marks) -> list:
         "Output only a JSON array. No other text.\n\n"
         f"EXAM TEXT:\n{exam_text}"
     )
-    raw = call_claude(_S1_SYSTEM, user)
+    raw = call_claude(_S1_SYSTEM, user, model=MODEL_STAGE1)
     return parse_json_from(raw)
 
 
