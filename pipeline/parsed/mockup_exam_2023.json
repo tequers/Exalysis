@@ -1,0 +1,344 @@
+{
+  "exam_id": "mockup_exam_2023",
+  "year": 2023,
+  "total_marks": 45,
+  "source_file": "mockup_exam_2023.pdf",
+  "processed_at": "2026-06-22T11:51:57.947242",
+  "questions": [
+    {
+      "q_id": "Q1a",
+      "text": "What is the output of correlating the image below with the provided filter? Assume we are same-padding with zeros.",
+      "marks": 2,
+      "format": "short_answer",
+      "topics": [
+        "Image Filtering and Convolution"
+      ]
+    },
+    {
+      "q_id": "Q1b",
+      "text": "Starting from an input gray-scale image I, describe how to find all horizontal lines in the image using Hough Transform, explicitly stating the voting equations.",
+      "marks": 5,
+      "format": "explain_derive",
+      "topics": [
+        "Edge Detection"
+      ]
+    },
+    {
+      "q_id": "Q2a",
+      "text": "Write a function that computes the Harris corner response on an input image with given sigma value using Python syntax and numpy.",
+      "marks": 5,
+      "format": "write_code_or_proof",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2b",
+      "text": "Can the idea of Harris corner detector be adapted to identify textureless region? If yes, explain the approach. If not, provide a justification.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q2c",
+      "text": "Would raw pixel values work well as local descriptors for finding correspondences between two images related only by translation? Justify your answer.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Feature Detection and Description"
+      ]
+    },
+    {
+      "q_id": "Q3a",
+      "text": "We want to apply MRF-based graph-cut segmentation on a small image with only two pixels a and b. Given unary potentials and pairwise potential of 1, draw the corresponding flow-graph in the box below.",
+      "marks": 4,
+      "format": "write_code_or_proof",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts"
+      ]
+    },
+    {
+      "q_id": "Q3b",
+      "text": "We want to constrain the graph-cut segmentation such that all pixels on the image border are always assigned to the background. How do we need to adapt a flow-graph to implement this constraint?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Image Segmentation with MRF and Graph Cuts"
+      ]
+    },
+    {
+      "q_id": "Q4a",
+      "text": "What is the difference between a classifier and a detector?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Sliding-Window Object Detection"
+      ]
+    },
+    {
+      "q_id": "Q4b",
+      "text": "What is motivation behind gradient-based representations like HOG and why are they well-suited for pedestrian detection?",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Sliding-Window Object Detection"
+      ]
+    },
+    {
+      "q_id": "Q4ci",
+      "text": "What is the size (number of scalar values) of a HOG feature vector for a 200×100 pixel image with 10×10 pixel cells and 8 orientation bins?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Sliding-Window Object Detection"
+      ]
+    },
+    {
+      "q_id": "Q4cii",
+      "text": "How many learnable parameters does the linear SVM have?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Support Vector Machines"
+      ]
+    },
+    {
+      "q_id": "Q4ciii",
+      "text": "How many feature vectors do we get for training the SVM given 1000 car images and 1000 non-car images?",
+      "marks": 1,
+      "format": "short_answer",
+      "topics": [
+        "Support Vector Machines"
+      ]
+    },
+    {
+      "q_id": "Q5a",
+      "text": "The first convolution layer has a kernel size of 3×3, uses a bias, produces 100 output channels, is applied with a stride of 1 and pads with zeros with a width of 1. How many parameters does this layer have? What is the number of values in this layer's output (using a batch size of 1)?",
+      "marks": 3,
+      "format": "short_answer",
+      "topics": [
+        "Convolutional Neural Networks"
+      ]
+    },
+    {
+      "q_id": "Q5b",
+      "text": "We decide to use an encoder-decoder architecture. What options do we have for decreasing the spatial size of the feature maps in the encoder? Name two and describe them briefly.",
+      "marks": 2,
+      "format": "explain_derive",
+      "topics": [
+        "Semantic Segmentation with Deep Learning"
+      ]
+    },
+    {
+      "q_id": "Q5c",
+      "text": "We decide to use the L1 loss for this task. Provide the formula for this loss when applied on a minibatch of n samples (xi,ti), and explain the meaning of each variable.",
+      "marks": 3,
+      "format": "explain_derive",
+      "topics": [
+        "Neural Network Training and Loss Functions"
+      ]
+    },
+    {
+      "q_id": "Q6a",
+      "text": "Write out the intrinsic camera matrix in its most general form. Explain the meaning of each parameter.",
+      "marks": 2,
+      "format": "write_code_or_proof",
+      "topics": [
+        "Camera Models and Projection"
+      ]
+    },
+    {
+      "q_id": "Q6b",
+      "text": "Given two projection matrices P1 and P2, and a pair of correspondences x1 and x2, triangulate the location of the 3D point X = (a,b,c) using the linear algebraic approach.",
+      "marks": 6,
+      "format": "write_code_or_proof",
+      "topics": [
+        "Stereo Vision and Epipolar Geometry",
+        "Structure from Motion"
+      ]
+    }
+  ],
+  "per_topic": {
+    "Image Filtering and Convolution": {
+      "marks_total": 2,
+      "mark_fraction": 0.0444,
+      "format_distribution": {
+        "short_answer": 1.0
+      },
+      "dominant_format": "short_answer",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Edge Detection": {
+      "marks_total": 5,
+      "mark_fraction": 0.1111,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Image Filtering and Convolution"
+      ],
+      "is_new_topic": false
+    },
+    "Feature Detection and Description": {
+      "marks_total": 9,
+      "mark_fraction": 0.2,
+      "format_distribution": {
+        "write_code_or_proof": 0.5556,
+        "explain_derive": 0.4444
+      },
+      "dominant_format": "write_code_or_proof",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Image Filtering and Convolution"
+      ],
+      "is_new_topic": false
+    },
+    "Image Segmentation with MRF and Graph Cuts": {
+      "marks_total": 6,
+      "mark_fraction": 0.1333,
+      "format_distribution": {
+        "write_code_or_proof": 0.6667,
+        "explain_derive": 0.3333
+      },
+      "dominant_format": "write_code_or_proof",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Clustering and Mixture Models"
+      ],
+      "is_new_topic": false
+    },
+    "Sliding-Window Object Detection": {
+      "marks_total": 5,
+      "mark_fraction": 0.1111,
+      "format_distribution": {
+        "explain_derive": 0.8,
+        "short_answer": 0.2
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Feature Detection and Description",
+        "Support Vector Machines"
+      ],
+      "is_new_topic": false
+    },
+    "Support Vector Machines": {
+      "marks_total": 2,
+      "mark_fraction": 0.0444,
+      "format_distribution": {
+        "short_answer": 1.0
+      },
+      "dominant_format": "short_answer",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Convolutional Neural Networks": {
+      "marks_total": 3,
+      "mark_fraction": 0.0667,
+      "format_distribution": {
+        "short_answer": 1.0
+      },
+      "dominant_format": "short_answer",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Image Filtering and Convolution",
+        "Neural Network Training and Loss Functions"
+      ],
+      "is_new_topic": false
+    },
+    "Semantic Segmentation with Deep Learning": {
+      "marks_total": 2,
+      "mark_fraction": 0.0444,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Convolutional Neural Networks",
+        "Neural Network Training and Loss Functions"
+      ],
+      "is_new_topic": false
+    },
+    "Neural Network Training and Loss Functions": {
+      "marks_total": 3,
+      "mark_fraction": 0.0667,
+      "format_distribution": {
+        "explain_derive": 1.0
+      },
+      "dominant_format": "explain_derive",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Camera Models and Projection": {
+      "marks_total": 2,
+      "mark_fraction": 0.0444,
+      "format_distribution": {
+        "write_code_or_proof": 1.0
+      },
+      "dominant_format": "write_code_or_proof",
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "is_new_topic": false
+    },
+    "Stereo Vision and Epipolar Geometry": {
+      "marks_total": 3,
+      "mark_fraction": 0.0667,
+      "format_distribution": {
+        "write_code_or_proof": 1.0
+      },
+      "dominant_format": "write_code_or_proof",
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Camera Models and Projection"
+      ],
+      "is_new_topic": false
+    },
+    "Structure from Motion": {
+      "marks_total": 3,
+      "mark_fraction": 0.0667,
+      "format_distribution": {
+        "write_code_or_proof": 1.0
+      },
+      "dominant_format": "write_code_or_proof",
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Camera Models and Projection",
+        "Stereo Vision and Epipolar Geometry"
+      ],
+      "is_new_topic": false
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "_comment": "Mastery ledger for the progressive-exam tutor. Claude reads this at the start of every session and updates it at the end. Status flow per rung: locked -> unlocked -> mastered. A topic is mastered only when its final rung is mastered. Do NOT start a topic until all its prerequisites are mastered. Ramp length = D + 1 (rungs). Rung goals: 1=concept recognition, 2=guided application, mid=partial exam, last=full exam.",
+  "exam": "Computer Vision (RWTH Aachen)",
+  "exam_date": "FILL_IN",
+  "ramp_rule": "rungs = difficulty_d + 1; rung1=concept recognition (mcq/short), rung2=guided application (skeleton given), middle=partial exam (skeleton removed, hint on failure-mode), last=full exam-format question, no scaffold",
+  "mastery_rule": "Advance a rung only on a passing graded answer. Two consecutive fails on a rung -> drop one rung. Topic mastered only when final rung mastered.",
+  "topics": [
+    { "rank": 1, "topic": "Image Filtering and Convolution", "D": 2, "rungs": 3, "prerequisites": [], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
+      {"timestamp": "2026-06-23", "rung": 1, "result": "PASS"},
+      {"timestamp": "2026-06-23", "rung": 2, "result": "PASS"},
+      {"timestamp": "2026-06-23", "rung": 3, "result": "PASS"}
+    ]},
+    { "rank": 2, "topic": "Feature Detection and Description", "D": 3, "rungs": 4, "prerequisites": ["Image Filtering and Convolution"], "status": "mastered", "current_rung": 4, "rung_status": ["mastered","mastered","mastered","mastered"], "attempts": [
+      {"timestamp": "2026-06-23", "rung": 1, "result": "PASS"},
+      {"timestamp": "2026-06-23", "rung": 2, "result": "PASS"},
+      {"timestamp": "2026-06-23", "rung": 3, "result": "PASS"},
+      {"timestamp": "2026-06-23", "rung": 4, "result": "PASS"}
+    ]},
+    { "rank": 3, "topic": "Clustering and Mixture Models", "D": 2, "rungs": 3, "prerequisites": [], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
+      {"timestamp": "2026-06-24", "rung": 1, "result": "PASS"},
+      {"timestamp": "2026-06-24", "rung": 2, "result": "PASS"},
+      {"timestamp": "2026-06-24", "rung": 3, "result": "PASS"}
+    ]},
+    { "rank": 4, "topic": "Sliding-Window Object Detection", "D": 2, "rungs": 3, "prerequisites": ["Feature Detection and Description", "Support Vector Machines"], "status": "locked", "current_rung": 1, "rung_status": ["locked","locked","locked"], "attempts": [] },
+    { "rank": 5, "topic": "Convolutional Neural Networks", "D": 3, "rungs": 4, "prerequisites": ["Image Filtering and Convolution", "Neural Network Training and Loss Functions"], "status": "mastered", "current_rung": 4, "rung_status": ["mastered","mastered","mastered","mastered"], "attempts": [
+      {"timestamp": "2026-06-27", "rung": 1, "result": "PASS"},
+      {"timestamp": "2026-06-27", "rung": 2, "result": "PASS"},
+      {"timestamp": "2026-06-27", "rung": 3, "result": "PASS"},
+      {"timestamp": "2026-06-27", "rung": 4, "result": "PASS"},
+      {"timestamp": "2026-06-27", "rung": 4, "result": "PASS", "note": "boss-check"}
+    ]},
+    { "rank": 6, "topic": "Stereo Vision and Epipolar Geometry", "D": 4, "rungs": 5, "prerequisites": ["Camera Models and Projection", "Homography and Image Alignment"], "status": "locked", "current_rung": 1, "rung_status": ["locked","locked","locked","locked","locked"], "attempts": [] },
+    { "rank": 7, "topic": "Edge Detection", "D": 2, "rungs": 3, "prerequisites": ["Image Filtering and Convolution"], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
+      {"timestamp": "2026-06-25", "rung": 1, "result": "PASS"},
+      {"timestamp": "2026-06-25", "rung": 2, "result": "PASS"},
+      {"timestamp": "2026-06-25", "rung": 3, "result": "PASS"}
+    ]},
+    { "rank": 8, "topic": "Neural Network Training and Loss Functions", "D": 2, "rungs": 3, "prerequisites": [], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
+      {"timestamp": "2026-06-25", "rung": 1, "result": "PASS"},
+      {"timestamp": "2026-06-25", "rung": 2, "result": "PASS"},
+      {"timestamp": "2026-06-25", "rung": 3, "result": "FAIL"},
+      {"timestamp": "2026-06-25", "rung": 3, "result": "FAIL"},
+      {"timestamp": "2026-06-25", "rung": 3, "result": "PASS"}
+    ]}
+  ],
+  "exam_coverage": {
+    "note": "Based on combined marks across 2023_Exam + Old_Exam_Tasks (175 total marks). Updated each time a topic is mastered. INSTRUCTION: At session start and after every mastery, print a coverage banner: '📊 Coverage: X/175 marks (~Y%) — Z grade points secured (est. out of 100)'. Estimate grade points as mastered_total_pct * 1.0 (i.e. 22.8% coverage ≈ ~23 pts if exam is 100pts). Update mastered_total_marks and mastered_total_pct whenever a new topic is added to mastered.",
+    "total_combined_marks": 175,
+    "mastered": {
+      "Image Filtering and Convolution": {"marks": 20, "pct": 11.4},
+      "Feature Detection and Description": {"marks": 20, "pct": 11.4},
+      "Clustering and Mixture Models": {"marks": 28, "pct": 16.0},
+      "Edge Detection": {"marks": 18, "pct": 10.3},
+      "Neural Network Training and Loss Functions": {"marks": 16, "pct": 9.1},
+      "Convolutional Neural Networks": {"marks": 17, "pct": 9.7}
+    },
+    "mastered_total_marks": 119,
+    "mastered_total_pct": 68.0,
+    "coverage_banner_template": "Coverage: {mastered_total_marks}/175 marks ({mastered_total_pct}%) — approx {mastered_total_pct} exam points secured"
+  },
+  "review_queue": ["Image Filtering and Convolution", "Feature Detection and Description", "Clustering and Mixture Models", "Edge Detection", "Neural Network Training and Loss Functions", "Convolutional Neural Networks"],
+  "session_log": [
+    "2026-06-23: Mastered Image Filtering and Convolution (all 3 rungs). Unlocked Feature Detection and Description. Canny pipeline fully covered including NMS and hysteresis thresholding.",
+    "2026-06-23: Mastered Feature Detection and Description (all 4 rungs). Harris structure tensor, eigenvalue cases, R function, SIFT descriptors and scale invariance. Unlocked Sliding-Window Object Detection prereq chain.",
+    "2026-06-24: Mastered Clustering and Mixture Models (all 3 rungs). k-means steps, convergence, local minima, k-means++. Mean Shift steps, bandwidth r, advantages/disadvantages vs k-means.",
+    "2026-06-25: Loci review and sharpening for subsections 1-3. Locked encodings for 1.2, 2.4, 2.5, 3.2, 3.3, 3.4, 3.5. Clustering concept map created (draw.io). Mastered Edge Detection (all 3 rungs). Mastered Neural Network Training and Loss Functions — neuron computation, ReLU, softmax, cross-entropy loss (minibatch formula Q5e, Q5f). CNNs now unlocked.",
+    "2026-06-27: Loci review subsections 1-2 (all stations walked, 1.1 Mona Lisa sharpened, 2.2 Plusle/Minun encoded, 2.3 Kevin ice-arrow sharpened, 2.5 fingerprint scale invariance sharpened). Spaced review: Image Filtering (border padding strategies, PASS with guidance). Mastered Convolutional Neural Networks (all 4 rungs + boss-check): weight sharing, parameter counting (3x3x4+1)x10=370, feature map dimensions, MaxPool halving. Semantic Segmentation unlocked. Tutor feedback logged: loci encoding must not fire before concept retrieval."
+  ]
+}
