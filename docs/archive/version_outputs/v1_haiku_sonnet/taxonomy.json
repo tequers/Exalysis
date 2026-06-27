@@ -1,0 +1,140 @@
+{
+  "topics": {
+    "Image Filtering and Convolution": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Edge Detection": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Image Filtering and Convolution"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Feature Detection and Description": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Image Filtering and Convolution"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Homography and Image Alignment": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Feature Detection and Description"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Image Segmentation with MRF and Graph Cuts": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Clustering and Mixture Models"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "RANSAC and Robust Estimation": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Clustering and Mixture Models": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Sliding-Window Object Detection": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Feature Detection and Description",
+        "Support Vector Machines"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Support Vector Machines": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Boosting and Ensemble Classifiers": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Convolutional Neural Networks": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Image Filtering and Convolution",
+        "Neural Network Training and Loss Functions"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Neural Network Training and Loss Functions": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Semantic Segmentation with Deep Learning": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Convolutional Neural Networks",
+        "Neural Network Training and Loss Functions"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Camera Models and Projection": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "first_seen": "2023_Exam"
+    },
+    "Stereo Vision and Epipolar Geometry": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Camera Models and Projection",
+        "Homography and Image Alignment"
+      ],
+      "first_seen": "2023_Exam"
+    },
+    "Structure from Motion": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Camera Models and Projection",
+        "Stereo Vision and Epipolar Geometry",
+        "RANSAC and Robust Estimation"
+      ],
+      "first_seen": "2023_Exam"
+    }
+  }
+}

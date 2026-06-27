@@ -1,0 +1,19 @@
+graph TD
+    ROOT["Clustering & Mixture Models"]
+
+    ROOT --> UNSUP["Unsupervised\n(no labels needed)"]
+    UNSUP --> REPS["Find cluster representatives\n(move center to exact mean)"]
+    REPS --> CONV["Always converge ✓\n(but not to global optimum)"]
+
+    CONV -->|k-Means| KM["k-Means\n(needs k upfront)"]
+    CONV -->|Mean Shift| MS["Mean Shift\n(no k needed)"]
+
+    KM --> KM1["Local minimum — Napoleon\n(NP-hard to find global opt)"]
+    KM --> KM2["Assumes spherical clusters\n(fails on dolphin shapes)"]
+    KM -->|fix for bad init| KMP["k-Means++\n(magnets: prob ∝ distance²)"]
+
+    MS --> MS1["Finds density peaks\n(arbitrary shapes ✓ — dolphin ok)"]
+    MS --> MS2["Bandwidth r sensitive + slow\n(hippie with joint)"]
+
+    KM1 -. "convergence target differs" .-> DIFF["k-means → local min\nMean Shift → density peak\nNeither finds global optimum"]
+    MS1 -. "convergence target differs" .-> DIFF

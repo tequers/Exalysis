@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computer Science Exams Pipeline — Project Brief</title>
+<style>
+  :root {
+    --green: #22c55e; --green-bg: #f0fdf4;
+    --red: #ef4444; --red-bg: #fef2f2;
+    --amber: #f59e0b; --amber-bg: #fffbeb;
+    --blue: #3b82f6; --blue-bg: #eff6ff;
+    --dark: #1e293b; --muted: #64748b;
+    --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--dark);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65; font-size: 16px;
+  }
+  a { color: var(--blue); }
+
+  /* Sticky nav */
+  nav.topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px; flex-wrap: wrap;
+  }
+  nav.topbar .brand { font-weight: 700; font-size: 15px; color: var(--dark); white-space: nowrap; }
+  nav.topbar .links { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  nav.topbar .links a {
+    text-decoration: none; color: var(--muted); font-size: 13px;
+    padding: 4px 10px; border-radius: 6px; white-space: nowrap;
+  }
+  nav.topbar .links a:hover { background: var(--blue-bg); color: var(--blue); }
+  nav.topbar button {
+    font: inherit; font-size: 13px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card); color: var(--dark);
+    padding: 5px 12px; border-radius: 6px; white-space: nowrap;
+  }
+  nav.topbar button:hover { background: var(--bg); }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* Hero */
+  .hero {
+    margin: 36px 0 28px; padding: 36px 32px;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #fff; border-radius: 16px;
+  }
+  .hero .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; font-weight: 600; }
+  .hero h1 { margin: 8px 0 12px; font-size: 30px; line-height: 1.2; }
+  .hero .sub { color: #cbd5e1; font-size: 15px; font-style: italic; }
+  .hero .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  .hero .chip {
+    background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18);
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; color: #e2e8f0;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    margin: 24px 0; overflow: hidden;
+  }
+  .card > .card-head {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 18px 22px; user-select: none;
+  }
+  .card > .card-head h2 { margin: 0; font-size: 20px; flex: 1; }
+  .card > .card-head .badge {
+    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+  }
+  .card > .card-head .chev {
+    transition: transform .25s ease; color: var(--muted); font-size: 14px;
+  }
+  .card.collapsed > .card-head .chev { transform: rotate(-90deg); }
+  .card-body {
+    padding: 0 22px 22px;
+    max-height: 6000px; overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, opacity .3s ease;
+  }
+  .card.collapsed .card-body { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+  .card-body > *:first-child { margin-top: 0; }
+  .card-body p { margin: 0 0 14px; }
+
+  /* Left accent bar variants */
+  .accent-blue  { border-left: 5px solid var(--blue); }
+  .accent-green { border-left: 5px solid var(--green); }
+  .accent-amber { border-left: 5px solid var(--amber); }
+  .accent-red   { border-left: 5px solid var(--red); }
+
+  .badge.blue  { background: var(--blue-bg); color: #1d4ed8; }
+  .badge.green { background: var(--green-bg); color: #15803d; }
+  .badge.amber { background: var(--amber-bg); color: #b45309; }
+  .badge.red   { background: var(--red-bg); color: #b91c1c; }
+  .badge.gray  { background: #f1f5f9; color: var(--muted); }
+
+  /* Sub-panels inside a card */
+  .panel {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; margin: 16px 0; background: #fcfcfd;
+  }
+  .panel.blue  { background: var(--blue-bg);  border-color: #bfdbfe; }
+  .panel.green { background: var(--green-bg); border-color: #bbf7d0; }
+  .panel.amber { background: var(--amber-bg); border-color: #fde68a; }
+  .panel.red   { background: var(--red-bg);   border-color: #fecaca; }
+  .panel h3 { margin: 0 0 8px; font-size: 16px; }
+  .panel h4 { margin: 12px 0 6px; font-size: 14.5px; }
+  .panel p:last-child, .panel ul:last-child { margin-bottom: 0; }
+
+  ul.clean { margin: 8px 0 14px; padding-left: 22px; }
+  ul.clean li { margin: 5px 0; }
+
+  /* Callout */
+  .callout {
+    border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+    font-size: 15px;
+  }
+  .callout.blue  { background: var(--blue-bg);  border: 1px solid #bfdbfe; }
+  .callout.green { background: var(--green-bg); border: 1px solid #bbf7d0; }
+  .callout.amber { background: var(--amber-bg); border: 1px solid #fde68a; }
+  .callout.red   { background: var(--red-bg);   border: 1px solid #fecaca; }
+  .callout strong { display: inline; }
+
+  .lead-tag {
+    display: inline-block; font-weight: 700; font-size: 13px;
+    padding: 2px 8px; border-radius: 6px; margin-right: 6px;
+  }
+  .tag-green { background: var(--green-bg); color: #15803d; }
+  .tag-red   { background: var(--red-bg); color: #b91c1c; }
+  .tag-amber { background: var(--amber-bg); color: #b45309; }
+  .tag-blue  { background: var(--blue-bg); color: #1d4ed8; }
+
+  /* Status table */
+  table.status { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14.5px; }
+  table.status th, table.status td {
+    text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  table.status th { background: #f1f5f9; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  table.status td.comp { font-weight: 600; white-space: nowrap; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+  .dot.g { background: var(--green); } .dot.a { background: var(--amber); } .dot.r { background: var(--red); }
+
+  /* Numbered design problems */
+  .prob { display: flex; gap: 14px; margin: 16px 0; }
+  .prob .num {
+    flex: 0 0 34px; height: 34px; border-radius: 50%;
+    background: var(--amber-bg); color: #b45309; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+    border: 1px solid #fde68a;
+  }
+  .prob .pbody { flex: 1; }
+  .prob .pbody h3 { margin: 4px 0 6px; font-size: 16.5px; }
+
+  .two-axes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  @media (max-width: 620px) { .two-axes { grid-template-columns: 1fr; } }
+
+  .note { color: var(--muted); font-style: italic; }
+  hr.soft { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+
+  @media print {
+    nav.topbar { display: none; }
+    .card.collapsed .card-body { max-height: none !important; padding: 0 22px 22px !important; opacity: 1 !important; }
+    .card.collapsed > .card-head .chev { display: none; }
+    .hero { background: #1e293b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <span class="brand">CS Exams Pipeline</span>
+  <span class="links">
+    <a href="#what">What It Is</a>
+    <a href="#layer1">Layer 1 · CLI</a>
+    <a href="#layer2">Layer 2 · Tutor</a>
+    <a href="#state">Current State</a>
+    <a href="#problems">Open Problems</a>
+  </span>
+  <button id="toggleAll">Expand all</button>
+</nav>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="kicker">Project Brief</div>
+    <h1>Computer Science Exams Pipeline</h1>
+    <div class="sub">Ground truth document. Read this before designing any solution for this project.</div>
+    <div class="chips">
+      <span class="chip">Layer 1 — CLI Pipeline</span>
+      <span class="chip">Layer 2 — Cowork Tutor</span>
+      <span class="chip">Active exam: Computer Vision (RWTH Aachen)</span>
+    </div>
+  </header>
+
+  <!-- What This Project Is -->
+  <section id="what" class="card accent-blue">
+    <div class="card-head">
+      <h2>What This Project Is</h2>
+      <span class="badge blue">Overview</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <p>A personal study system for university Computer Science exams. It has two layers:</p>
+      <div class="panel blue">
+        <h3>1. CLI Pipeline</h3>
+        <p>Runs before studying begins. Tells you <em>what</em> to study and in what order.</p>
+      </div>
+      <div class="panel blue">
+        <h3>2. Cowork Tutor</h3>
+        <p>Runs during active study. Teaches you the prioritized topics using evidence-based learning methods.</p>
+      </div>
+      <p>Computer Vision (RWTH Aachen) is the current active exam. The architecture must generalize to any future CS exam without structural changes.</p>
+    </div>
+  </section>
+
+  <!-- Layer 1 -->
+  <section id="layer1" class="card accent-blue">
+    <div class="card-head">
+      <h2>Layer 1 — CLI Pipeline</h2>
+      <span class="badge blue">Before studying</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+
+      <div class="panel">
+        <h3>What you feed it</h3>
+        <ul class="clean">
+          <li>Past exam files (text or PDF), one per year</li>
+          <li>Total marks per exam</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>What it produces</h3>
+        <ul class="clean">
+          <li><strong>Exam_ROI_Pipeline.xlsx</strong> — a ranked table of every exam topic, sorted by Study Priority Score (ROI). This is the study agenda.</li>
+          <li><strong>taxonomy.json</strong> — per-topic difficulty (D), connection value (C), and prerequisites. Used by the tutor.</li>
+          <li><strong>parsed/*.json</strong> — every past exam question, tagged by topic, with marks and format. Used by the tutor as the gold-standard target for final-rung questions.</li>
+        </ul>
+      </div>
+
+      <div class="panel green">
+        <h3>What value it provides</h3>
+        <p>The pipeline answers: <em>given limited time, which topics give the most exam marks per hour of study?</em> It scores each topic on four factors — how often it appears, how many marks it's worth, how foundational it is (unlocking other topics), and how deeply it's tested (MCQ vs. writing code). The result is a ranked priority list that front-loads high-yield topics and explicitly surfaces foundational concepts that unlock exam value downstream. It removes the guesswork from deciding where to start.</p>
+      </div>
+
+      <div class="panel red">
+        <h3>What it does NOT do</h3>
+        <p>It does not teach. It does not evaluate your understanding. It only produces the inputs the tutor needs.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Layer 2 -->
+  <section id="layer2" class="card accent-blue">
+    <div class="card-head">
+      <h2>Layer 2 — Cowork Tutor</h2>
+      <span class="badge blue">During study</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+
+      <div class="panel">
+        <h3>How to start a session</h3>
+        <p>Run <strong><code>/continue-study-session</code></strong> in Cowork. This skill re-onboards the tutor in one command: it loads the latest <code>TUTOR_SYSTEM_PROMPT_v*.md</code> (highest version wins), reads all the state files below, and continues the session exactly where it was left off — one atomic step per turn (one question/station at a time). Invoke it explicitly with the slash command; it is not meant to auto-trigger from conversation.</p>
+      </div>
+
+      <div class="panel">
+        <h3>What you feed it</h3>
+        <ul class="clean">
+          <li><code>progress.json</code> — mastery state (which topics are unlocked, on which rung, mastered, in review queue)</li>
+          <li><code>Exam_ROI_Pipeline.xlsx</code> — topic priority order</li>
+          <li><code>taxonomy.json</code> — difficulty, prerequisites</li>
+          <li><code>parsed/*.json</code> — real past-exam questions as exemplars</li>
+          <li><code>loci_living_room.md</code> — the memory palace station map</li>
+          <li><code>loci_encodings.md</code> — concept-to-station encodings with quality status <span class="note">(schema TBD)</span></li>
+        </ul>
+      </div>
+
+      <h3 style="margin-top:22px;">What it does</h3>
+      <p>The tutor enforces three learning principles as hard rules:</p>
+
+      <div class="panel blue">
+        <h4>1. Cognitive Load Theory — intelligent sequencing</h4>
+        <p>Topics are unlocked only when prerequisites are mastered. Within each topic, difficulty increases one rung at a time (ramp length = D + 1): recognition → guided application → partial exam → full exam question. No rung is shown before the previous one is passed.</p>
+      </div>
+
+      <div class="panel blue">
+        <h4>2. Desirable Difficulty / Retrieval Practice</h4>
+        <p>The student always attempts first — the tutor never explains before asking. Questions are calibrated to be ~70–85% passable at the current rung. Free recall is forced from rung 2 onwards. Spaced review pulls mastered topics back at full exam difficulty before each new session.</p>
+      </div>
+
+      <div class="panel blue">
+        <h4>3. Mastery Gating</h4>
+        <p>Every answer is graded against an explicit rubric (PASS/FAIL + specific missed step). PASS advances the rung. Two consecutive FAILs drop a rung. A topic is only marked <code>mastered</code> when the final rung passes. The tutor tracks all of this in <code>progress.json</code> and writes it at session end.</p>
+      </div>
+
+      <div class="panel amber">
+        <h4>Method of Loci integration <span class="note">(partially implemented — under redesign)</span></h4>
+        <p>After each concept is first encountered, the student encodes it into a physical station in their memory palace. Before spaced review questions, the student retrieves the mnemonic image first, then answers the question. This compounds mnemonic and cognitive retrieval. Details of the encoding evaluation and file schema are the subject of active design work.</p>
+      </div>
+
+      <h3 style="margin-top:22px;">Session flow</h3>
+      <p>Started via <code>/continue-study-session</code>. One atomic step per turn — never stack a banner, a review walk, and an exam question in the same message.</p>
+      <ol class="clean">
+        <li>Read <code>progress.json</code> → print coverage banner (marks secured / total) + two orientation lines</li>
+        <li><strong>Loci review first</strong> — walk one station at a time until the review queue has no due items</li>
+        <li><strong>Exam review</strong> — one full-difficulty question per turn on mastered/due topics, until due items clear or 3 questions max (skip if nothing is mastered yet)</li>
+        <li><strong>Progressive learning</strong> — the current topic's ramp, one rung per turn: question → student attempts → PASS/FAIL + rubric → gate</li>
+        <li>On mastery: update coverage, unlock next topic</li>
+        <li>Write updated <code>progress.json</code> (and any loci changes) at session end</li>
+      </ol>
+
+    </div>
+  </section>
+
+  <!-- Current State -->
+  <section id="state" class="card accent-amber">
+    <div class="card-head">
+      <h2>Current State</h2>
+      <span class="badge amber">Status snapshot</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <table class="status">
+        <thead>
+          <tr><th>Component</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="comp"><span class="dot g"></span>CLI pipeline</td>
+            <td>Working. Produces ROI spreadsheet, taxonomy, parsed questions.</td>
+          </tr>
+          <tr>
+            <td class="comp"><span class="dot g"></span>Tutor system prompt</td>
+            <td>Working for CV. Mastery gating, ramp, spaced review implemented.</td>
+          </tr>
+          <tr>
+            <td class="comp"><span class="dot a"></span>Loci integration in tutor</td>
+            <td>Partially implemented. Trigger timing and spaced review protocol are correct. Encoding ownership, evaluation rubric, and file schema are unresolved.</td>
+          </tr>
+          <tr>
+            <td class="comp"><span class="dot r"></span><code>loci_encodings.md</code></td>
+            <td>Does not exist yet. Schema must be designed before creation.</td>
+          </tr>
+          <tr>
+            <td class="comp"><span class="dot r"></span>Generalization</td>
+            <td>Not yet done. Tutor prompt is CV-specific. Needs parameterization so any course can be loaded by swapping files.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Open Design Problems -->
+  <section id="problems" class="card accent-amber">
+    <div class="card-head">
+      <h2>Open Design Problems <span style="font-weight:400;font-size:15px;color:var(--muted);">(for Opus)</span></h2>
+      <span class="badge amber">Unresolved</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <p>These are the problems that need to be solved before the system is complete:</p>
+
+      <div class="prob">
+        <div class="num">1</div>
+        <div class="pbody">
+          <h3>Loci encoding ownership and evaluation</h3>
+          <p>The student proposes the encoding first. Claude evaluates it on two axes:</p>
+          <div class="two-axes">
+            <div class="panel blue">
+              <h4 style="margin-top:0;">Information accuracy</h4>
+              <p>Does the image structurally reflect the concept?</p>
+            </div>
+            <div class="panel blue">
+              <h4 style="margin-top:0;">Retrieval power</h4>
+              <p>Is it vivid, bizarre, emotionally charged enough to stick?</p>
+            </div>
+          </div>
+          <p>Claude only offers its own encoding as a fallback if the student is genuinely stuck. A concrete rubric for both axes is needed.</p>
+        </div>
+      </div>
+
+      <hr class="soft">
+
+      <div class="prob">
+        <div class="num">2</div>
+        <div class="pbody">
+          <h3><code>loci_encodings.md</code> schema</h3>
+          <p>A file structure that records: station ID, concept, encoding description, status (❌/⚠️/✅), evaluation notes, last updated. Must support the ⚠️ → ✅ sharpening flow.</p>
+        </div>
+      </div>
+
+      <hr class="soft">
+
+      <div class="prob">
+        <div class="num">3</div>
+        <div class="pbody">
+          <h3>Palace scaling architecture</h3>
+          <p>The living room palace has 27 stations. More concepts than 27 will be taught across courses. When a palace fills, a new one is added. The unresolved question is whether to use:</p>
+          <div class="panel">
+            <p><span class="lead-tag tag-green">A</span><strong>single master file</strong> — simple, slow to scale, expensive in context</p>
+          </div>
+          <div class="panel">
+            <p><span class="lead-tag tag-blue">B</span><strong>tree/graph structure</strong> — one file per palace, linked by index — scalable but adds multi-file navigation complexity</p>
+          </div>
+          <div class="callout amber">
+            This decision must be made before the schema is defined, because the two approaches produce fundamentally different file structures.
+          </div>
+        </div>
+      </div>
+
+      <hr class="soft">
+
+      <div class="prob">
+        <div class="num">4</div>
+        <div class="pbody">
+          <h3>Tutor prompt generalization</h3>
+          <p>The current tutor prompt is hardcoded to Computer Vision. The goal is a course-agnostic prompt where a new exam requires only swapping the course files (<code>progress.json</code>, ROI sheet, taxonomy, parsed questions) — no prompt rewriting. The loci layer must be shared infrastructure across courses, not owned by a single course.</p>
+        </div>
+      </div>
+
+      <hr class="soft">
+
+      <div class="prob">
+        <div class="num">5</div>
+        <div class="pbody">
+          <h3>Station reuse across courses</h3>
+          <p>A station used for a CV concept may need to hold a different course's concept in future exams. The encoding file and the tutor logic must handle this: tracking which course an encoding belongs to, and managing the transition when a station is repurposed.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+
+    // Toggle on header click
+    cards.forEach(function (card) {
+      var head = card.querySelector('.card-head');
+      head.addEventListener('click', function () {
+        card.classList.toggle('collapsed');
+        syncToggleLabel();
+      });
+    });
+
+    // Initial state: first section expanded, rest collapsed (document is long)
+    cards.forEach(function (card, i) {
+      if (i !== 0) card.classList.add('collapsed');
+    });
+
+    // Smooth scroll for nav links (also expand target)
+    document.querySelectorAll('nav .links a').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var id = a.getAttribute('href').slice(1);
+        var target = document.getElementById(id);
+        if (target) {
+          e.preventDefault();
+          target.classList.remove('collapsed');
+          syncToggleLabel();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // Expand all / Collapse all
+    var btn = document.getElementById('toggleAll');
+    function allCollapsed() { return cards.every(function (c) { return c.classList.contains('collapsed'); }); }
+    function anyCollapsed() { return cards.some(function (c) { return c.classList.contains('collapsed'); }); }
+    function syncToggleLabel() { btn.textContent = anyCollapsed() ? 'Expand all' : 'Collapse all'; }
+    btn.addEventListener('click', function () {
+      var expand = anyCollapsed();
+      cards.forEach(function (c) { c.classList.toggle('collapsed', !expand); });
+      syncToggleLabel();
+    });
+
+    syncToggleLabel();
+  })();
+</script>
+
+</body>
+</html>

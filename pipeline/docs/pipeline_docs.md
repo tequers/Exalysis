@@ -126,6 +126,6 @@ python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3
 
 - **Fix JSON parse errors**: Stage 1 or 2 response may include markdown fences or prose before the JSON. `parse_json_from()` in pipeline.py handles this — if it breaks, check that function first.
 - **Add a new format type**: Add to `FMT_SCORE` dict and update both stage prompts.
-- **Change the model**: Edit `MODEL = "claude-sonnet-4-6"` at the top of pipeline.py.
+- **Change the model**: Edit `MODEL_STAGE1` (Haiku, extraction) and `MODEL_STAGE2` (Sonnet, tagging/scoring) at the top of pipeline.py.
 - **Add recency weighting**: Aggregate loop in `cmd_rebuild()` — weight each exam by `lambda^age` before computing F and G.
 - **Debug a bad topic extraction**: Check `parsed/<exam_id>.json` — the raw AI output is stored there verbatim.
