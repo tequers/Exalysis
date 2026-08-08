@@ -124,9 +124,9 @@ Documentación completa de comandos y esquemas de datos: `pipeline/docs/pipeline
 ├── pipeline/        ← el CLI: pipeline.py, taxonomy.json, exámenes ya procesados, el Excel de salida
 ├── tutor/           ← prompts del tutor conversacional y estado de progreso (capa 2, no es código)
 ├── loci/            ← infraestructura del palacio de memoria (compartida entre asignaturas)
-├── exams/           ← PDFs de exámenes de años anteriores, organizados por asignatura
-├── docs/            ← informes de análisis, separados en abiertos / consolidados / archivados
-└── assets/          ← diagramas y visualizaciones auxiliares
+├── Courses/         ← datos de estudio por asignatura/examen; cada asignatura incluye su propia `assets/`
+│                      (diagramas y visualizaciones auxiliares, únicos por asignatura)
+└── docs/            ← informes de análisis, separados en abiertos / consolidados / archivados
 ```
 
 El mapa completo, con la convención de organización y las reglas de versionado de archivos, está en `README.md`.

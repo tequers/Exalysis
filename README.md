@@ -19,6 +19,13 @@ The repo is organized **by component** (what each thing *is*), except for per-co
 │
 ├── Courses/                   ← per-course, per-exam study data. One self-contained unit per Exam.
 │   └── Computer Vision/
+│       ├── assets/                    ← diagrams, explainers, visual artifacts made FOR this course
+│       │   ├── concept_map_clustering.drawio
+│       │   ├── concept_map_clustering.mermaid
+│       │   ├── convolution_explainer.html
+│       │   ├── exam_roi_pipeline_plan.svg
+│       │   ├── maxpool_visualizer.html
+│       │   └── start-study-session-eval-review.html
 │       └── final_26_08_2026/  ← name = <type>_<date>. Everything below is owned by this Exam alone.
 │           ├── exams/                 ← source exam PDFs
 │           │   ├── 2023_Exam.pdf
@@ -50,7 +57,10 @@ The repo is organized **by component** (what each thing *is*), except for per-co
 │   └── _archive/                      ← superseded prompt versions (do not load)
 │       ├── TUTOR_SYSTEM_PROMPT.md
 │       ├── TUTOR_SYSTEM_PROMPT_v2.md
-│       └── TUTOR_SYSTEM_PROMPT_v3.md
+│       ├── TUTOR_SYSTEM_PROMPT_v3.md
+│       ├── TUTOR_SYSTEM_PROMPT_v4.md
+│       ├── TUTOR_SYSTEM_PROMPT_v5.md
+│       └── TUTOR_SYSTEM_PROMPT_v6.md
 │
 ├── loci/                      ← memory-palace subsystem — global, shared across every course/exam
 │   ├── loci_living_room.md    ← the 27-station palace map
@@ -75,13 +85,6 @@ The repo is organized **by component** (what each thing *is*), except for per-co
 │   │   └── workflow_prompts.md
 │   └── archive/
 │       └── version_outputs/   ← old pipeline run outputs (v1_full_sonnet, v1_haiku_sonnet)
-│
-├── assets/                    ← diagrams, explainers, visual artifacts
-│   ├── concept_map_clustering.drawio
-│   ├── concept_map_clustering.mermaid
-│   ├── exam_roi_pipeline_plan.svg
-│   ├── convolution_explainer.html
-│   └── start-study-session-eval-review.html
 │
 └── _to_delete/                ← junk & exact duplicates, safe to remove (see below)
 ```
@@ -111,7 +114,8 @@ python pipeline.py status                                   # show pipeline stat
 - **`Courses/<Course>/<Exam>/` is the atomic state boundary.** Course is purely organizational; each Exam owns its own past-paper corpus, taxonomy, ROI sheet, and mastery ledger — nothing is shared across Exams, even within one Course. See `CONTEXT.md` and `docs/adr/0001-course-exam-hierarchy.md`.
 - **Exam folder names are `<type>_<date>`**, e.g. `final_26_08_2026`, `theory_20_08_2026`.
 - **Lifecycle lives in `docs/`.** `open/` = problems to solve next · `solid/` = settled · `archive/` = kept for reference, not active · `adr/` = decisions made and why.
-- **Versioned files:** keep the live one in the component folder; move superseded versions to that component's `_archive/`. The newest `_vN` is always the live one.
+- **Versioned files:** keep the live one in the component folder; move superseded versions to that component's `_archive/`. The newest `_vN` is always the live one. This applies to `tutor/TUTOR_SYSTEM_PROMPT_v*.md` too — when a new version is written, move the version(s) it replaces into `tutor/_archive/` in the same change, so exactly one `TUTOR_SYSTEM_PROMPT_v*.md` ever lives outside `_archive/`.
+- **Assets are per-course, not global.** Diagrams/explainers/visualizations Claude produces for a course live in `Courses/<Course>/assets/` — never at repo root, and never shared across courses. If a new course is added, it gets its own `assets/` folder.
 - **Adding a course:** create `Courses/<Course>/<type>_<date>/`, drop its exam PDFs in an `exams/` subfolder there, and run the pipeline against it. The `loci/` layer is shared across all courses — do not duplicate it per course; individual encodings are tagged by Course/Exam instead (`docs/adr/0002-loci-shared-global-scaled-per-palace-file.md`).
 - **Files referenced by name, not path.** The tutor and skill locate files by filename via recursive search, so moving things between component folders won't break them — but keep filenames stable.
 
