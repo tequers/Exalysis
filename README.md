@@ -143,3 +143,35 @@ macOS / Linux:
 ```bash
 rm -f .git/index .git/index.lock && git reset && git add -A && git status
 ```
+
+### Committing changes — `aicommit`
+
+This repo uses a custom helper, **`aicommit`**, that drafts a Conventional Commit message from the staged diff using Claude, then opens it in your editor to confirm. Prefer it over a plain `git commit` so messages stay consistent.
+
+```bash
+git add <files>     # stage what you want to commit first
+aicommit            # Claude drafts a <type>(<scope>): summary + why-bullets, opens it to edit/save
+```
+
+**Where it works / prerequisites:**
+
+- Runs in **bash only** (Git Bash or WSL) — *not* PowerShell or cmd. From PowerShell, use a normal `git commit -m "..."`.
+- Requires the `claude` CLI on PATH in that shell, and **staged** changes (it aborts if nothing is staged).
+- Opens the drafted message in your editor (`git commit -e`) so you always review/edit before it's final.
+
+**The maintained version lives in [`scripts/aicommit.sh`](scripts/aicommit.sh).** Install it by sourcing that file from your `~/.bashrc`:
+
+```bash
+# in ~/.bashrc
+source "/c/Users/alber/Claude/Projects/Computer Science Exams Pipeline/scripts/aicommit.sh"
+```
+
+then `source ~/.bashrc`. (Or paste the function body directly into `~/.bashrc`.)
+
+What the maintained version adds over a naive draft-and-commit:
+
+- **Adaptive context.** Large diffs are sent to Claude as a compact `--stat` + name-status summary instead of the full patch, so big commits (like a 50-file reorg) don't overflow the model's context or run up cost. Full patches are used only under `AICOMMIT_DIFF_BUDGET` lines (default 600). Verified: a 51-file / 1810-line staged change auto-switches to the summary path.
+- **No blank commits.** If Claude returns an empty/whitespace-only message, it aborts without committing. Verified.
+- **Valid Conventional Commit type.** The prompt constrains `<type>` to the standard set (`feat`/`fix`/`docs`/`refactor`/`chore`/…), avoiding non-standard types like `repo:` that break changelog tooling.
+- **Optional pinned model** via `AICOMMIT_MODEL` for reproducible message quality.
+- **Safer temp handling** (`mktemp` + cleanup `trap`) instead of a reused `.git/AI_COMMIT_MSG`, and it strips stray ``` fences if the model adds them.

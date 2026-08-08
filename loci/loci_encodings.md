@@ -51,7 +51,7 @@ Status: ✅ solid | ⚠️ needs sharpening | ❌ empty
 |---|---------|---------|---------------|--------|
 | 4.1 | Air conditioning unit | Neuron: weighted sum (w·x) + bias + activation function (ReLU) | Conveyor belt feeds items with price tags (weights × inputs) onto a scale. Bias brick already sits on the scale. Below threshold → AC stays off (ReLU = 0). Above threshold → AC blasts proportionally harder the more the scale tips (ReLU output = excess above zero). | ✅ |
 | 4.2 | Shelf (guitar + books merged) | Forward pass: input → layers → output | Shelf = neural network canvas. Air conditioners drilled in as neurons per layer. Fire = excitatory connections, ice = inhibitory. Each AC explodes after passing its output forward — sequential explosions left-to-right encode directionality. Reset between inputs. | ✅ |
-| 4.3 | Piano | Loss function: cross-entropy — sum of ground_truth × log(network_output) | Piano keys = ground truth (fixed). Neural network outputs = wild animals shot from the Clash Royale Log card. Log rolls across piano, animals crash into keys. Discrepancy between landed note and expected key = loss (piano screams). Perfect prediction = silence. | ✅ |
+| 4.3 | Piano | Loss function: cross-entropy — L = −(1/n)·Σᵢ Σ_c y·log(p). One scream per example, averaged over n examples. Only the ground-truth key matters (others are zero). | Piano keys = ground truth (fixed). Neural network outputs = wild animals shot from the Clash Royale Log card. Log rolls across piano, animals crash into keys. Discrepancy = loss (piano screams). **One full piano performance per training example** — you average the screaming volume across all n performances. Perfect prediction = silence. The 1/n is averaging screams across the crowd of examples, NOT across the keys. | ✅ |
 | 4.4 | Vertical floor lamp | Backpropagation: gradient of loss flows backward through layers | ❌ |
 | 4.5 | Transparent cabinet — porcelain | Gradient descent: update weights in direction of steepest loss decrease | ❌ |
 
@@ -63,16 +63,16 @@ Status: ✅ solid | ⚠️ needs sharpening | ❌ empty
 | # | Station | Concept | Bizarre Image | Status |
 |---|---------|---------|---------------|--------|
 | 5.1 | Left drawer — Wii accessories | CNN: local receptive fields + weight sharing — one kernel slides across image, same weights at every patch | Square bloated oruga (caterpillar) that ate a painter — paint splatters everywhere. Each leg has a weight stamped on it. Slides across Wii accessories patch by patch, legs press a weighted imprint at each local area. Same oruga, same legs, same weights every patch = weight sharing. Local = legs only touch a small patch at once. | ✅ |
-| 5.2 | Console gap — Wii/Switch/PS4 | TBD | ❌ |
-| 5.3 | Samsung TV | TBD | ❌ |
+| 5.2 | Console gap — Wii/Switch/PS4 | Feature maps — C_out kernels each slide the full input, each leaving one 2D activation trail (feature map). Bias = one brick per console. | Three colored caterpillars (white=Wii, blue=PS4, red=Switch) slide the full length of the console gap. Each has its own bias brick. Each leaves a colored splatter trail — bright where the feature is strong, faint where weak. Three caterpillars → three feature maps. They detect features everywhere, not just "their" console. | ✅ |
+| 5.3 | Samsung TV | MaxPooling — takes max per 2×2 window, halves spatial size, saves index (ember mark) for unpooling. Conv layer (Kamek) grows values back. | Samsung TV shows a YouTube video of the encoder-decoder. At each pooling layer: trees grow across the image. Tallest tree = max, survives. Others explode into fire and ash. A **glowing ember** marks exactly where the max tree stood (= saved index). Decoder: seed planted on each glowing ember → **Kamek** (Mario Bros wizard) waves his wand → seeds grow back into full feature maps (conv layer fills the gaps). Repeat per layer until full resolution restored. | ✅ |
 | 5.4 | Transparent drawer — painting stickers | TBD | ❌ |
 | 5.5 | Subwoofer — **END** | TBD | ❌ |
 
 ---
 
 ## Encoding progress
-- Subsection 1: 5/5 solid ✅ | 0 needs sharpening ⚠️ | 0 empty ❌
-- Subsection 2: 0/5 encoded
-- Subsection 3: 0/5 encoded
-- Subsection 4: 0/5 encoded
-- Subsection 5: 0/5 encoded
+- Subsection 1: 5/5 solid ✅ | 0 ⚠️ | 0 ❌  (Canny Edge Detection — all walked & confirmed 2026-06-28)
+- Subsection 2: 5/5 solid ✅ | 0 ⚠️ | 0 ❌  (Feature Detection & Description — all walked & confirmed 2026-06-28)
+- Subsection 3: 5/5 solid ✅ | 0 ⚠️ | 0 ❌  (Clustering & Mixture Models — all walked & confirmed 2026-06-28)
+- Subsection 4: 3/5 solid ✅ | 0 ⚠️ | 2 ❌  (NN Training: 4.1–4.3 ✅, 4.4 backprop ❌, 4.5 gradient descent ❌)
+- Subsection 5: 1/5 solid ✅ | 0 ⚠️ | 4 ❌  (CNNs: 5.1 weight sharing ✅, 5.2–5.5 pending)
