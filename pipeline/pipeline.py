@@ -2,7 +2,7 @@
 """
 Exam ROI Pipeline
 =================
-Processes exam files through Claude to extract topics, score ROI variables,
+Processes exam files through an LLM to extract topics, score ROI variables,
 and produce a ranked Excel spreadsheet.
 
 Formula: Priority = 100 × (F × G × C) / (D × Fmt)
@@ -13,13 +13,28 @@ Formula: Priority = 100 × (F × G × C) / (D × Fmt)
   Fmt = format depth                             (1=MCQ · 2=short answer · 3=write code)
 
 Setup:
-  pip install anthropic openpyxl pypdf
-  export ANTHROPIC_API_KEY=sk-ant-...   (Windows: set ANTHROPIC_API_KEY=...)
+  Pick a provider with the LLM_PROVIDER env var (default: anthropic).
+  Supported out of the box: anthropic, deepseek, openai — the latter two
+  share one OpenAI-compatible code path, so any other provider that speaks
+  the same chat-completions API (Groq, local vLLM/Ollama, ...) works by
+  adding one entry to the PROVIDERS dict below.
+
+    LLM_PROVIDER=anthropic  pip install anthropic
+                             export ANTHROPIC_API_KEY=sk-ant-...
+    LLM_PROVIDER=deepseek   pip install openai
+                             export DEEPSEEK_API_KEY=sk-...
+    LLM_PROVIDER=openai     pip install openai
+                             export OPENAI_API_KEY=sk-...
+
+  (Windows CMD: use `set VAR=value` instead of `export VAR=value`.)
+  Optionally override the models: LLM_MODEL_STAGE1 / LLM_MODEL_STAGE2.
 
 Usage:
   python pipeline.py add exam_2022.txt
   python pipeline.py add exam_2023.pdf --year 2023 --total-marks 120
   python pipeline.py add exam_2024.txt --force        # reprocess existing
+  python pipeline.py add-folder exams/computer_vision # parse every .txt/.pdf in a folder
+  python pipeline.py add-folder exams/ --recursive --force
   python pipeline.py rebuild                          # rebuild spreadsheet only
   python pipeline.py status                           # show current state
   python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3   # override scores
@@ -47,9 +62,58 @@ SCRIPT_DIR    = Path(__file__).parent
 TAXONOMY_FILE = SCRIPT_DIR / "taxonomy.json"
 PARSED_DIR    = SCRIPT_DIR / "parsed"
 OUTPUT_XLSX   = SCRIPT_DIR / "Exam_ROI_Pipeline.xlsx"
-MODEL_STAGE1  = "claude-haiku-4-5-20251001"
-MODEL_STAGE2  = "claude-sonnet-4-6"
-MAX_RETRIES   = 3
+
+# ── LLM provider configuration ────────────────────────────────────────────────
+# The pipeline only needs two things from an LLM: a (system, user) prompt in,
+# plain text out, with an explicit signal when a reply was cut off by the
+# token limit. That contract is implemented once per SDK family in call_llm()
+# below. "deepseek" and "openai" share the same "openai" SDK family because
+# both expose an OpenAI-compatible chat-completions endpoint — swapping
+# between them, or adding a new OpenAI-compatible provider, needs no code
+# changes, just a new PROVIDERS entry (or none, for another OpenAI-compatible
+# host — see base_url).
+PROVIDERS = {
+    "anthropic": {
+        "sdk":             "anthropic",
+        "key_env":         "ANTHROPIC_API_KEY",
+        "base_url":        None,
+        "default_stage1":  "claude-haiku-4-5-20251001",
+        "default_stage2":  "claude-sonnet-5",
+    },
+    "deepseek": {
+        "sdk":             "openai",
+        "key_env":         "DEEPSEEK_API_KEY",
+        "base_url":        "https://api.deepseek.com",
+        "default_stage1":  "deepseek-chat",
+        "default_stage2":  "deepseek-chat",
+    },
+    "openai": {
+        "sdk":             "openai",
+        "key_env":         "OPENAI_API_KEY",
+        "base_url":        None,
+        "default_stage1":  "gpt-4o-mini",
+        "default_stage2":  "gpt-4o",
+    },
+}
+
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic").lower()
+if LLM_PROVIDER not in PROVIDERS:
+    sys.exit(
+        f"ERROR: Unknown LLM_PROVIDER '{LLM_PROVIDER}'. "
+        f"Choose from: {', '.join(PROVIDERS)}"
+    )
+_PROVIDER = PROVIDERS[LLM_PROVIDER]
+
+MODEL_STAGE1 = os.environ.get("LLM_MODEL_STAGE1", _PROVIDER["default_stage1"])
+MODEL_STAGE2 = os.environ.get("LLM_MODEL_STAGE2", _PROVIDER["default_stage2"])
+MAX_RETRIES  = 3
+
+# Output-token budgets. Modern frontier models allow 32k+ output tokens; the
+# old 8k/16k defaults truncated mid-JSON on long exams.
+MAX_TOKENS_STAGE1 = 32000   # question extraction (scales with exam length)
+MAX_TOKENS_STAGE2 = 32000   # topic tagging / scoring
+# Stage 2 tags questions in batches so its output can never outgrow the budget.
+STAGE2_BATCH_SIZE = 40
 
 # Format → integer score (MVP scale 1–3)
 FMT_SCORE = {
@@ -110,27 +174,101 @@ def read_exam_file(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-# ── Claude API helpers ─────────────────────────────────────────────────────────
+# ── LLM API helpers ────────────────────────────────────────────────────────────
 
 def _client():
-    try:
-        import anthropic
-    except ImportError:
-        sys.exit("ERROR: Install the Anthropic SDK:  pip install anthropic")
-    key = os.environ.get("ANTHROPIC_API_KEY") or "ANTHROPIC_API_KEY_REMOVED_FROM_HISTORY"
-    return anthropic.Anthropic(api_key=key)
+    key = os.environ.get(_PROVIDER["key_env"])
+    if not key:
+        sys.exit(
+            f"ERROR: {_PROVIDER['key_env']} is not set (provider={LLM_PROVIDER}).\n"
+            f"       export {_PROVIDER['key_env']}=...   "
+            f"(Windows: set {_PROVIDER['key_env']}=...)"
+        )
+    if _PROVIDER["sdk"] == "anthropic":
+        try:
+            import anthropic
+        except ImportError:
+            sys.exit("ERROR: Install the Anthropic SDK:  pip install anthropic")
+        return anthropic.Anthropic(api_key=key)
+    else:  # "openai" SDK family — covers any OpenAI-compatible endpoint
+        try:
+            import openai
+        except ImportError:
+            sys.exit("ERROR: Install the OpenAI SDK:  pip install openai")
+        kwargs = {"api_key": key}
+        if _PROVIDER["base_url"]:
+            kwargs["base_url"] = _PROVIDER["base_url"]
+        return openai.OpenAI(**kwargs)
 
-def call_claude(system: str, user: str, max_tokens: int = 8192, model: str = MODEL_STAGE2) -> str:
+
+class TruncatedResponse(RuntimeError):
+    """Raised when the model stopped because it hit max_tokens — output is incomplete."""
+
+
+def _text_from_anthropic(msg) -> str:
+    """Concatenate the text blocks of an Anthropic response, skipping thinking/tool blocks."""
+    parts = [
+        b.text for b in msg.content
+        if getattr(b, "type", None) == "text" and getattr(b, "text", None)
+    ]
+    if not parts:
+        kinds = ", ".join(getattr(b, "type", "?") for b in msg.content) or "none"
+        raise ValueError(f"No text block in response (blocks: {kinds})")
+    if getattr(msg, "stop_reason", None) == "max_tokens":
+        used = getattr(getattr(msg, "usage", None), "output_tokens", "?")
+        raise TruncatedResponse(
+            f"Response hit max_tokens ({used} output tokens) — the JSON is incomplete. "
+            "Increase MAX_TOKENS_STAGE1/MAX_TOKENS_STAGE2 or lower STAGE2_BATCH_SIZE."
+        )
+    return "\n".join(parts)
+
+
+def _text_from_openai(resp) -> str:
+    """Extract text from an OpenAI-compatible chat-completions response."""
+    choice = resp.choices[0]
+    text   = choice.message.content or ""
+    if choice.finish_reason == "length":
+        raise TruncatedResponse(
+            "Response hit the token limit — the JSON is incomplete. "
+            "Increase MAX_TOKENS_STAGE1/MAX_TOKENS_STAGE2 or lower STAGE2_BATCH_SIZE."
+        )
+    if not text.strip():
+        raise ValueError(f"Empty response (finish_reason: {choice.finish_reason})")
+    return text
+
+
+def call_llm(system: str, user: str, max_tokens: int = MAX_TOKENS_STAGE2,
+             model: str = MODEL_STAGE2) -> str:
+    """
+    Provider-agnostic completion call — dispatches on _PROVIDER["sdk"].
+    Anthropic uses streaming because a non-streaming call at these token
+    budgets is rejected by that SDK for exceeding its 10-minute non-streaming
+    ceiling; the OpenAI-compatible family has no such restriction.
+    """
     client = _client()
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            msg = client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-            )
-            return msg.content[0].text
+            if _PROVIDER["sdk"] == "anthropic":
+                with client.messages.stream(
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=system,
+                    messages=[{"role": "user", "content": user}],
+                ) as stream:
+                    msg = stream.get_final_message()
+                return _text_from_anthropic(msg)
+            else:
+                resp = client.chat.completions.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                )
+                return _text_from_openai(resp)
+        except TruncatedResponse:
+            raise                      # deterministic — retrying won't help
         except Exception as exc:
             if attempt == MAX_RETRIES:
                 raise
@@ -138,16 +276,24 @@ def call_claude(system: str, user: str, max_tokens: int = 8192, model: str = MOD
             print(f"   ⚠  API error (attempt {attempt}/{MAX_RETRIES}): {exc}. Retrying in {wait}s…")
             time.sleep(wait)
 
+
 def parse_json_from(text: str):
-    """Extract JSON from Claude's response (handles ```json fences and bare JSON)."""
+    """Extract JSON from the model's response (handles ```json fences and bare JSON)."""
     m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if m:
-        return json.loads(m.group(1))
+        text = m.group(1)
     text = text.strip()
-    for i, ch in enumerate(text):
-        if ch in "{[":
-            return json.loads(text[i:])
-    raise ValueError(f"No JSON found in response:\n{text[:500]}")
+    start = next((i for i, ch in enumerate(text) if ch in "{["), None)
+    if start is None:
+        raise ValueError(f"No JSON found in response:\n{text[:500]}")
+    try:
+        # raw_decode ignores any trailing prose after the JSON value
+        return json.JSONDecoder().raw_decode(text, start)[0]
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Malformed JSON from the model ({exc}). "
+            f"Response was {len(text)} chars; tail:\n…{text[-300:]}"
+        ) from exc
 
 
 # ── Stage 1: Extract questions ─────────────────────────────────────────────────
@@ -173,7 +319,7 @@ def stage1_extract(exam_text: str, total_marks) -> list:
         "Output only a JSON array. No other text.\n\n"
         f"EXAM TEXT:\n{exam_text}"
     )
-    raw = call_claude(_S1_SYSTEM, user, model=MODEL_STAGE1)
+    raw = call_llm(_S1_SYSTEM, user, max_tokens=MAX_TOKENS_STAGE1, model=MODEL_STAGE1)
     return parse_json_from(raw)
 
 
@@ -185,96 +331,189 @@ _S2_SYSTEM = (
     "no markdown, no prose outside the JSON."
 )
 
-_S2_TEMPLATE = """\
+_S2A_TEMPLATE = """\
 CANONICAL TOPIC TAXONOMY
 (Reuse these labels. Only propose a NEW label if the concept is genuinely absent.)
 {taxonomy_list}
 
-EXISTING D AND C SCORES
-(Copy these exactly for known topics — do NOT re-estimate them.)
-{existing_scores}
-
-TOTAL EXAM MARKS: {total_marks}
-
-QUESTIONS:
+QUESTIONS (batch {batch_no} of {batch_count}):
 {questions_json}
 
-YOUR TASKS
+YOUR TASK
+Assign 1–2 canonical topic labels to every question.
+Reuse existing taxonomy labels wherever possible.
+Merge near-synonyms (e.g. "pointers" and "pointer arithmetic" → one canonical label).
+Only invent a new label when the concept is genuinely absent from the taxonomy.
 
-1. TAG TOPICS
-   Add a "topics" list (1–2 labels) to each question.
-   Reuse existing taxonomy labels wherever possible.
-   Merge near-synonyms (e.g. "pointers" and "pointer arithmetic" → one canonical label).
-   Only add a new label when the concept is genuinely new.
+Echo back the q_id only — do NOT repeat the question text.
 
-2. SCORE PER TOPIC
-   For every distinct topic that appears, compute:
-
-   marks_total         : sum of marks for all questions testing this topic
-                         (split evenly if a question covers multiple topics)
-   mark_fraction       : marks_total / total_exam_marks   (float 0.0–1.0)
-   format_distribution : dict mapping format key → fraction of this topic's marks
-                         e.g. {{"mcq": 0.4, "write_code_or_proof": 0.6}}
-   dominant_format     : format key with the highest fraction
-   difficulty_d        : 1–6 bucket (copy from existing scores if topic is known;
-                         estimate only for NEW topics)
-                         <30 min=1  30min–1h=2  1–3h=3  3–6h=4  6–15h=5  >15h=6
-                         "Exam-ready" = passing competency for this format, not mastery.
-   difficulty_hours    : human-readable range string e.g. "1–3h"
-                         (copy from existing scores if known)
-   connection_c        : 1–3 integer (copy from existing if known; estimate for new only)
-                         1 = isolated (helps no other exam topic)
-                         2 = helps 1–2 other topics
-                         3 = foundational (many other topics depend on it)
-   prerequisites       : list of topic names this concept requires (from taxonomy only)
-   is_new_topic        : true if you are proposing a new taxonomy label, else false
-
-OUTPUT exactly this JSON structure (no extra keys):
+OUTPUT exactly this JSON structure (no extra keys, no prose):
 {{
-  "questions": [
-    {{ ...original question fields..., "topics": ["Label A", "Label B"] }}
-  ],
-  "new_topic_names": ["New Label 1", "New Label 2"],
-  "per_topic": {{
-    "Topic Name": {{
-      "marks_total": 0,
-      "mark_fraction": 0.0,
-      "format_distribution": {{ "format_key": 0.0 }},
-      "dominant_format": "format_key",
-      "difficulty_d": 3,
-      "difficulty_hours": "1–3h",
-      "connection_c": 2,
-      "prerequisites": [],
-      "is_new_topic": false
-    }}
+  "tags": {{ "Q1": ["Label A"], "Q2a": ["Label A", "Label B"] }},
+  "new_topic_names": ["New Label 1"]
+}}"""
+
+_S2B_TEMPLATE = """\
+EXISTING TAXONOMY (for prerequisite references only)
+{taxonomy_list}
+
+NEW TOPICS TO SCORE
+{new_topics}
+
+For each new topic estimate:
+
+  difficulty_d      : 1–6 bucket — time for a competent student to become exam-ready
+                      <30 min=1  30min–1h=2  1–3h=3  3–6h=4  6–15h=5  >15h=6
+                      "Exam-ready" = passing competency, not mastery.
+  difficulty_hours  : matching range string, e.g. "1–3h"
+  connection_c      : 1–3 integer
+                      1 = isolated (helps no other exam topic)
+                      2 = helps 1–2 other topics
+                      3 = foundational (many other topics depend on it)
+  prerequisites     : list of topic names this concept requires
+                      (use existing taxonomy labels or other new topic names only)
+
+OUTPUT exactly this JSON structure (no extra keys, no prose):
+{{
+  "Topic Name": {{
+    "difficulty_d": 3,
+    "difficulty_hours": "1–3h",
+    "connection_c": 2,
+    "prerequisites": []
   }}
 }}"""
 
 
-def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dict:
-    topic_names = sorted(taxonomy["topics"].keys())
-    taxonomy_list = (
-        json.dumps(topic_names, indent=2)
-        if topic_names
-        else '[]  ← taxonomy is empty; propose all new topic labels'
-    )
-    existing_scores = {
-        name: {
-            "difficulty_d":    data.get("difficulty_d"),
-            "difficulty_hours": data.get("difficulty_hours"),
-            "connection_c":    data.get("connection_c"),
-        }
-        for name, data in taxonomy["topics"].items()
-    }
+def _compact_questions(questions: list) -> list:
+    """Strip questions down to what tagging actually needs, capping text length."""
+    out = []
+    for q in questions:
+        text = str(q.get("text", ""))
+        out.append({
+            "q_id":   q.get("q_id"),
+            "marks":  q.get("marks"),
+            "format": q.get("format"),
+            "text":   text if len(text) <= 500 else text[:500] + " …",
+        })
+    return out
 
-    user = _S2_TEMPLATE.format(
+
+def _batched(seq: list, size: int):
+    for i in range(0, len(seq), size):
+        yield seq[i:i + size]
+
+
+def _fmt_taxonomy(topic_names: list) -> str:
+    if not topic_names:
+        return '[]  ← taxonomy is empty; propose all new topic labels'
+    return json.dumps(sorted(topic_names), indent=2, ensure_ascii=False)
+
+
+def _stage2_tag(questions: list, topic_names: list) -> tuple:
+    """Ask the LLM for q_id → topics. Batched so the reply can never be truncated."""
+    compact  = _compact_questions(questions)
+    batches  = list(_batched(compact, STAGE2_BATCH_SIZE))
+    tags, new_names = {}, []
+
+    for n, batch in enumerate(batches, 1):
+        if len(batches) > 1:
+            print(f"   · tagging batch {n}/{len(batches)} ({len(batch)} questions)…")
+        # Feed labels coined in earlier batches forward, so later batches reuse
+        # them instead of inventing near-duplicates.
+        user = _S2A_TEMPLATE.format(
+            taxonomy_list=_fmt_taxonomy(list(topic_names) + new_names),
+            batch_no=n,
+            batch_count=len(batches),
+            questions_json=json.dumps(batch, indent=2, ensure_ascii=False),
+        )
+        data = parse_json_from(call_llm(_S2_SYSTEM, user, max_tokens=MAX_TOKENS_STAGE2))
+        tags.update(data.get("tags", {}))
+        for name in data.get("new_topic_names", []):
+            if name not in new_names:
+                new_names.append(name)
+    return tags, new_names
+
+
+def _stage2_score_new(new_names: list, taxonomy_list: str) -> dict:
+    """Estimate D / C / prerequisites for genuinely new topics only."""
+    if not new_names:
+        return {}
+    user = _S2B_TEMPLATE.format(
         taxonomy_list=taxonomy_list,
-        existing_scores=json.dumps(existing_scores, indent=2),
-        total_marks=total_marks,
-        questions_json=json.dumps(questions, indent=2),
+        new_topics=json.dumps(new_names, indent=2, ensure_ascii=False),
     )
-    raw = call_claude(_S2_SYSTEM, user)
-    return parse_json_from(raw)
+    return parse_json_from(call_llm(_S2_SYSTEM, user, max_tokens=MAX_TOKENS_STAGE2))
+
+
+def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dict:
+    """
+    Tag every question with topics and build the per-topic score table.
+
+    The LLM is asked only for judgement calls (which topic, how hard, how connected).
+    All arithmetic — marks_total, mark_fraction, format_distribution — is computed
+    locally, which is both exact and the reason the response can no longer overflow
+    max_tokens on a long exam.
+    """
+    topic_names   = sorted(taxonomy["topics"].keys())
+    taxonomy_list = _fmt_taxonomy(topic_names)
+
+    tags, proposed_new = _stage2_tag(questions, topic_names)
+
+    # Attach topics back onto the full question objects
+    tagged = []
+    for q in questions:
+        q = dict(q)
+        q["topics"] = tags.get(q.get("q_id"), [])
+        tagged.append(q)
+
+    # Any label absent from the taxonomy is new, whether or not the model flagged it
+    seen_topics = {t for q in tagged for t in q["topics"]}
+    new_names   = [t for t in proposed_new if t in seen_topics and t not in taxonomy["topics"]]
+    new_names  += [t for t in sorted(seen_topics)
+                   if t not in taxonomy["topics"] and t not in new_names]
+
+    new_scores = _stage2_score_new(new_names, taxonomy_list)
+
+    # ── Local aggregation ──
+    total_marks = float(total_marks) or 1.0
+    agg = {}
+    for q in tagged:
+        topics = q["topics"]
+        if not topics:
+            continue
+        marks = q.get("marks")
+        marks = float(marks) if isinstance(marks, (int, float)) else 0.0
+        share = marks / len(topics)
+        fmt   = q.get("format") or "short_answer"
+        for t in topics:
+            a = agg.setdefault(t, {"marks": 0.0, "by_fmt": {}})
+            a["marks"] += share
+            a["by_fmt"][fmt] = a["by_fmt"].get(fmt, 0.0) + share
+
+    per_topic = {}
+    for t, a in agg.items():
+        known = taxonomy["topics"].get(t, {})
+        est   = new_scores.get(t, {})
+        tot   = a["marks"]
+        dist  = ({f: round(v / tot, 3) for f, v in a["by_fmt"].items()} if tot
+                 else {f: round(1 / len(a["by_fmt"]), 3) for f in a["by_fmt"]})
+        per_topic[t] = {
+            "marks_total":         round(tot, 2),
+            "mark_fraction":       round(tot / total_marks, 4),
+            "format_distribution": dist,
+            "dominant_format":     max(dist, key=dist.get) if dist else "short_answer",
+            "difficulty_d":        known.get("difficulty_d")     or est.get("difficulty_d", 3),
+            "difficulty_hours":    known.get("difficulty_hours") or est.get("difficulty_hours", "1–3h"),
+            "connection_c":        known.get("connection_c")     or est.get("connection_c", 2),
+            "prerequisites":       known.get("prerequisites")    or est.get("prerequisites", []),
+            "is_new_topic":        t in new_names,
+        }
+
+    untagged = [q.get("q_id") for q in tagged if not q["topics"]]
+    if untagged:
+        print(f"   ⚠  {len(untagged)} question(s) came back untagged: {', '.join(map(str, untagged[:10]))}")
+
+    return {"questions": tagged, "new_topic_names": new_names, "per_topic": per_topic}
 
 
 # ── Aggregation helpers ────────────────────────────────────────────────────────
@@ -602,30 +841,31 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
 
 # ── Commands ───────────────────────────────────────────────────────────────────
 
-def cmd_add(args):
-    path = Path(args.file)
+def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, force=False) -> bool:
+    """
+    Parse a single exam file (Stage 1 + Stage 2), update the taxonomy, and save
+    parsed/<exam_id>.json. Returns True if the file was processed, False if it
+    was skipped (already parsed and not --force). Does NOT rebuild the spreadsheet
+    — callers are responsible for calling cmd_rebuild() once they're done.
+    """
     if not path.exists():
         sys.exit(f"ERROR: File not found: {path}")
 
-    exam_id = (args.exam_id or path.stem).replace(" ", "_")
+    exam_id = (exam_id or path.stem).replace(" ", "_")
     PARSED_DIR.mkdir(exist_ok=True)
     out_file = PARSED_DIR / f"{exam_id}.json"
 
-    if out_file.exists() and not args.force:
-        sys.exit(
-            f"ERROR: parsed/{exam_id}.json already exists.\n"
-            f"       Use --force to reprocess it."
-        )
+    if out_file.exists() and not force:
+        print(f"   ⏭  Skipping {path.name} — parsed/{exam_id}.json already exists (use --force to reprocess)")
+        return False
 
     # Infer year from filename if not given
-    year = args.year
     if not year:
         m = re.search(r"20\d{2}", path.name)
         year = int(m.group()) if m else datetime.now().year
 
     print(f"\n📄 Exam : {path.name}  (year={year})")
-    exam_text   = read_exam_file(path)
-    total_marks = args.total_marks
+    exam_text = read_exam_file(path)
 
     # ── Stage 1 ──
     print("🤖 Stage 1 : Extracting questions…")
@@ -677,8 +917,61 @@ def cmd_add(args):
     }
     out_file.write_text(json.dumps(parsed, indent=2, ensure_ascii=False), encoding='utf-8')
     print(f"   ✓ Saved → parsed/{exam_id}.json")
+    return True
 
+
+def cmd_add(args):
+    path = Path(args.file)
+    process_exam_file(
+        path,
+        year=args.year,
+        total_marks=args.total_marks,
+        exam_id=args.exam_id,
+        force=args.force,
+    )
     cmd_rebuild(None)
+
+
+EXAM_EXTENSIONS = (".txt", ".pdf")
+
+
+def cmd_add_folder(args):
+    folder = Path(args.folder)
+    if not folder.exists() or not folder.is_dir():
+        sys.exit(f"ERROR: Folder not found: {folder}")
+
+    pattern = "**/*" if args.recursive else "*"
+    files = sorted(
+        f for f in folder.glob(pattern)
+        if f.is_file() and f.suffix.lower() in EXAM_EXTENSIONS
+    )
+
+    if not files:
+        sys.exit(f"ERROR: No .txt/.pdf files found in {folder}")
+
+    print(f"\n📁 Folder : {folder}  ({len(files)} file(s) found)")
+
+    processed = 0
+    skipped   = 0
+    failed    = []
+    for f in files:
+        try:
+            if process_exam_file(f, total_marks=args.total_marks, force=args.force):
+                processed += 1
+            else:
+                skipped += 1
+        except Exception as exc:
+            print(f"   ✗ Failed on {f.name}: {exc}")
+            failed.append(f.name)
+
+    print(f"\n📦 Batch complete — {processed} processed · {skipped} skipped · {len(failed)} failed")
+    if failed:
+        print(f"   Failed files: {', '.join(failed)}")
+
+    if processed:
+        cmd_rebuild(None)
+    else:
+        print("   No new exams processed — spreadsheet not rebuilt.")
 
 
 def cmd_rebuild(_args):
@@ -810,6 +1103,8 @@ examples:
   python pipeline.py add exam_2022.txt
   python pipeline.py add exam_2023.pdf --year 2023 --total-marks 120
   python pipeline.py add exam_2024.txt --force
+  python pipeline.py add-folder exams/computer_vision
+  python pipeline.py add-folder exams/ --recursive --force
   python pipeline.py rebuild
   python pipeline.py status
   python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3
@@ -824,6 +1119,12 @@ examples:
     pa.add_argument("--exam-id",                               help="Custom ID (defaults to filename stem)")
     pa.add_argument("--force",        action="store_true",     help="Reprocess even if already parsed")
 
+    pf = sub.add_parser("add-folder", help="Process every .txt/.pdf exam in a folder and update the spreadsheet")
+    pf.add_argument("folder",                                  help="Folder containing exam files")
+    pf.add_argument("--total-marks",  type=float,              help="Total marks applied to every file (summed from questions if omitted)")
+    pf.add_argument("--force",        action="store_true",     help="Reprocess files even if already parsed")
+    pf.add_argument("--recursive",    action="store_true",     help="Also search subfolders")
+
     sub.add_parser("rebuild", help="Rebuild spreadsheet from all stored exams")
     sub.add_parser("status",  help="Show pipeline state")
 
@@ -835,6 +1136,7 @@ examples:
     args = p.parse_args()
     dispatch = {
         "add":        cmd_add,
+        "add-folder": cmd_add_folder,
         "rebuild":    cmd_rebuild,
         "status":     cmd_status,
         "edit-topic": cmd_edit_topic,

@@ -1,0 +1,48 @@
+{
+  "_comment": "Resolved project config for the /study-run planner. Written once by discovery so later runs skip searching. Delete this file to force re-discovery after moving or renaming files.",
+  "project": "Computer Science Exams Pipeline",
+  "target": {
+    "name": "Computer Vision (RWTH Aachen)",
+    "date": null,
+    "total_marks": 175
+  },
+  "paths": {
+    "ledger": "tutor/progress.json",
+    "calibration": "tutor/sessions.json",
+    "taxonomy": "pipeline/taxonomy.json",
+    "priority": "pipeline/Exam_ROI_Pipeline.xlsx#ROI Scores",
+    "exemplars": "pipeline/parsed/*.json",
+    "mnemonic": "loci/loci_encodings.md",
+    "mnemonic_map": "loci/loci_living_room.md",
+    "method": "tutor/TUTOR_SYSTEM_PROMPT_v5.md"
+  },
+  "capabilities": {
+    "ramp": true,
+    "priority": true,
+    "stakes": true,
+    "review": true,
+    "mnemonic": true,
+    "exemplars": true,
+    "coverage": true
+  },
+  "ramp_rule": "D + 1",
+  "question_cap_per_session": 3,
+  "question_labels": [
+    "[Rung 1]",
+    "[Rung 2]",
+    "[Rung N]",
+    "[Parsons]",
+    "[Exam question]",
+    "[Exam question — boss-check]",
+    "[Connection question]",
+    "[Loci review]",
+    "[Concept map warm-up]",
+    "[Spaced review]"
+  ],
+  "notes": [
+    "Mnemonic section headings use informal names (e.g. 'Canny Edge Detection' for topic 'Edge Detection') — match on significant words, not exact labels.",
+    "taxonomy.json holds 16 topics; progress.json lists only started ones. Select candidates from the ROI sheet, not the ledger.",
+    "total_marks 175 = combined 2023_Exam + Old_Exam_Tasks, matching the exam_coverage note in progress.json."
+  ],
+  "resolved_at": "2026-07-27"
+}
