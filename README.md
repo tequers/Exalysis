@@ -8,30 +8,38 @@ A systematic, science-based study system for university Computer Science exams. 
 
 ## Repository map
 
-The repo is organized **by component** (what each thing *is*), so both you and the AI can retrieve files by purpose. Within `docs/`, material is split **by lifecycle** (open problems vs. consolidated vs. archived).
+The repo is organized **by component** (what each thing *is*), except for per-course/per-exam study data, which is organized **by Course then Exam** (see `CONTEXT.md`). Within `docs/`, material is split **by lifecycle** (open problems vs. consolidated vs. archived).
 
 ```
 .
 ├── README.md                  ← you are here (repo map)
+├── CONTEXT.md                 ← glossary — Course, Exam, Topic, Palace, Station, Encoding, ...
 ├── PROJECT_BRIEF.md / .html   ← ground-truth project description (entry point)
 ├── requirements.txt           ← Python deps for the pipeline
 │
-├── pipeline/                  ← LAYER 1 — the CLI. Self-contained unit; files must stay together.
-│   ├── pipeline.py            ← the script (reads its data via Path(__file__).parent)
-│   ├── taxonomy.json          ← per-topic difficulty D, connection C, prerequisites
-│   ├── Exam_ROI_Pipeline.xlsx ← ranked study agenda (regenerated on rebuild)
-│   ├── parsed/                ← one JSON per past exam, questions tagged by topic
-│   │   ├── 2023_Exam.json
-│   │   ├── Old_Exam_Tasks.json
-│   │   └── mockup_exam_2023.json
+├── Courses/                   ← per-course, per-exam study data. One self-contained unit per Exam.
+│   └── Computer Vision/
+│       └── final_26_08_2026/  ← name = <type>_<date>. Everything below is owned by this Exam alone.
+│           ├── exams/                 ← source exam PDFs
+│           │   ├── 2023_Exam.pdf
+│           │   ├── Old Exam Tasks.pdf
+│           │   └── mockup_exam_2023.pdf
+│           ├── taxonomy.json          ← per-topic difficulty D, connection C, prerequisites
+│           ├── Exam_ROI_Pipeline.xlsx ← ranked study agenda (regenerated on rebuild)
+│           ├── parsed/                ← one JSON per past exam, questions tagged by topic
+│           ├── progress.json          ← mastery ledger (single source of truth for this Exam's state)
+│           ├── sessions.json          ← per-session calibration log
+│           └── PROJECT_NOTES.md       ← Exam-specific quirks for the tutor
+│
+├── pipeline/                  ← LAYER 1 — the CLI itself. Shared across every Course/Exam.
+│   ├── pipeline.py            ← the script; resolves the active Exam under Courses/ (see ADR 0003)
 │   └── docs/                  ← pipeline design + spec docs
 │       ├── pipeline_docs.md
 │       ├── Topic_ROI_Exam_Analysis_System.md
 │       └── Topic_ROI_MVP_v1.md
 │
-├── tutor/                     ← LAYER 2 — the study tutor. Live prompt + runtime state.
-│   ├── TUTOR_SYSTEM_PROMPT_v4.md       ← the LIVE prompt (highest version wins)
-│   ├── progress.json                  ← mastery ledger (single source of truth for state)
+├── tutor/                     ← LAYER 2 — the study tutor. Shared prompt + shared skills.
+│   ├── TUTOR_SYSTEM_PROMPT_v7.md       ← the LIVE prompt (highest version wins), course-agnostic
 │   ├── continue-study-session-v2.skill← the /continue-study-session skill bundle
 │   ├── feedback/                      ← working feedback + improvement logs
 │   │   ├── tutor_feedback.md
@@ -44,17 +52,15 @@ The repo is organized **by component** (what each thing *is*), so both you and t
 │       ├── TUTOR_SYSTEM_PROMPT_v2.md
 │       └── TUTOR_SYSTEM_PROMPT_v3.md
 │
-├── loci/                      ← memory-palace subsystem (shared infra across courses)
+├── loci/                      ← memory-palace subsystem — global, shared across every course/exam
 │   ├── loci_living_room.md    ← the 27-station palace map
-│   └── loci_encodings.md      ← concept→station encodings with status (❌/⚠️/✅)
-│
-├── exams/                     ← source exam PDFs
-│   └── computer_vision/
-│       ├── 2023_Exam.pdf
-│       ├── Old Exam Tasks.pdf
-│       └── mockup_exam_2023.pdf
+│   └── loci_encodings.md      ← concept→station encodings with status (❌/⚠️/✅), tagged by Course/Exam
 │
 ├── docs/                      ← reports & analysis, split by lifecycle
+│   ├── adr/                    ← architecture decisions (why, not what — see each file)
+│   │   ├── 0001-course-exam-hierarchy.md
+│   │   ├── 0002-loci-shared-global-scaled-per-palace-file.md
+│   │   └── 0003-active-exam-resolution.md
 │   ├── open/                  ← OPEN PROBLEMS — to tackle next
 │   │   ├── Solution_Landscape.md
 │   │   ├── loci-files-brief-for-opus.md
@@ -93,18 +99,20 @@ python pipeline.py rebuild                                  # rebuild the ROI sh
 python pipeline.py status                                   # show pipeline state
 ```
 
-The pipeline reads `taxonomy.json` and `parsed/` and writes `Exam_ROI_Pipeline.xlsx`, all as siblings inside `pipeline/`. **Keep these together** — the script resolves them relative to its own location.
+`pipeline.py` resolves its active `Courses/<Course>/<Exam>/` folder before running: automatically when exactly one exists, or via `--course "Computer Vision" --exam final_26_08_2026` the moment a second one does. It reads that Exam's `taxonomy.json` / `parsed/` and writes its `Exam_ROI_Pipeline.xlsx` — see `docs/adr/0003-active-exam-resolution.md`.
 
-**Run the tutor** (teaches the topics): invoke `/continue-study-session` in Cowork. The skill finds the highest-versioned `TUTOR_SYSTEM_PROMPT` (searching recursively, ignoring `_archive/`), reads `progress.json` and the course/loci files by name, and continues the session one atomic step per turn.
+**Run the tutor** (teaches the topics): invoke `/continue-study-session` in Cowork. The skill finds the highest-versioned `TUTOR_SYSTEM_PROMPT` (searching recursively, ignoring `_archive/`), reads the active Exam's `progress.json` and `PROJECT_NOTES.md` plus the shared `loci/` files by name, and continues the session one atomic step per turn.
 
 ---
 
 ## Conventions (so this stays scalable)
 
-- **By component first.** A new concern gets its own top-level folder, not a dumping ground at root.
-- **Lifecycle lives in `docs/`.** `open/` = problems to solve next · `solid/` = settled · `archive/` = kept for reference, not active.
+- **By component first**, except study data — a new *tool* concern (pipeline, tutor) gets its own top-level folder; a new *course or exam* goes under `Courses/<Course>/<Exam>/` instead, never at root.
+- **`Courses/<Course>/<Exam>/` is the atomic state boundary.** Course is purely organizational; each Exam owns its own past-paper corpus, taxonomy, ROI sheet, and mastery ledger — nothing is shared across Exams, even within one Course. See `CONTEXT.md` and `docs/adr/0001-course-exam-hierarchy.md`.
+- **Exam folder names are `<type>_<date>`**, e.g. `final_26_08_2026`, `theory_20_08_2026`.
+- **Lifecycle lives in `docs/`.** `open/` = problems to solve next · `solid/` = settled · `archive/` = kept for reference, not active · `adr/` = decisions made and why.
 - **Versioned files:** keep the live one in the component folder; move superseded versions to that component's `_archive/`. The newest `_vN` is always the live one.
-- **Adding a course:** drop its exam PDFs in `exams/<course>/`, run the pipeline to produce its `taxonomy.json` / parsed / ROI sheet, and swap those course files for the tutor. The `loci/` layer is shared across all courses — do not duplicate it per course.
+- **Adding a course:** create `Courses/<Course>/<type>_<date>/`, drop its exam PDFs in an `exams/` subfolder there, and run the pipeline against it. The `loci/` layer is shared across all courses — do not duplicate it per course; individual encodings are tagged by Course/Exam instead (`docs/adr/0002-loci-shared-global-scaled-per-palace-file.md`).
 - **Files referenced by name, not path.** The tutor and skill locate files by filename via recursive search, so moving things between component folders won't break them — but keep filenames stable.
 
 ---
