@@ -30,19 +30,27 @@ Setup:
   Optionally override the models: LLM_MODEL_STAGE1 / LLM_MODEL_STAGE2.
 
 Usage:
-  python pipeline.py add exam_2022.txt
+  python pipeline.py add "Courses/Computer Vision/final_26_08_2026/exams/exam_2022.txt"
   python pipeline.py add exam_2023.pdf --year 2023 --total-marks 120
   python pipeline.py add exam_2024.txt --force        # reprocess existing
-  python pipeline.py add-folder exams/computer_vision # parse every .txt/.pdf in a folder
-  python pipeline.py add-folder exams/ --recursive --force
+  python pipeline.py add-folder "Courses/Computer Vision/final_26_08_2026/exams"
+  python pipeline.py add-folder Courses/ --recursive --force
   python pipeline.py rebuild                          # rebuild spreadsheet only
   python pipeline.py status                           # show current state
   python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3   # override scores
 
-File layout (all relative to this script):
-  taxonomy.json        canonical topic list with D and C per topic
-  parsed/              one JSON file per processed exam (audit trail)
-  Exam_ROI_Pipeline.xlsx  output spreadsheet (overwritten on each rebuild)
+  Pass --course/--exam when more than one Exam folder exists under Courses/:
+  python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
+
+File layout:
+  Courses/<Course>/<Exam>/          one self-contained unit per Exam
+    taxonomy.json                    canonical topic list with D and C per topic
+    parsed/                          one JSON file per processed exam (audit trail)
+    Exam_ROI_Pipeline.xlsx           output spreadsheet (overwritten on each rebuild)
+
+  Every command resolves its active Exam folder before running: if exactly one
+  exists under Courses/, it's used automatically; the moment a second one
+  exists, --course/--exam must disambiguate (see resolve_exam_root()).
 """
 
 import argparse
@@ -58,10 +66,57 @@ sys.stdout.reconfigure(errors="replace")
 sys.stderr.reconfigure(errors="replace")
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-SCRIPT_DIR    = Path(__file__).parent
-TAXONOMY_FILE = SCRIPT_DIR / "taxonomy.json"
-PARSED_DIR    = SCRIPT_DIR / "parsed"
-OUTPUT_XLSX   = SCRIPT_DIR / "Exam_ROI_Pipeline.xlsx"
+SCRIPT_DIR   = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+# Resolved by resolve_exam_root() in main() before any command runs — see
+# docs/adr/0001-course-exam-hierarchy.md and docs/adr/0003-active-exam-resolution.md.
+TAXONOMY_FILE = None
+PARSED_DIR    = None
+OUTPUT_XLSX   = None
+
+
+def resolve_exam_root(course=None, exam=None) -> Path:
+    """
+    Find the active Exam folder under Courses/<Course>/<Exam>/.
+
+    Auto-detects when exactly one Exam folder exists anywhere under Courses/.
+    The moment more than one exists, --course/--exam must disambiguate — a
+    command never silently guesses which Exam it's acting on.
+    """
+    courses_dir = PROJECT_ROOT / "Courses"
+    if not courses_dir.exists():
+        sys.exit(
+            f"ERROR: No 'Courses' folder found at {courses_dir}\n"
+            f"       Expected layout: Courses/<Course>/<Exam>/ "
+            f"(e.g. Courses/Computer Vision/final_26_08_2026/)"
+        )
+
+    candidates = sorted(p for p in courses_dir.glob("*/*") if p.is_dir())
+    if not candidates:
+        sys.exit(f"ERROR: No Exam folders found under {courses_dir}")
+
+    if course or exam:
+        def matches(p: Path) -> bool:
+            course_ok = course is None or p.parent.name.lower() == course.lower()
+            exam_ok   = exam   is None or p.name.lower()        == exam.lower()
+            return course_ok and exam_ok
+        matched = [p for p in candidates if matches(p)]
+        if not matched:
+            listing = "\n".join(f"     {p.parent.name} / {p.name}" for p in candidates)
+            sys.exit(
+                f"ERROR: No Exam folder matches --course={course!r} --exam={exam!r}\n"
+                f"       Found under {courses_dir}:\n{listing}"
+            )
+        candidates = matched
+
+    if len(candidates) > 1:
+        listing = "\n".join(f"     --course \"{p.parent.name}\" --exam {p.name}" for p in candidates)
+        sys.exit(
+            f"ERROR: Multiple Exam folders found — pass --course/--exam to disambiguate:\n{listing}"
+        )
+
+    return candidates[0]
 
 # ── LLM provider configuration ────────────────────────────────────────────────
 # The pipeline only needs two things from an LLM: a (system, user) prompt in,
@@ -1052,7 +1107,7 @@ def cmd_rebuild(_args):
 def cmd_status(_args):
     taxonomy  = load_taxonomy()
     all_exams = load_all_exams()
-    print(f"\n📚 Exam ROI Pipeline  —  {SCRIPT_DIR}")
+    print(f"\n📚 Exam ROI Pipeline  —  {TAXONOMY_FILE.parent}")
     print(f"   Taxonomy    : {len(taxonomy['topics'])} topics")
     print(f"   Parsed exams: {len(all_exams)}")
     for eid, exam in sorted(all_exams.items(), key=lambda x: x[1].get("year", 0)):
@@ -1103,37 +1158,56 @@ examples:
   python pipeline.py add exam_2022.txt
   python pipeline.py add exam_2023.pdf --year 2023 --total-marks 120
   python pipeline.py add exam_2024.txt --force
-  python pipeline.py add-folder exams/computer_vision
-  python pipeline.py add-folder exams/ --recursive --force
+  python pipeline.py add-folder "Courses/Computer Vision/final_26_08_2026/exams"
+  python pipeline.py add-folder Courses/ --recursive --force
   python pipeline.py rebuild
   python pipeline.py status
   python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3
+
+  when Courses/ holds more than one Exam, add --course/--exam to any command:
+  python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
         """,
     )
     sub = p.add_subparsers(dest="cmd")
 
-    pa = sub.add_parser("add", help="Process a new exam file and update the spreadsheet")
+    # Shared by every subcommand — selects the active Exam when Courses/ holds
+    # more than one (see resolve_exam_root()).
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--course", help='Course name, e.g. "Computer Vision" — only needed when multiple Exam folders exist')
+    common.add_argument("--exam",   help='Exam folder name, e.g. "final_26_08_2026" — only needed when multiple Exam folders exist')
+
+    pa = sub.add_parser("add", parents=[common], help="Process a new exam file and update the spreadsheet")
     pa.add_argument("file",                                    help="Exam file (.txt or .pdf)")
     pa.add_argument("--year",         type=int,                help="Exam year (inferred from filename if omitted)")
     pa.add_argument("--total-marks",  type=float,              help="Total marks (summed from questions if omitted)")
     pa.add_argument("--exam-id",                               help="Custom ID (defaults to filename stem)")
     pa.add_argument("--force",        action="store_true",     help="Reprocess even if already parsed")
 
-    pf = sub.add_parser("add-folder", help="Process every .txt/.pdf exam in a folder and update the spreadsheet")
+    pf = sub.add_parser("add-folder", parents=[common], help="Process every .txt/.pdf exam in a folder and update the spreadsheet")
     pf.add_argument("folder",                                  help="Folder containing exam files")
     pf.add_argument("--total-marks",  type=float,              help="Total marks applied to every file (summed from questions if omitted)")
     pf.add_argument("--force",        action="store_true",     help="Reprocess files even if already parsed")
     pf.add_argument("--recursive",    action="store_true",     help="Also search subfolders")
 
-    sub.add_parser("rebuild", help="Rebuild spreadsheet from all stored exams")
-    sub.add_parser("status",  help="Show pipeline state")
+    sub.add_parser("rebuild", parents=[common], help="Rebuild spreadsheet from all stored exams")
+    sub.add_parser("status",  parents=[common], help="Show pipeline state")
 
-    pe = sub.add_parser("edit-topic", help="Override AI scores for a topic and rebuild")
+    pe = sub.add_parser("edit-topic", parents=[common], help="Override AI scores for a topic and rebuild")
     pe.add_argument("name",          help="Exact topic name (case-sensitive)")
     pe.add_argument("--d", type=int, help="Override difficulty D (1–6)")
     pe.add_argument("--c", type=int, help="Override connection C (1–3)")
 
     args = p.parse_args()
+    if not args.cmd:
+        p.print_help()
+        return
+
+    global TAXONOMY_FILE, PARSED_DIR, OUTPUT_XLSX
+    exam_root     = resolve_exam_root(getattr(args, "course", None), getattr(args, "exam", None))
+    TAXONOMY_FILE = exam_root / "taxonomy.json"
+    PARSED_DIR    = exam_root / "parsed"
+    OUTPUT_XLSX   = exam_root / "Exam_ROI_Pipeline.xlsx"
+
     dispatch = {
         "add":        cmd_add,
         "add-folder": cmd_add_folder,
@@ -1141,7 +1215,7 @@ examples:
         "status":     cmd_status,
         "edit-topic": cmd_edit_topic,
     }
-    dispatch.get(args.cmd, lambda _: p.print_help())(args)
+    dispatch[args.cmd](args)
 
 
 if __name__ == "__main__":

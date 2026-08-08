@@ -27,14 +27,21 @@ D and C are estimated **once per topic** and stored in `taxonomy.json`. They are
 
 ```
 pipeline/
-├── pipeline.py          # main script — all logic lives here
-├── taxonomy.json         # canonical topic list with D, C, prerequisites (auto-created)
+├── pipeline.py           # main script — shared across every Course/Exam
+└── docs/
+    └── pipeline_docs.md  # this file
+
+Courses/<Course>/<Exam>/  # one self-contained unit per Exam — see root CONTEXT.md
+├── exams/                 # source exam PDFs/text for this Exam
+├── taxonomy.json          # canonical topic list with D, C, prerequisites (auto-created)
 ├── parsed/                # one JSON file per processed exam (audit trail, auto-created)
 │   └── <exam_id>.json
 ├── Exam_ROI_Pipeline.xlsx # output spreadsheet (rebuilt on every run)
-└── docs/
-    └── pipeline_docs.md   # this file
+├── progress.json          # tutor mastery ledger (owned by the tutor, not the pipeline)
+└── PROJECT_NOTES.md       # Exam-specific quirks for the tutor
 ```
+
+Every `pipeline.py` command resolves its active `Courses/<Course>/<Exam>/` folder before running: automatically if exactly one exists, otherwise via `--course`/`--exam` (see `resolve_exam_root()` in `pipeline.py`, and `docs/adr/0003-active-exam-resolution.md`).
 
 **Do not edit** `parsed/*.json` by hand — they are the source of truth for aggregation. To fix a bad AI score, use `edit-topic` or edit `taxonomy.json` directly, then run `rebuild`.
 
@@ -74,8 +81,8 @@ python pipeline.py add exam_2023.pdf --year 2023 --total-marks 100
 python pipeline.py add exam_2024.txt --force              # reprocess an existing exam
 
 # Add every .txt/.pdf in a folder in one go
-python pipeline.py add-folder exams/computer_vision
-python pipeline.py add-folder exams/ --recursive --force
+python pipeline.py add-folder "Courses/Computer Vision/final_26_08_2026/exams"
+python pipeline.py add-folder Courses/ --recursive --force
 
 # Rebuild spreadsheet without re-running the LLM (fast)
 python pipeline.py rebuild
@@ -85,6 +92,9 @@ python pipeline.py status
 
 # Override a bad AI score for a topic, then rebuild
 python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3
+
+# When Courses/ holds more than one Exam, disambiguate any command:
+python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
 ```
 
 ## Two-stage AI pipeline (in pipeline.py)

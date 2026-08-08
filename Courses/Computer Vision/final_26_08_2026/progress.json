@@ -1,7 +1,7 @@
 {
   "_comment": "Mastery ledger for the progressive-exam tutor. Claude reads this at the start of every session and updates it at the end. Status flow per rung: locked -> unlocked -> mastered. A topic is mastered only when its final rung is mastered. Do NOT start a topic until all its prerequisites are mastered. Ramp length = D + 1 (rungs). Rung goals: 1=concept recognition, 2=guided application, mid=partial exam, last=full exam.",
   "exam": "Computer Vision (RWTH Aachen)",
-  "exam_date": "FILL_IN",
+  "exam_date": "2026-08-26",
   "ramp_rule": "rungs = difficulty_d + 1; rung1=concept recognition (mcq/short), rung2=guided application (skeleton given), middle=partial exam (skeleton removed, hint on failure-mode), last=full exam-format question, no scaffold",
   "mastery_rule": "Advance a rung only on a passing graded answer. Two consecutive fails on a rung -> drop one rung. Topic mastered only when final rung mastered.",
   "topics": [

@@ -240,23 +240,27 @@ systems programming, and pooling them makes both estimates worse.
 ```json
 {
   "project": "Computer Science Exams Pipeline",
-  "target": { "name": "Computer Vision (RWTH Aachen)", "date": null, "total_marks": 175 },
+  "target": { "name": "Computer Vision (RWTH Aachen)", "date": "2026-08-26", "total_marks": 175 },
   "paths": {
-    "ledger": "tutor/progress.json",
-    "calibration": "tutor/sessions.json",
-    "taxonomy": "pipeline/taxonomy.json",
-    "priority": "pipeline/Exam_ROI_Pipeline.xlsx#ROI Scores",
-    "exemplars": "pipeline/parsed/*.json",
+    "ledger": "Courses/Computer Vision/final_26_08_2026/progress.json",
+    "calibration": "Courses/Computer Vision/final_26_08_2026/sessions.json",
+    "taxonomy": "Courses/Computer Vision/final_26_08_2026/taxonomy.json",
+    "priority": "Courses/Computer Vision/final_26_08_2026/Exam_ROI_Pipeline.xlsx#ROI Scores",
+    "exemplars": "Courses/Computer Vision/final_26_08_2026/parsed/*.json",
     "mnemonic": "loci/loci_encodings.md",
-    "method": "tutor/TUTOR_SYSTEM_PROMPT_v5.md"
+    "method": "tutor/TUTOR_SYSTEM_PROMPT_v7.md"
   },
   "capabilities": { "ramp": true, "priority": true, "stakes": true, "review": true,
                     "mnemonic": true, "exemplars": true, "coverage": true },
   "ramp_rule": "D + 1",
   "question_cap_per_session": 3,
-  "resolved_at": "2026-07-27"
+  "resolved_at": "2026-08-08"
 }
 ```
+
+Paths are always resolved fresh by content-validated search (Step 0) — this block is illustrative
+of the *shape*, not a fixture to copy verbatim. Re-resolving after `Courses/<Course>/<Exam>/`
+folders move or a second Exam appears is expected, not an error.
 
 Calibration file:
 
