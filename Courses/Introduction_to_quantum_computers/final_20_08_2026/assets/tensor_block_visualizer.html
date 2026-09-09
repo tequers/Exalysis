@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Matrix ⊗ Vector — Block by Block</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e222d; --border:#2b3040;
+    --text:#e8eaf0; --muted:#8b90a3; --accent:#7dd3fc; --accent2:#a78bfa;
+    --good:#4ade80; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px 20px; background:var(--bg); color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:24px;
+  }
+  h1{font-size:1.15rem; font-weight:600; margin:0; color:var(--text);}
+  .sub{color:var(--muted); font-size:0.9rem; margin-top:-14px; text-align:center; max-width:560px;}
+  .stage{
+    display:flex; align-items:flex-start; gap:28px; flex-wrap:wrap; justify-content:center;
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:18px 20px; display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .label{font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted);}
+  .mgrid{
+    display:grid; grid-template-columns:repeat(2,56px); grid-template-rows:repeat(2,56px); gap:6px;
+  }
+  .mcell{
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+    font-size:1.15rem; font-weight:600; cursor:pointer; transition:transform .15s, background .15s, border-color .15s;
+    user-select:none;
+  }
+  .mcell:hover{transform:translateY(-2px); border-color:var(--accent);}
+  .mcell.done{background:#1c2a22; border-color:var(--good); color:var(--good); cursor:default; transform:none;}
+  .mcell.done:hover{transform:none;}
+  .vvec{display:flex; flex-direction:column; gap:6px;}
+  .vcell{
+    width:56px; height:44px; display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px; font-weight:600;
+  }
+  .arrow{font-size:1.4rem; color:var(--muted); align-self:center; margin-top:40px;}
+  .result{
+    display:grid; grid-template-columns:repeat(2,64px); grid-template-rows:repeat(4,40px); gap:4px;
+    position:relative;
+  }
+  .rcell{
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px dashed var(--border); border-radius:8px;
+    font-size:0.95rem; font-weight:600; color:var(--muted); transition:all .3s;
+  }
+  .rcell.filled{
+    background:#1a2333; border:1px solid var(--accent); color:var(--text);
+    animation:drop .4s ease-out;
+  }
+  .rcell.block-a{background:#1a2333; border-color:var(--accent);}
+  .rcell.block-b{background:#241a33; border-color:var(--accent2);}
+  .rcell.block-c{background:#332a1a; border-color:var(--warn);}
+  .rcell.block-d{background:#1a3328; border-color:var(--good);}
+  @keyframes drop{
+    from{transform:translateY(-14px); opacity:0;}
+    to{transform:translateY(0); opacity:1;}
+  }
+  .log{
+    width:100%; max-width:640px; min-height:64px; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; padding:14px 18px;
+    font-size:0.92rem; line-height:1.5; color:var(--text);
+  }
+  .log .hint{color:var(--muted);}
+  .log b{color:var(--accent);}
+  .controls{display:flex; gap:10px;}
+  button{
+    background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer;
+  }
+  button:hover{border-color:var(--accent);}
+  .progress{display:flex; gap:6px;}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--border);}
+  .dot.on{background:var(--good);}
+</style>
+</head>
+<body>
+
+<h1>M ⊗ v — Block by Block</h1>
+<div class="sub">Click each entry of M. Watch it scale the whole vector v into a block, then drop into its matching spot in the result. Same grid position in M → same grid position in the result — just holding a block instead of a number.</div>
+
+<div class="stage">
+  <div class="card">
+    <div class="label">M (2×2)</div>
+    <div class="mgrid" id="mgrid"></div>
+  </div>
+
+  <div class="arrow">⊗</div>
+
+  <div class="card">
+    <div class="label">v (2×1)</div>
+    <div class="vvec" id="vvec"></div>
+  </div>
+
+  <div class="arrow">=</div>
+
+  <div class="card">
+    <div class="label">M ⊗ v (4×2)</div>
+    <div class="result" id="result"></div>
+  </div>
+</div>
+
+<div class="log" id="log">Click an entry of M to begin.<br><span class="hint">Each click computes one block and drops it into place.</span></div>
+
+<div class="controls">
+  <div class="progress" id="progress"></div>
+  <button id="resetBtn">Reset</button>
+  <button id="newBtn">New numbers</button>
+</div>
+
+<script>
+const examples = [
+  {M:[[2,0],[1,3]], v:[1,2]},
+  {M:[[3,-1],[2,2]], v:[2,1]},
+  {M:[[1,4],[0,2]], v:[3,1]},
+  {M:[[-2,1],[3,0]], v:[1,3]},
+];
+let exIdx = 0;
+let M, v, doneCount, order;
+
+const blockClasses = ['block-a','block-b','block-c','block-d'];
+
+function init(){
+  ({M, v} = examples[exIdx % examples.length]);
+  doneCount = 0;
+  order = [[0,0],[0,1],[1,0],[1,1]]; // i,j positions in M
+
+  const mgrid = document.getElementById('mgrid');
+  mgrid.innerHTML = '';
+  for(let i=0;i<2;i++){
+    for(let j=0;j<2;j++){
+      const cell = document.createElement('div');
+      cell.className = 'mcell';
+      cell.textContent = M[i][j];
+      cell.dataset.i = i; cell.dataset.j = j;
+      cell.addEventListener('click', () => handleClick(i,j,cell));
+      mgrid.appendChild(cell);
+    }
+  }
+
+  const vvec = document.getElementById('vvec');
+  vvec.innerHTML = '';
+  v.forEach(val=>{
+    const c = document.createElement('div');
+    c.className='vcell';
+    c.textContent = val;
+    vvec.appendChild(c);
+  });
+
+  const result = document.getElementById('result');
+  result.innerHTML = '';
+  // 4 rows x 2 cols, row-major
+  for(let r=0;r<4;r++){
+    for(let c=0;c<2;c++){
+      const cell = document.createElement('div');
+      cell.className = 'rcell';
+      cell.id = `r${r}c${c}`;
+      cell.textContent = '·';
+      result.appendChild(cell);
+    }
+  }
+
+  const progress = document.getElementById('progress');
+  progress.innerHTML = '';
+  for(let k=0;k<4;k++){
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.id = `dot${k}`;
+    progress.appendChild(d);
+  }
+
+  document.getElementById('log').innerHTML =
+    `Click an entry of M to begin.<br><span class="hint">Each click computes one block and drops it into place.</span>`;
+}
+
+function handleClick(i,j,cell){
+  if(cell.classList.contains('done')) return;
+  const entry = M[i][j];
+  const block = v.map(x => x*entry);
+  cell.classList.add('done');
+
+  // Row offset: block occupies rows [2i, 2i+1], column j
+  const idxInOrder = order.findIndex(([oi,oj]) => oi===i && oj===j);
+  const bc = blockClasses[idxInOrder] || 'block-a';
+
+  for(let k=0;k<2;k++){
+    const row = 2*i + k;
+    const cellEl = document.getElementById(`r${row}c${j}`);
+    cellEl.textContent = block[k];
+    cellEl.classList.add('filled', bc);
+  }
+
+  doneCount++;
+  document.getElementById(`dot${doneCount-1}`).classList.add('on');
+
+  document.getElementById('log').innerHTML =
+    `Clicked M<sub>${i+1}${j+1}</sub> = <b>${entry}</b> → block = ${entry} × v = ${entry} × [${v.join(', ')}] = [${block.join(', ')}] ` +
+    `→ placed in rows ${2*i+1}–${2*i+2}, column ${j+1}.`;
+
+  if(doneCount === 4){
+    setTimeout(()=>{
+      document.getElementById('log').innerHTML +=
+        `<br><br><b>Done.</b> All four blocks placed — that's the full M ⊗ v. Notice column ${1} only ever holds column-1 blocks, column ${2} only ever holds column-2 blocks: blocks never merge columns, only stack rows.`;
+    }, 300);
+  }
+}
+
+document.getElementById('resetBtn').addEventListener('click', init);
+document.getElementById('newBtn').addEventListener('click', ()=>{ exIdx++; init(); });
+
+init();
+</script>
+
+</body>
+</html>

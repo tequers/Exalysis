@@ -1,0 +1,227 @@
+{
+  "_comment": "CURRENT-SYLLABUS LAYER. Built 2026-08-21 from the official slide deck's five block descriptions, supplied by the user. This is the authority on WHAT is examinable; the past papers remain the authority on HOW questions are asked. Re-run archetypes_postprocess.py after editing.",
+  "status": "BUILT from block summaries + exercise notebooks + slide-level lecture summaries",
+  "built_from": "UNION of three sources: (1) the 5 slide block summaries, (2) exercises/*.ipynb, (3) lectures/_summaries/*.txt - slide-level summaries of the actual deck. Staff named slides AND exercises as the study basis, so the examinable set is the union, never the intersection.",
+  "built_at": "2026-08-21",
+  "caveat": "Built from block-level SUMMARIES, not the full slide-by-slide table of contents. A topic named in a summary is certainly current. A topic absent from a summary is probably but not certainly gone - hence the `at_risk` status rather than `dropped`.",
+  "form_vs_content": {
+    "_comment": "The staff message invalidates one half of the archetype model and explicitly endorses the other. Keeping them apart is the whole point of this file.",
+    "form_layer": {
+      "anchored_on": "the 2022/2023 past papers",
+      "confidence": "CONFIRMED from the current official slides (2026-08-21): 'Written exam, duration 90min, closed book' - identical to the 2023 paper. Staff say the CONTENT changed; the FORM provably did not. That is direct evidence for this split, not just a premise.",
+      "covers": [
+        "exam duration, mark total, question count",
+        "playbook.answer_shape and the 'marks = number of distinct scorable statements' rule",
+        "playbook.trigger phrasing and playbook.budget_s",
+        "format mix (explain_derive dominant) and mean marks per question",
+        "generic traps: justify every yes/no, match step count to marks, answer both halves"
+      ]
+    },
+    "content_layer": {
+      "anchored_on": "the official slide blocks (this file), as of 2026-08-21",
+      "confidence": "GOOD for presence/absence of topics. Mark weights are still past-paper-derived and remain approximate.",
+      "covers": [
+        "which topics appear at all",
+        "marks_at_stake, roi, queue_rank, must_cover",
+        "the topic-specific bodies of playbook.steps",
+        "which archetypes exist in the first place"
+      ]
+    }
+  },
+  "status_values": {
+    "current": "named in the slide blocks - full weight",
+    "at_risk": "absent from the slide block that covers its area, while sibling topics in that block ARE named. Weight 0.5: kept in the queue but demoted. Not dropped, because the source is a summary, and under-drilling a topic that turns out to be examined costs far more than over-drilling one that isn't.",
+    "unverified": "no evidence either way - full weight, flagged",
+    "dropped": "confirmed absent - weight 0, archetypes excluded",
+    "new": "named in the slides but absent from EVERY past paper - a BLIND SPOT. No past-paper exemplar exists, so any archetype is built from the syllabus plus the confirmed form rules."
+  },
+  "topics": {
+    "Image Filtering and Convolution": {
+      "status": "current",
+      "block": 1,
+      "evidence": "linear filters, pixel-wise operations, noise reduction (Gaussian and salt-and-pepper), cross-correlation vs convolution via 180-degree kernel flip, Gaussian Pyramids with smoothing before downsampling to prevent aliasing"
+    },
+    "Edge Detection": {
+      "status": "current",
+      "block": 1,
+      "evidence": "image gradients / Sobel; full Canny chain: Gaussian smoothing, gradient magnitude and orientation, Non-Maximum Suppression, double thresholding + hysteresis. Hough Transform with r = x cos(theta) + y sin(theta) given explicitly.",
+      "emphasis": "The slides state the Hough voting equation explicitly - expect it to be examined as a formula, not just described."
+    },
+    "Feature Detection and Description": {
+      "status": "current",
+      "block": 1,
+      "evidence": "Harris corner detector, eigenvalues of the second-moment matrix M classifying flat/edge/corner; automatic scale selection via scale-normalized LoG; 128-dim SIFT descriptor from gradient-orientation histograms"
+    },
+    "Homography and Image Alignment": {
+      "status": "at_risk",
+      "block": null,
+      "evidence": "NOT NAMED in any block. Block 5 covers camera calibration, epipolar geometry, E/F matrices, the normalized 8-point algorithm, triangulation and RANSAC - but never homography, image alignment, stitching or panoramas.",
+      "action": "CHECK THE SLIDE TOC for 'homography', 'image alignment', 'panorama', 'warping'. This gates derive-homography-A, a must-cover archetype worth 7 marks in the 2023 paper - the single most consequential uncertainty in this file.",
+      "note_2": "Also absent from every exercise. But the block summaries proved INCOMPLETE (they omitted transformers, which the exercises show are taught), so absence from a summary is weaker evidence than it first appeared. Kept at at_risk 0.5 rather than demoted further.",
+      "note_3": "6_local_features covers 'Application: Image Matching' (slides 23-26) and 'Application: Image Stitching' (slides 27-30). Stitching IS homography estimation, so the capability is taught even though the word is absent from the summaries. Kept at at_risk 0.5 rather than lowered."
+    },
+    "Image Segmentation with MRF and Graph Cuts": {
+      "status": "current",
+      "block": 2,
+      "evidence": "MRF energy minimization, unary (data likelihood) vs pairwise (spatial consistency) potentials, s-t mincut/maxflow for binary labelling, GrabCut with interactive brush strokes"
+    },
+    "RANSAC and Robust Estimation": {
+      "status": "current",
+      "block": 5,
+      "evidence": "'RANSAC is integrated throughout as a robust iterative estimator to filter out outlier point correspondences'"
+    },
+    "Clustering and Mixture Models": {
+      "status": "current",
+      "block": 2,
+      "evidence": "K-Means as unsupervised pixel-wise clustering; Mixture of Gaussians optimized via Expectation-Maximization",
+      "content_shift": "MEAN-SHIFT IS NOT NAMED. Block 2 contrasts K-Means with MoG/EM specifically. In the 2022 paper Mean-Shift was an entire 11-mark question. Conversely EM is named and has no past-paper coverage at all - see the new topic below. The topic survives; its centre of gravity moved from Mean-Shift to EM.",
+      "note_2": "k-Means appears in image_segmentation; Mean-Shift appears only in the DETECTION summaries (cnn_1, feature_detection), never in image_segmentation. EM/MoG is the segmentation centrepiece (slides 9-15). Mean-Shift is de-emphasised, not proven absent."
+    },
+    "Sliding-Window Object Detection": {
+      "status": "current",
+      "block": 3,
+      "evidence": "sliding-window over image pyramids, multiple scales and locations; HOG descriptor chain; cascading classifiers; region proposal generation"
+    },
+    "Support Vector Machines": {
+      "status": "current",
+      "block": 3,
+      "evidence": "linear SVM classification as the final stage of the HOG pipeline"
+    },
+    "Boosting and Ensemble Classifiers": {
+      "status": "current",
+      "block": 3,
+      "evidence": "Viola-Jones weak classifiers optimized via boosting, cascading classifiers for search efficiency"
+    },
+    "Convolutional Neural Networks": {
+      "status": "current",
+      "block": 4,
+      "evidence": "CNN vs MLP via local connectivity and shared weights; conv layers, ReLU, BatchNorm, pooling; receptive field analysis; dilated convolutions"
+    },
+    "Neural Network Training and Loss Functions": {
+      "status": "current",
+      "block": 4,
+      "evidence": "loss functions covered, but the named one is TRIPLET LOSS",
+      "content_shift": "Past papers examined cross-entropy (2023 Q5e) and L1 (mockup Q5c). The slides name triplet loss with anchor-positive/anchor-negative distances and hard mining. Keep the formula-and-gloss drill, but triplet loss is now the likeliest instance."
+    },
+    "Semantic Segmentation with Deep Learning": {
+      "status": "current",
+      "block": 4,
+      "evidence": "Fully Convolutional Networks, encoder-decoder architectures SegNet and U-Net, skip connections preserving high-resolution detail"
+    },
+    "Camera Models and Projection": {
+      "status": "current",
+      "block": 5,
+      "evidence": "pinhole model and calibration; intrinsic matrix with focal length, skew and principal point; extrinsic rotation and translation. Block 1 additionally names the THIN LENS model.",
+      "content_shift": "Thin lens model appears in Block 1 and in no past paper - see the new topic below."
+    },
+    "Stereo Vision and Epipolar Geometry": {
+      "status": "current",
+      "block": 5,
+      "evidence": "epipolar geometry; Essential matrix (calibrated) vs Fundamental matrix (uncalibrated); normalized 8-point algorithm; linear triangulation of X = (a,b,c)",
+      "emphasis": "The slides say NORMALIZED 8-point algorithm explicitly - the normalisation step is examinable, not optional trivia."
+    },
+    "Structure from Motion": {
+      "status": "at_risk",
+      "block": null,
+      "evidence": "NOT NAMED. Block 5 ends at triangulation and RANSAC; no bundle adjustment, no multi-view reconstruction, no projective SfM.",
+      "action": "Gates derive-sfm-dof (2 marks in 2023). Low stakes - demote and move on."
+    },
+    "Metric Learning and Triplet Embeddings": {
+      "status": "new",
+      "block": 4,
+      "evidence": "'matching and retrieval tasks are modeled using Siamese networks, triplet embeddings, and triplet loss to minimize distance between anchor-positive pairs and maximize it for anchor-negative pairs, optimized through online hard triplet mining variants like batch hard or batch all'",
+      "note": "BIGGEST BLIND SPOT. An entire named sub-area of Block 4 with zero coverage in any past paper. Detailed enough in the slides (batch hard vs batch all) to be examined at depth."
+    },
+    "Deformable Part-based Models": {
+      "status": "new",
+      "block": 3,
+      "evidence": "'Deformable Part-based Models (DPM) extend this approach by modeling objects as a hierarchical configuration of a coarse root filter and multiple higher-resolution part filters, scoring hypotheses by combining HOG filter matches with geometric deformation costs'",
+      "note": "Named with mechanism. No past-paper coverage."
+    },
+    "Multi-scale Dense Prediction (FPN, ASPP)": {
+      "status": "new",
+      "block": 4,
+      "evidence": "'Feature Pyramid Networks (FPN) and Atrous Spatial Pyramid Pooling (ASPP) are presented for multi-scale dense prediction'",
+      "note": "No past-paper coverage. Adjacent to the covered encoder-decoder material, so cheaper to close than the others."
+    },
+    "Expectation-Maximization for Mixture Models": {
+      "status": "new",
+      "block": 2,
+      "evidence": "'probabilistic classification using Mixture of Gaussians (MoG) models optimized via the Expectation-Maximization (EM) algorithm'",
+      "note": "MoG appears in the 2023 paper only as a distractor ('why would MoG be a poor choice'). The EM algorithm itself - E-step, M-step, convergence - is never examined in any past paper, yet it is the named optimiser in the current slides. Classic 'list the steps' target."
+    },
+    "Thin Lens Model": {
+      "status": "new",
+      "block": 1,
+      "evidence": "'how physical scenes are projected onto digital sensors via pinhole and thin lens models'",
+      "note": "Minor. Past papers cover the pinhole/intrinsic matrix only."
+    },
+    "Region Proposals": {
+      "status": "new",
+      "block": 3,
+      "evidence": "'search efficiency is optimized using cascading classifiers ... or region proposal generation to focus computation on likely object locations'",
+      "note": "Minor, and adjacent to the covered cascade material."
+    },
+    "Vision Transformers and Self-Attention": {
+      "status": "new",
+      "block": 4,
+      "evidence": "Exercise 4: Positional Encoding (sin/cos formula given), Self-Attention softmax(QK^T/sqrt(d))V, Transformer block z'=MSA(LN(z))+z, ViT assembly with class token, patchify T and D formulas.",
+      "note": "STRONGEST-EVIDENCED blind spot: exercised in depth, and the exercise text asks conceptual questions about it directly."
+    },
+    "Residual Networks and Training Practices": {
+      "status": "new",
+      "block": 4,
+      "evidence": "Exercise 4: residual blocks and identity shortcuts, global average pooling, learning-rate decay, L2/weight decay; Exercise 3: Adam, data augmentation, ReLU.",
+      "note": "Exercise 4 works a receptive-field-with-stride answer explicitly (3 -> 7 -> 15)."
+    },
+    "Attention Mechanisms": {
+      "status": "new",
+      "block": 4,
+      "evidence": "7_reconstruction: scaled dot-product attention softmax(QK^T/sqrt(d))V, alignment E=QK^T, masked attention, multi-head, self- vs cross-attention, why an MLP is needed between attention layers."
+    },
+    "Transformers for Detection and Segmentation": {
+      "status": "new",
+      "block": 4,
+      "evidence": "7_reconstruction: DETR (set prediction, no NMS), Mask2Former, EoMT + mask annealing, DynaMITe interactive segmentation, CNNs vs mask transformers."
+    },
+    "Self-Supervised and Multimodal Learning": {
+      "status": "new",
+      "block": 4,
+      "evidence": "7_reconstruction: pretext tasks, self-supervised learning, contrastive learning, CLIP and shared embedding spaces, multimodal token streams."
+    },
+    "Human Pose Estimation with FCNs": {
+      "status": "new",
+      "block": 4,
+      "evidence": "5_transformers slides 4-9: FCNs for pose, heat-map predictions, OpenPose, 3D body pose, CNN + differentiable geometry.",
+      "note": "Not archetyped - accepted risk, likely a short recall item."
+    },
+    "Backpropagation and Optimisation": {
+      "status": "new",
+      "block": 4,
+      "evidence": "cnn_1 part 2: loss functions, regularization terms, backpropagation, stochastic vs batch, minibatches, learning rate.",
+      "note": "Partly covered by resnet-and-training-practices."
+    }
+  },
+  "corrections_forced_by_the_slides": [
+    "HOG uses 9 ORIENTATION BINS and 8x8 cells per the current slides. The mockup paper's question used 8 bins, and the feature-vector-size-count playbook was written from it. Corrected in archetypes_map.py - this was a factual error that would have cost marks.",
+    "ASPP and atrous/dilated convolution appear in NO lecture summary while FPN does. The block summary named both. multiscale-dense-prediction narrowed to FPN and cut from 3 to 2 marks.",
+    "alpha-expansion (non-binary graph cuts) and augmenting-path max-flow added to mrf-graphcut-mechanics; the Generalized Distance Transform added to deformable-part-models."
+  ],
+  "exercise_evidence": {
+    "files": [
+      "Exercise1/exercise_1.ipynb",
+      "exercise_2_solutions/exercise_2{a,b,c}.ipynb",
+      "Exercise3/exercise_3.ipynb",
+      "exercise_4/exercise_4.ipynb",
+      "Exercise5/exercise_5{a,b}.ipynb"
+    ],
+    "why_they_matter": "They are programming tasks, but their MARKDOWN cells carry conceptual questions in exactly the exam's voice - 'Which network has more parameters?', 'What is the size of the receptive field?', 'Why do we use addition instead of concatenation?', 'provide formulas to compute T and D'. Those conceptual prompts, not the code, are the archetype source.",
+    "biggest_find": "Exercise 4 covers Vision Transformers in depth - patchify, positional encoding with its formula, self-attention softmax(QK^T/sqrt(d))V, the transformer block equations, class token. This appears in NO past paper AND was absent from the block summaries. It surfaced only from the exercises.",
+    "absent_from_exercises": "triplet/Siamese, FPN/ASPP, EM/MoG/k-Means/Mean-Shift, DPM, homography, SfM, Viola-Jones/boosting/cascades, U-Net/SegNet/FCN. Exercises are the PRACTICAL subset, so absence here is weak evidence - it does not override a topic being named in the slides."
+  },
+  "source_caveats": {
+    "lecture_summaries_are_INCOMPLETE": "CRITICAL. Absence from lectures/_summaries/ is NOT evidence of absence from the course. Epipolar geometry, Fundamental/Essential matrices, the 8-point algorithm, RANSAC and the Hough transform appear in NO summary - yet Block 5 names the first four explicitly and Block 1 gives the Hough voting equation verbatim. At least one summary is missing.",
+    "filenames_do_not_match_contents": "7_reconstruction.txt is TRANSFORMERS (attention -> ViT -> DETR/Mask2Former -> CLIP/SSL). 6_local_features.txt is 3D reconstruction, stereo, image matching/stitching, Harris, SIFT, SURF. 5_transformers.txt is FCN pose estimation + Siamese/triplet/contrastive. cnn_2.txt is a BYTE-IDENTICAL DUPLICATE of 5_transformers.txt, so a genuine 'CNN part 2' summary may be missing. Trust contents, not names.",
+    "consequence": "Nothing is marked `dropped` anywhere in this file. With demonstrably incomplete sources, absence can never justify removing an archetype - only the `at_risk` demotion, which keeps it in the queue at half weight."
+  }
+}

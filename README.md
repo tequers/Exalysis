@@ -1,6 +1,6 @@
 # Computer Science Exams Pipeline
 
-A systematic, science-based study system for university Computer Science exams. Two layers: a **CLI pipeline** that decides *what* to study (ROI ranking), and a **Cowork tutor** that teaches the prioritized topics using active recall, spaced repetition, and the method of loci.
+A systematic, science-based study system for university Computer Science exams. Two layers: a **CLI pipeline** that decides *what* to study (ROI ranking), and a **Cowork tutor** that teaches the prioritized topics using retrieval practice, mastery gating, and spaced repetition. The method of loci is available as an **optional add-on** for list-like material; the system runs fully without it.
 
 > **Start here:** `PROJECT_BRIEF.md` is the ground-truth document — read it before designing any solution. `PROJECT_BRIEF.html` is the same content as a readable web page.
 
@@ -46,7 +46,7 @@ The repo is organized **by component** (what each thing *is*), except for per-co
 │       └── Topic_ROI_MVP_v1.md
 │
 ├── tutor/                     ← LAYER 2 — the study tutor. Shared prompt + shared skills.
-│   ├── TUTOR_SYSTEM_PROMPT_v7.md       ← the LIVE prompt (highest version wins), course-agnostic
+│   ├── TUTOR_SYSTEM_PROMPT_v9.md       ← the LIVE prompt (highest version wins), course-agnostic
 │   ├── continue-study-session-v2.skill← the /continue-study-session skill bundle
 │   ├── feedback/                      ← working feedback + improvement logs
 │   │   ├── tutor_feedback.md
@@ -60,9 +60,11 @@ The repo is organized **by component** (what each thing *is*), except for per-co
 │       ├── TUTOR_SYSTEM_PROMPT_v3.md
 │       ├── TUTOR_SYSTEM_PROMPT_v4.md
 │       ├── TUTOR_SYSTEM_PROMPT_v5.md
-│       └── TUTOR_SYSTEM_PROMPT_v6.md
+│       ├── TUTOR_SYSTEM_PROMPT_v6.md
+│       ├── TUTOR_SYSTEM_PROMPT_v7.md
+│       └── TUTOR_SYSTEM_PROMPT_v8.md
 │
-├── loci/                      ← memory-palace subsystem — global, shared across every course/exam
+├── loci/                      ← OPTIONAL ADD-ON — memory palace, global. Nothing depends on it.
 │   ├── loci_living_room.md    ← the 27-station palace map
 │   └── loci_encodings.md      ← concept→station encodings with status (❌/⚠️/✅), tagged by Course/Exam
 │
@@ -78,8 +80,11 @@ The repo is organized **by component** (what each thing *is*), except for per-co
 │   │   ├── solution-research-connections-active-recall.md
 │   │   ├── solution-research-module-a-connections.md
 │   │   ├── critique-mindmap-graph-connections.md
-│   │   └── critique-tutor-feedback-memories.md
+│   │   ├── critique-tutor-feedback-memories.md
+│   │   └── critique-tutor-learning-science.md  ← rationale record for v9 (implemented)
 │   ├── solid/                 ← CONSOLIDATED — good enough, settled
+│   │   ├── new-course-setup.md
+│   │   ├── exam-prep-mode.md  ← usage guide for the fast mode (/start-session etc.)
 │   │   ├── course-materials-context-report.md
 │   │   ├── course_materials_analysis.md
 │   │   └── workflow_prompts.md
@@ -104,7 +109,7 @@ python pipeline.py status                                   # show pipeline stat
 
 `pipeline.py` resolves its active `Courses/<Course>/<Exam>/` folder before running: automatically when exactly one exists, or via `--course "Computer Vision" --exam final_26_08_2026` the moment a second one does. It reads that Exam's `taxonomy.json` / `parsed/` and writes its `Exam_ROI_Pipeline.xlsx` — see `docs/adr/0003-active-exam-resolution.md`.
 
-**Run the tutor** (teaches the topics): invoke `/continue-study-session` in Cowork. The skill finds the highest-versioned `TUTOR_SYSTEM_PROMPT` (searching recursively, ignoring `_archive/`), reads the active Exam's `progress.json` and `PROJECT_NOTES.md` plus the shared `loci/` files by name, and continues the session one atomic step per turn.
+**Run the tutor** (teaches the topics): invoke `/continue-study-session` in Cowork. The skill finds the highest-versioned `TUTOR_SYSTEM_PROMPT` (searching recursively, ignoring `_archive/`), reads the active Exam's `progress.json` and `PROJECT_NOTES.md` (plus the shared `loci/` files if that add-on is present), and continues the session one atomic step per turn. From v9 the prompt executes the ledger's `next_session` block, so a session opens in three lines and goes straight into a question — no planning happens while you wait.
 
 ---
 
@@ -116,7 +121,8 @@ python pipeline.py status                                   # show pipeline stat
 - **Lifecycle lives in `docs/`.** `open/` = problems to solve next · `solid/` = settled · `archive/` = kept for reference, not active · `adr/` = decisions made and why.
 - **Versioned files:** keep the live one in the component folder; move superseded versions to that component's `_archive/`. The newest `_vN` is always the live one. This applies to `tutor/TUTOR_SYSTEM_PROMPT_v*.md` too — when a new version is written, move the version(s) it replaces into `tutor/_archive/` in the same change, so exactly one `TUTOR_SYSTEM_PROMPT_v*.md` ever lives outside `_archive/`.
 - **Assets are per-course, not global.** Diagrams/explainers/visualizations Claude produces for a course live in `Courses/<Course>/assets/` — never at repo root, and never shared across courses. If a new course is added, it gets its own `assets/` folder.
-- **Adding a course:** create `Courses/<Course>/<type>_<date>/`, drop its exam PDFs in an `exams/` subfolder there, and run the pipeline against it. The `loci/` layer is shared across all courses — do not duplicate it per course; individual encodings are tagged by Course/Exam instead (`docs/adr/0002-loci-shared-global-scaled-per-palace-file.md`).
+- **Adding a course:** create `Courses/<Course>/<type>_<date>/`, drop its exam PDFs in an `exams/` subfolder there, and run the pipeline against it. The `loci/` layer is shared across all courses — do not duplicate it per course; individual encodings are tagged by Course/Exam instead (`docs/adr/0002-loci-shared-global-scaled-per-palace-file.md`). Full step-by-step walkthrough: `docs/solid/new-course-setup.md`.
+- **Two study modes, never mixed.** The deep tutor (`/study-run` + `/continue-study-session`) builds understanding topic by topic; exam-prep mode (`/start-session`, `/session-end`, `/mock-exam`, `/cheat-sheet`) drills recurring question archetypes for marks per hour when the exam is days away. They share no state — `mastered` and `exam_ready` are separate criteria and are never added together. Usage guide: `docs/solid/exam-prep-mode.md`.
 - **Files referenced by name, not path.** The tutor and skill locate files by filename via recursive search, so moving things between component folders won't break them — but keep filenames stable.
 
 ---

@@ -1,0 +1,464 @@
+\documentclass[9pt,a4paper,landscape]{extarticle}
+\usepackage[margin=0.9cm,top=1.1cm,bottom=0.9cm]{geometry}
+\usepackage{multicol}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{acc}{HTML}{00549F}
+\definecolor{acc2}{HTML}{B5651D}
+\definecolor{rule}{HTML}{9AA5B1}
+\definecolor{trap}{HTML}{A11B1B}
+
+\setlength{\columnsep}{0.55cm}
+\setlength{\columnseprule}{0.3pt}
+\renewcommand{\columnseprulecolor}{\color{rule}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1.2pt}
+
+\newcommand{\secbox}[1]{\colorbox{acc}{\parbox{\dimexpr\columnwidth-2\fboxsep\relax}{\strut #1}}}
+\titleformat{\section}{\normalfont\bfseries\color{white}}{}{0pt}{\secbox}
+\titlespacing*{\section}{0pt}{5pt}{3pt}
+\titleformat{\subsection}{\normalfont\bfseries\color{acc}}{}{0pt}{}
+\titlespacing*{\subsection}{0pt}{4pt}{1pt}
+
+\newcommand{\key}[1]{\textbf{#1}}
+\newcommand{\tr}[1]{{\color{trap}\textbf{!}}\ \textit{#1}}
+\setlist[itemize]{leftmargin=1.4em,itemsep=0.4pt,topsep=1pt,parsep=0pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=0.4pt,topsep=1pt,parsep=0pt}
+
+\pagestyle{fancy}\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\footnotesize\color{rule}Computer Vision (RWTH Aachen, Prof.\ B.\ Leibe) --- exam cheat sheet --- p.\ \thepage}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries Computer Vision --- RWTH Aachen --- Exam Cheat Sheet}\\[2pt]
+{\footnotesize Prof.\ Dr.\ Bastian Leibe, Visual Computing Institute \quad$\bullet$\quad 90 min, 6 questions, $\approx$95--100 marks, \textbf{no aids allowed} \quad$\bullet$\quad topics ordered by past-exam ROI}
+\end{center}
+\vspace{-4pt}
+
+{\footnotesize
+\begin{center}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline
+\textbf{Q1} & \textbf{Q2} & \textbf{Q3} & \textbf{Q4} & \textbf{Q5} & \textbf{Q6}\\
+Filtering \& Patterns & Local Features & Segmentation & Sliding-Window Detection & CNNs & 3D Geometry / Reconstruction\\
+conv, Gaussian, Canny, Hough & Harris, Hessian, SIFT, $H$ & $k$-means, mean-shift, MRF, RANSAC & HOG, SVM, AdaBoost, Viola--Jones & sizes, params, losses, enc-dec & $K$, epipolar, $F$/$E$, triangulation, SfM\\
+\hline
+\end{tabular}\\[2pt]
+{\color{trap}\textbf{!}} marks a recurring examiner trap. Every exam so far has used this same 6-question skeleton.
+\end{center}}
+\vspace{-2pt}
+
+\begin{multicols}{3}
+
+\section{1 \; Filtering, Convolution \& Fourier}
+
+\subsection{Definitions}
+Cross-correlation $G=H\otimes F$:\quad $G[i,j]=\sum_{u,v}H[u,v]\,F[i+u,j+v]$\\
+Convolution $G=H*F$:\quad $G[i,j]=\sum_{u,v}H[u,v]\,F[i-u,j-v]$\\
+$\Rightarrow$ convolution = \key{flip the kernel in both dimensions}, then correlate: $F\otimes H[i,j]=F*H[-i,-j]$.\\
+\tr{Correlation $=$ convolution \emph{only} if $H[-u,-v]=H[u,v]$ (symmetric kernel).}
+
+\subsection{Properties (both are linear \& shift-invariant)}
+\begin{itemize}
+\item Linear: $(aH+J)\otimes F=a(H\otimes F)+(J\otimes F)$ --- \key{always true}.
+\item Shift-invariant: same operator everywhere.
+\item Convolution only: commutative, associative, has identity $\delta$, differentiable.
+\item \tr{Correlation is \emph{not} commutative/associative.}
+\end{itemize}
+
+\subsection{Boundary handling}
+Problem: filter support leaves the image $\Rightarrow$ undefined pixels, dark/bright halo, output shrinks.
+\begin{itemize}
+\item \key{Zero pad}: simple; $-$ dark border, artificial strong edge.
+\item \key{Wrap (circular)}: consistent with DFT; $-$ mixes opposite sides, nonsense content.
+\item \key{Clamp / replicate edge}: no new values, cheap; $-$ streaking, biases towards border pixel.
+\item \key{Mirror / reflect}: smoothest continuation, best in practice; $-$ invents symmetry that isn't there.
+\item Or: \key{valid} output only (crop) --- no artefacts, but image shrinks.
+\end{itemize}
+
+\subsection{Separability (marks-rich arithmetic)}
+2D filter separable $\iff$ rank $1$ $\iff$ $H=\mathbf{c}\,\mathbf{r}^{\top}$. Apply as row pass then column pass.\\
+Sobel-$x$: $\begin{bsmallmatrix}-1&0&1\\-2&0&2\\-1&0&1\end{bsmallmatrix}=\begin{bsmallmatrix}1\\2\\1\end{bsmallmatrix}\begin{bsmallmatrix}-1&0&1\end{bsmallmatrix}$ (smooth in $y$, derive in $x$).\\
+Cost per pixel, kernel $n\times n$: 2D $=n^2$ mult $+\,(n^2-1)$ add; separable $=2n$ mult $+\,2(n-1)$ add.\\
+$n=3$: \key{9 mult + 8 add} vs \key{6 mult + 4 add}. Box and Gaussian are both separable.
+
+\subsection{Gaussian smoothing}
+$G_\sigma(x,y)=\frac{1}{2\pi\sigma^2}e^{-\frac{x^2+y^2}{2\sigma^2}}$, rotationally symmetric, separable, low-pass. Kernel half-width $\approx 3\sigma$ ($\Rightarrow$ size $\approx 6\sigma+1$).\\
+$G_{\sigma_1}*G_{\sigma_2}=G_{\sqrt{\sigma_1^2+\sigma_2^2}}$ (two smoothings = one bigger one).
+\begin{itemize}
+\item FT of a Gaussian is a Gaussian \key{(true)}. FT of a box is a \key{sinc} (not a box).
+\item Ideal (box) low-pass in frequency $\Rightarrow$ infinite sinc support in space $\Rightarrow$ \key{ringing}. Box filter in space likewise rings; Gaussian does not.
+\item Duality: better localised in one domain $\Rightarrow$ worse in the other.
+\item Truncating the spectrum removes high frequencies $\Rightarrow$ \emph{blur/ringing}, \tr{not aliasing. Aliasing comes from \emph{subsampling}, not from low-passing.}
+\end{itemize}
+
+\subsection{Noise \& the median filter}
+\key{Gaussian noise}: $f=\bar f+\eta$, $\eta\sim\mathcal N(\mu,\sigma)$, i.i.d.\ --- removed by averaging.\\
+\key{Salt \& pepper}: random black \emph{and} white pixels. \key{Impulse}: random white pixels.\\
+\key{Median filter}: non-linear, output is an existing pixel value, kills impulse noise, \key{preserves edges}. Gaussian would smear the outlier over the neighbourhood instead.
+
+\subsection{Sampling \& pyramids}
+\key{Nyquist}: sample at $\ge 2f_{\max}$, else \key{aliasing}. Always \key{smooth before subsampling}; lost high frequencies cannot be recovered afterwards.\\
+\key{Gaussian pyramid}: $G_0=I$, $G_i=(G_{i-1}*g)\!\downarrow\!2$. Without the Gaussian: aliasing / moir\'e, structures appear that are not in the image.\\
+\key{Laplacian pyramid}: $L_i=G_i-\mathrm{expand}(G_{i+1})$, top $L_n=G_n$; band-pass, approximates DoG. Reconstruct exactly: $G_i=L_i+\mathrm{expand}(G_{i+1})$ from the top down. Storage $\approx\frac43$ of the image, used for compression/blending.
+
+\subsection{Gradients \& edges}
+$\nabla f=[f_x,f_y]$, magnitude $\|\nabla f\|=\sqrt{f_x^2+f_y^2}$, direction $\theta=\arctan(f_y/f_x)$ (points across the edge, towards increasing intensity).\\
+\key{Derivative theorem}: $\frac{\partial}{\partial x}(h*f)=(\frac{\partial h}{\partial x})*f$ --- differentiate the \emph{filter}, one pass, noise-robust.\\
+\key{LoG}: $\nabla^2 G_\sigma$, edges at \key{zero crossings}; DoG $\approx$ LoG.
+
+\subsection{Canny edge detector (state all 4--5 steps)}
+\begin{enumerate}
+\item Smooth with a Gaussian (choose $\sigma$: large $=$ robust/coarse, small $=$ fine detail).
+\item Compute gradient magnitude and orientation (derivative-of-Gaussian filters).
+\item \key{Non-maximum suppression}: thin to 1-pixel ridges --- keep $q$ iff $\mathrm{Mag}(q)>\mathrm{Mag}(p)$ and $\mathrm{Mag}(q)>\mathrm{Mag}(r)$, where $p,r$ are \emph{interpolated} neighbours along the gradient direction.
+\item \key{Hysteresis thresholding} with $k_{\text{high}},k_{\text{low}}$ (typ.\ ratio $2{:}1$): a chain \emph{starts} only above $k_{\text{high}}$, then \emph{continues} through connected pixels above $k_{\text{low}}$.
+\item Link edges into contours.
+\end{enumerate}
+Why hysteresis $>$ single threshold: one threshold either fragments strong edges (too high) or admits noise (too low); two thresholds keep weak \emph{connected} continuations while rejecting isolated weak responses.\\
+Model assumption: \key{step edge + additive Gaussian noise}; first derivative of a Gaussian is near-optimal for the detection/localisation trade-off (Canny 1986).\\
+\tr{Salt \& pepper before Canny: each impulse is a huge gradient $\Rightarrow$ spurious edges + Gaussian smoothing spreads it. Fix: apply a \key{median filter first}, then Canny.}
+
+\subsection{Sharpening \& templates}
+Sharpen $=$ $\delta\cdot 2.0 - $ (box filter, weight $0.33$): accentuates the deviation from the local average. Unsharp mask: $I+\alpha(I-I*G)$.\\
+\key{Filters as templates}: filtering $=$ dot product of image patch with the filter vector; ``filters look like the effects they find''. Normalise (NCC) or the response just tracks local brightness.
+
+\subsection{Hough transform (line detection)}
+Use \key{polar} parametrisation (slope-intercept $y=mx+c$ blows up for vertical lines):
+$$\rho = x\cos\theta + y\sin\theta,\qquad \theta\in[0,\pi),\ \rho\in[-D,D]$$
+\begin{enumerate}
+\item Edge detection (e.g.\ Canny) on $I$ $\Rightarrow$ edge pixels $(x,y)$ (+ gradient orientation).
+\item Quantise $(\theta,\rho)$ into an accumulator array $A$, init to $0$.
+\item For each edge pixel, for each $\theta$: compute $\rho=x\cos\theta+y\sin\theta$, then $A[\theta,\rho]{+}{+}$ (a point votes for a \emph{sinusoid} in Hough space).
+\item Find local maxima of $A$ above a threshold; each is one line.
+\item Map $(\theta,\rho)$ back to image space; optionally trim to the extent of supporting pixels.
+\end{enumerate}
+Speed-up: use the gradient orientation at each edge pixel to vote for a single $\theta$ instead of all.\\
+\key{Horizontal lines}: constant $y$ $\Rightarrow$ $\theta=90^{\circ}$ ($\rho=y$) --- only accumulate that column, i.e.\ vote $A[90^\circ,y]{+}{+}$ and pick its maxima.\\
+Pros: robust to occlusion/gaps, handles multiple lines. Cons: quantisation trade-off, noise gives spurious peaks, cost explodes with parameter count.
+
+\section{2 \; Local Features}
+
+\subsection{The 5-step pipeline (reproduce in order)}
+\begin{enumerate}
+\item \key{Detect} distinctive, repeatable keypoints.
+\item \key{Define} a region around each keypoint (scale / affine shape).
+\item \key{Extract \& normalise} the region content (rotation, illumination).
+\item \key{Compute} a local descriptor from the normalised region.
+\item \key{Match} descriptors: accept if $d(f_A,f_B)<T$ (better: ratio test $d_1/d_2<0.8$).
+\end{enumerate}
+Requirements: \key{repeatability} (found again under transformation), \key{distinctiveness}, locality (robust to occlusion/clutter), quantity, efficiency.
+
+\subsection{Harris corner detector}
+Auto-correlation / second-moment matrix, $g$ a Gaussian window:
+$$M(\sigma_I,\sigma_D)=g(\sigma_I)*\begin{bmatrix}I_x^2 & I_xI_y\\ I_xI_y & I_y^2\end{bmatrix}\!(\sigma_D)$$
+$$R=\det(M)-\alpha\,\mathrm{tr}(M)^2=\lambda_1\lambda_2-\alpha(\lambda_1+\lambda_2)^2,\quad \alpha\approx0.04\text{--}0.06$$
+Eigenvalue reading (asked verbatim): both small $\Rightarrow$ \key{flat} region ($R\approx0$); one large, one small $\Rightarrow$ \key{edge} ($R<0$); both large $\Rightarrow$ \key{corner} ($R\gg0$). $\lambda$'s are the axes of the error-surface ellipse.\\
+\textbf{Steps}: (1) derivatives $I_x,I_y$ at scale $\sigma_D$; (2) products $I_x^2,I_y^2,I_xI_y$; (3) Gaussian-window sum at $\sigma_I$; (4) cornerness $R$; (5) threshold $+$ non-maximum suppression.\\
+\textbf{Invariance}: \key{translation} yes; \key{rotation} yes (ellipse rotates, eigenvalues unchanged); intensity \emph{shift} $I+b$ yes, intensity \emph{scaling} $aI$ only up to the threshold; \key{scale NO}; \key{affine NO} (only Euclidean/similarity up to threshold; the affine-adapted Harris--Laplace is the extension).\\
+\tr{``Rotation-invariant but not scale-invariant'' --- a corner at one scale becomes an edge at a larger scale. This is exactly the gap SIFT closes.}
+
+\subsection{Hessian detector}
+$$\mathcal H=\begin{bmatrix}I_{xx}&I_{xy}\\ I_{xy}&I_{yy}\end{bmatrix},\qquad \text{score}=\det(\mathcal H)=I_{xx}I_{yy}-I_{xy}^2$$
+Differences vs Harris: \key{second} derivatives of the image vs \key{first}-derivative products; no windowing/averaging needed; responds to blobs and saddle points rather than to gradient-corner structure; cheaper but noisier (2nd derivatives amplify noise) $\Rightarrow$ smooth first.\\
+Translation-invariant \key{yes}, rotation-invariant \key{yes} ($\det$ is), scale-invariant \key{no}.\\
+Typical missing steps in code-completion tasks: (i) use the \emph{smoothed} image's derivatives / apply the Gaussian at the right scale, (ii) scale-normalise the response ($\sigma^{4}\det\mathcal H$), (iii) \key{non-maximum suppression} before thresholding.
+
+\subsection{Automatic scale selection}
+Evaluate a \key{scale-normalised} response ($\sigma^2\nabla^2G$ for LoG, $\sigma^4\det\mathcal H$) over a range of $\sigma$ at each location and take the \key{local maximum over scale} --- the characteristic scale covaries with image scale, so the same physical structure is picked in both images. Harris--Laplace $=$ Harris in space $\times$ LoG maximum in scale. DoG (SIFT) approximates LoG cheaply from a Gaussian pyramid.
+
+\subsection{SIFT (Lowe 2004) --- the 128}
+Region $\to$ $4\times4$ spatial sub-patches $\times$ $8$ gradient-orientation bins $=$ \key{$4\cdot4\cdot8=128$}-D.\\
+Rotation invariance: rotate the patch to the \key{dominant gradient orientation} (peak of the orientation histogram). Illumination: normalise, clip at $0.2$, renormalise (affine intensity change).\\
+Robust to $\sim60^\circ$ out-of-plane rotation and large illumination change. \key{SURF}: box filters $+$ integral images, $\sim6\times$ faster at similar quality.\\
+Raw pixel patches as descriptors: only work for pure translation with identical illumination --- no invariance to rotation/scale/lighting, high-dimensional and noise-sensitive.
+
+\subsection{Homography estimation (DLT)}
+$p_r=Hp_l$ in homogeneous coordinates, equality \key{up to scale} $\Rightarrow$ take the cross product $p_r\times Hp_l=0$; two independent rows per correspondence:
+$$\begin{bmatrix}0&0&0&-x_l&-y_l&-1&y_rx_l&y_ry_l&y_r\\ x_l&y_l&1&0&0&0&-x_rx_l&-x_ry_l&-x_r\end{bmatrix}\mathbf h=0$$
+Derivation: with $\mathbf h=(h_{11}..h_{33})^\top$, $x_r=\frac{h_{11}x_l+h_{12}y_l+h_{13}}{h_{31}x_l+h_{32}y_l+h_{33}}$ and $y_r=\frac{h_{21}x_l+h_{22}y_l+h_{23}}{h_{31}x_l+h_{32}y_l+h_{33}}$; cross-multiply and collect terms.\\
+\key{DoF}: $H$ has 9 entries, defined up to scale $\Rightarrow$ \key{8 DoF}; each correspondence gives 2 equations $\Rightarrow$ \key{4 point correspondences} (no 3 collinear). Solve $A\mathbf h=0$ by SVD: $\mathbf h=$ right singular vector of the \key{smallest} singular value ($\|\mathbf h\|=1$ to avoid the trivial solution). Normalise coordinates first for conditioning.
+
+\subsection{RANSAC}
+For line fitting:
+\begin{enumerate}
+\item Randomly sample the \key{minimal} set (2 points for a line, 4 for $H$, 3 for a plane, 8 for $F$).
+\item Fit the model to that sample.
+\item Count \key{inliers}: points with residual $<$ threshold $t$.
+\item Keep the model with the most inliers.
+\item Repeat $k$ times; finally \key{re-fit} on all inliers of the best model (least squares).
+\end{enumerate}
+\key{Iteration count.} Let $\delta$ be the outlier ratio, $s$ the sample size, $\epsilon$ the allowed failure probability.\\
+$P(\text{one sample all inliers})=(1-\delta)^s$; $P(\text{that sample fails})=1-(1-\delta)^s$;
+$$P(\text{fail})=\big(1-(1-\delta)^s\big)^k\le\epsilon \;\Rightarrow\; k\ \ge\ \frac{\log\epsilon}{\log\big(1-(1-\delta)^{s}\big)}$$
+(the $\log$ of a number $<1$ is negative, so \key{the inequality flips} on division). For $H$, $s=4$.\\
+\key{3D plane version}: sample 3 points, model $n^\top X+d=0$ (normal from the cross product of two edge vectors), residual $=$ point-to-plane distance $|n^\top X+d|/\|n\|$; everything else identical.\\
+Pros: simple, general, tolerates $>50\%$ outliers. Cons: $k$ grows fast with $s$ and $\delta$; needs a threshold; not deterministic.
+
+\section{3 \; Segmentation \& Clustering}
+
+\subsection{$k$-means (steps)}
+\begin{enumerate}
+\item Choose $k$ and initialise the cluster centres $\mu_1..\mu_k$ (e.g.\ random points).
+\item \key{Assign} each point to the nearest centre: $\gamma_n=\arg\min_j\|x_n-\mu_j\|^2$.
+\item \key{Update} each centre to the mean of its assigned points.
+\item Repeat 2--3 until assignments (or centres) no longer change.
+\end{enumerate}
+Objective $J=\sum_n\sum_j \gamma_{nj}\|x_n-\mu_j\|^2$; both steps decrease $J$ $\Rightarrow$ \key{always converges (Yes)}; converges to a \key{local} optimum only \key{(No, not the best solution)}; finding the global optimum is \key{NP-hard (Yes)}.\\
+$+$ Simple, fast ($O(nkd)$ per iteration), guaranteed to converge.\\
+$-$ Must choose $k$; sensitive to initialisation and outliers; assumes isotropic, equally-sized, convex (spherical) clusters --- fails on elongated/non-convex data; hard assignments.\\
+\key{For segmentation}: represent each pixel as a feature vector (intensity, or RGB, or RGB$+$$(x,y)$ for spatial coherence, or texture/filter responses), cluster with $k$-means, then label every pixel with its cluster index; connected components of one label form segments. Adding $(x,y)$ (scaled) trades colour purity for spatial compactness.
+
+\subsection{Mean-shift (steps)}
+\begin{enumerate}
+\item Choose a kernel and \key{bandwidth} $r$; place a search window at a data point.
+\item Compute the \key{mean} (centre of mass) of the points inside the window.
+\item \key{Shift} the window centre to that mean.
+\item Repeat 2--3 until convergence (a mode of the density).
+\item Repeat for every data point; points converging to the same mode form one cluster (merge modes within $r$).
+\end{enumerate}
+$+$ Non-parametric --- no assumption on cluster shape; \key{number of clusters is found automatically}; single robust parameter; finds density modes, robust to outliers.\\
+$-$ Must choose the bandwidth $r$ (result is very sensitive to it); computationally expensive ($O(n^2)$ per iteration); scales badly with feature dimension; may not work well with a fixed bandwidth on varying densities.\\
+\key{Speed-up}: assign \emph{all} points along a convergence trajectory to the same mode (``basin of attraction''); also assign points within $r$ of the path; subsample/use a grid or approximate nearest-neighbour lookups.\\
+\key{Segmentation}: cluster pixels in joint colour$+$position space $(r,g,b,x,y)$ with separate colour/spatial bandwidths $(h_r,h_s)$; each mode is a segment.\\
+$r$ larger $\Rightarrow$ fewer, coarser clusters; $r$ smaller $\Rightarrow$ more, finer clusters.
+
+\subsection{Mixture of Gaussians \& EM}
+$p(x|\theta)=\sum_j\pi_j\,\mathcal N(x|\mu_j,\Sigma_j)$, $\sum_j\pi_j=1$. Soft version of $k$-means.\\
+\key{E-step} (responsibilities): $\displaystyle\gamma_j(x_n)=\frac{\pi_j\mathcal N(x_n|\mu_j,\Sigma_j)}{\sum_k\pi_k\mathcal N(x_n|\mu_k,\Sigma_k)}$\\
+\key{M-step}: $\hat N_j=\sum_n\gamma_j(x_n)$, $\ \mu_j=\frac1{\hat N_j}\sum_n\gamma_j(x_n)x_n$, $\ \Sigma_j=\frac1{\hat N_j}\sum_n\gamma_j(x_n)(x_n-\mu_j)(x_n-\mu_j)^\top$, $\ \pi_j=\hat N_j/N$.\\
+Iterate; the likelihood increases monotonically, converges to a local optimum. $k$-means $=$ EM with hard assignments and $\Sigma\to0$.
+
+\subsection{Bayes / discriminative vs generative}
+$p(C_k|x)=\dfrac{p(x|C_k)p(C_k)}{\sum_j p(x|C_j)p(C_j)}$; decide $\arg\max_k p(C_k|x)$.\\
+\key{Generative}: model likelihood $p(x|C_k)$ + prior (MoG, colour histograms). \key{Discriminative}: model the posterior directly (SVM, CNN).\\
+With a colour histogram likelihood: $p(c|\{r,g,b\})=\frac{p(\{r,g,b\}|c)\,p(c)}{\sum_{c'}p(\{r,g,b\}|c')\,p(c')}$.
+
+\subsection{MRF energy}
+\vspace{-6pt}
+\begin{align*}
+p(x,y)&=\textstyle\prod_i\Phi(x_i,y_i)\prod_{i,j\in\mathcal N}\Psi(x_i,x_j)\\[-1pt]
+\Longleftrightarrow\ E(x,y)&=\textstyle\sum_i\phi(x_i,y_i)+\sum_{i,j\in\mathcal N}\psi(x_i,x_j)
+\end{align*}
+\vspace{-10pt}
+$x_i$ = hidden label of pixel $i$ (fg/bg or class), $y_i$ = observation (colour) at $i$, $\mathcal N$ = neighbourhood (4- or 8-connected).\\
+$\phi$ = \key{unary / data term}: cost of giving pixel $i$ label $x_i$ given its own appearance, $\phi=-\log p(y_i|x_i)$.\\
+$\psi$ = \key{pairwise / smoothness term}: cost of neighbouring pixels disagreeing --- enforces spatial coherence, removes speckle.\\
+Objective: $\hat x=\arg\min_x E(x,y)$ (MAP $=$ energy minimisation, since $E=-\log p$ up to a constant).\\
+\key{Potts}: $\psi=\theta_\psi\,\delta(x_i\neq x_j)$ --- flat penalty per label change.\\
+\key{Contrast-sensitive Potts}: $\psi=\theta_\psi\,g_{ij}(y)\,\delta(x_i\neq x_j)$ with $g_{ij}(y)=e^{-\|y_i-y_j\|^2/\beta}$ --- cheap to cut where the image itself has a strong edge, so boundaries snap to image contours.
+
+\subsection{Graph cuts / max-flow}
+Build a graph: one node per pixel; \key{source} $s$ ($=$ foreground) and \key{sink} $t$ ($=$ background) terminals.
+\begin{itemize}
+\item Edge $s\!\to\!i$ with capacity $=$ cost of labelling $i$ \emph{background} (i.e.\ the fg data term / fg potential), edge $i\!\to\!t$ with capacity $=$ cost of labelling $i$ \emph{foreground}. (Be explicit about your convention in the exam.)
+\item Edge $i\!-\!j$ between neighbours with capacity $=\psi_{ij}$ (pairwise).
+\end{itemize}
+An $s$--$t$ cut assigns every node to $s$ (fg) or $t$ (bg); \key{cut cost $=$ energy}. Solve exactly by \key{min-cut $=$ max-flow} (Ford--Fulkerson / BK).\\
+\key{Hard constraints} (e.g.\ ``all border pixels must be background''): set the capacity of the $s$-edge of those pixels to $0$ and of their $t$-edge to $\infty$ --- an infinite edge can never be cut, forcing the label. (Brush strokes in interactive segmentation work the same way.)\\
+\key{Submodularity} is required for a global optimum: $E(s,s)+E(t,t)\le E(s,t)+E(t,s)$ (equivalently, non-negative pairwise costs that favour agreement). Only \key{binary, submodular} energies are guaranteed globally optimal.\\
+\key{$\alpha$-expansion}: exact multi-label is NP-hard $\Rightarrow$ iterate binary cuts ``keep your label or switch to $\alpha$'' over all $\alpha$; gives a \key{2-approximation} for metric pairwise terms.\\
+\key{GrabCut}: user draws a box $\Rightarrow$ initialise fg/bg MoG colour models $\Rightarrow$ graph cut $\Rightarrow$ \key{re-estimate the MoG parameters (means, covariances, weights $\pi$, and the pixel-to-component assignments) from the new masks} $\Rightarrow$ repeat. That is what the iteration updates: the appearance model, not the pairwise weights ($\gamma\approx25$ is fixed).\\
+\tr{Why $k$-means / MoG / MaxFlow are bad plane-fitters: $k$-means and MoG partition points into compact/elliptical blobs and are pulled by outliers --- they have no notion of ``fits a geometric model''; MaxFlow needs a graph with a data term, i.e.\ labels/appearance you do not have. RANSAC is model-fitting with explicit outlier rejection.}
+
+\section{4 \; Sliding-Window Object Detection}
+
+\subsection{Setup}
+\key{Classifier} answers ``what is in this image?'' (one label per image); \key{detector} answers ``what is where?'' --- it must also localise (bounding boxes) and cope with a variable number of instances plus background.\\
+\key{Approach}: slide a fixed-size window over every position \emph{and} scale (image pyramid), extract features in each window, score with a binary classifier, threshold, then \key{non-maximum suppression} over overlapping boxes. Also over aspect ratios/orientations if needed. Brute force: e.g.\ $250\,000\ \text{locations}\times30\ \text{orientations}\times4\ \text{scales}=30\,000\,000$ evaluations --- hence cascades and region proposals.\\
+Assumes the object is well-approximated by a rigid box with limited intra-class deformation.
+
+\subsection{HOG (Dalal \& Triggs, CVPR 2005)}
+Chain: normalise gamma/colour $\to$ compute gradients $\to$ per-\key{cell} orientation histogram (locally orderless, vote weighted by magnitude) $\to$ group cells into overlapping \key{blocks} and contrast-normalise $\to$ concatenate into one vector $\to$ linear SVM.\\
+Motivation: gradient \emph{orientation} captures shape/silhouette and is largely invariant to illumination and colour; the cell histogram is invariant to small shifts and deformations --- ideal for pedestrians (upright, characteristic contour, varied clothing).\\
+\key{Size arithmetic} (window $W\times H$ px, cell $c\times c$, $B$ bins, no block overlap): $\frac{W}{c}\cdot\frac{H}{c}\cdot B$ values. E.g.\ $200\times100$, $c=10$, $B=8$: $10\times20\times8=\mathbf{1600}$.\\
+Linear SVM parameters: one weight per feature $+$ bias $=\mathbf{1601}$.\\
+Training vectors: one per training image $=1000+1000=\mathbf{2000}$ (positives $+$ negatives; hard-negative mining adds more).\\
+\tr{1000 RGB pedestrian images \emph{alone} are not enough: a sliding-window SVM needs \key{negative} examples too (and identically sized, aligned crops). With positives only you cannot learn a decision boundary.}
+
+\subsection{Linear SVM}
+Find the hyperplane $w^\top x+b=0$ separating the classes that \key{maximises the margin} --- the distance to the closest training points. Those closest points are the \key{support vectors}, satisfying $w^\top x_n+b=\pm1$; margin $=2/\|w\|$, so we minimise $\tfrac12\|w\|^2$ subject to $t_n(w^\top x_n+b)\ge1$ ($t_n\in\{-1,+1\}$). Soft margin: allow slack $\xi_n$ with penalty $C$. Classify: $f(x)=\mathrm{sign}(w^\top x+b)$.\\
+Maximum margin $\Rightarrow$ best expected generalisation; the solution depends only on the support vectors.\\
+\key{Kernel trick}: the dual depends on the data only through inner products $\varphi(x_i)^\top\varphi(x_j)$, so replace them with a kernel $K(x_i,x_j)$ and never compute $\varphi$ explicitly. This buys a non-linear boundary in input space at linear-SVM cost, even for infinite-dimensional $\varphi$. Kernels: linear $x_i^\top x_j$; polynomial $(1+x_i^\top x_j)^p$; Gaussian/RBF $\exp(-\|x_i-x_j\|^2/2\sigma^2)$.
+
+\subsection{AdaBoost}
+\key{Input}: labelled training set $\{(x_n,t_n)\}$, a pool/family of weak learners, number of rounds $M$. \key{Output}: strong classifier $H(x)=\mathrm{sign}\big(\sum_{m=1}^{M}\alpha_m h_m(x)\big)$ --- the selected weak classifiers $h_m$ and their weights $\alpha_m$.\\
+\textbf{Steps}: (1) initialise uniform data weights $w_n=1/N$; (2) for $m=1..M$: train/select the weak classifier with the lowest \key{weighted} error $\epsilon_m$; (3) compute its weight $\alpha_m=\tfrac12\ln\frac{1-\epsilon_m}{\epsilon_m}$; (4) \key{re-weight the data}: increase $w_n$ on \emph{misclassified} points, decrease on correct ones, renormalise; (5) next round focuses on the previously hard examples; (6) output the weighted vote.\\
+So after each round you adjust: \key{$\alpha_m$ up when $\epsilon_m$ is small}, and \key{the sample weights --- up for misclassified, down for correctly classified}.\\
+\key{Requirement on weak learners}: only better than chance, $\epsilon_m<0.5$ (``weak learnability''); they may be barely better, and should be fast/simple.
+
+\subsection{Viola--Jones face detection}
+\key{Weak classifiers} $=$ \key{Haar-like features}: sums of pixels in adjacent black/white rectangles (2-, 3-, 4-rectangle patterns) subtracted from each other, thresholded: $h(x)=1$ if $p\,f(x)<p\,\theta$. They encode simple contrast patterns (eye region darker than cheeks, nose bridge brighter than eyes). Huge over-complete pool ($\sim180$k in a $24\times24$ window) $\Rightarrow$ AdaBoost also performs \key{feature selection}.\\
+\key{Integral image} $II(x,y)=\sum_{x'\le x,\,y'\le y}I(x',y')$ --- computed in one pass. Any axis-aligned rectangle sum is then $A-B-C+D$: \key{4 lookups, 3 operations, constant time independent of rectangle size}. That is what makes evaluating hundreds of thousands of Haar features at every window and scale feasible.\\
+\key{Cascade}: chain of increasingly complex boosted classifiers. Each stage is tuned for a very high detection rate ($\approx99.9\%$) and only a modest false-positive rate ($\approx50\%$); a window rejected at any stage is discarded immediately, only survivors reach the expensive stages. Since the vast majority of windows are background, average cost collapses. Overall detection rate $=\prod_i d_i$, false positives $=\prod_i f_i$.\\
+\tr{Roerei / non-rectangular shapes (circles, triangles): the \key{integral image trick no longer applies} --- constant-time area sums only work for axis-aligned rectangles, so evaluation cost explodes. Potential advantage: shapes better matched to object contours could be more discriminative per feature, so fewer features might be needed.}
+
+\subsection{Beyond brute force}
+\key{DPM} (Felzenszwalb et al.): coarse root filter $+$ finer part filters $+$ deformation cost; $\text{score}(z)=\sum(\text{filter responses})-\sum(\text{displacement penalties})=\beta^\top\Psi(H,z)$; optimised efficiently with the \key{generalised distance transform}. Handles articulation/deformation that a rigid template cannot.\\
+\key{Region proposals} (Selective Search): bottom-up superpixel segmentation, hierarchically merged $\Rightarrow$ a few thousand class-agnostic candidate regions instead of millions of windows.
+
+\section{5 \; Convolutional Neural Networks}
+
+\subsection{Why convolution (the $10^{12}\!\to\!10^{8}\!\to\!10^{4}$ argument)}
+Fully connected, $1000\times1000$ image, $10^6$ hidden units: $10^{12}$ parameters. Restrict to \key{local} $10\times10$ connectivity: $10^{8}$. Add \key{weight sharing} --- 100 learned $10\times10$ filters: $\mathbf{10^4}$ parameters, output $1000\times1000\times100$.\\
+So: local receptive fields $+$ shared weights $\Rightarrow$ far fewer parameters, translation \key{equivariance}, and features that generalise across the image; an MLP would have to relearn the same pattern at every location and discards the spatial structure.\\
+Layer pipeline: convolution (learned) $\to$ non-linearity $\to$ spatial pooling $\to$ normalisation.
+
+\subsection{Sizes \& parameter counts (do the arithmetic, show it)}
+$$O=\frac{I-F+2P}{S}+1\quad\text{(per spatial dimension)}$$
+Conv params $=F_H F_W C_{in}C_{out}+C_{out}$ (bias). BatchNorm params $=2C_{out}$ ($\gamma,\beta$). ReLU/pooling: \key{0}.\\
+\emph{Worked}: RGBD ($C_{in}=4$) $100\times100$, $3\times3$, $S=1$, $P=1$, $C_{out}=10$, block $=$ Conv$\to$ReLU$\to$BN:
+$3\cdot3\cdot4\cdot10+10=370$; $+\,2\cdot10=20$ $\Rightarrow$ \key{390}. Output $100\times100\times10$.\\
+\tr{With a $1000\times1000$ input the answer is \emph{still 390} --- convolution parameters do not depend on the input resolution. Only the activation size changes.}\\
+Grayscale$\to$100 ch., $3\times3$, $S{=}1$, $P{=}1$ on $32\times32$: $3\cdot3\cdot1\cdot100+100=1000$ params; output values $=32\cdot32\cdot100=102\,400$.\\
+\key{Receptive field}: stacking $L$ conv layers of size $F$, stride 1 $\Rightarrow$ RF $=1+L(F-1)$. Two $3\times3$ $=5\times5$; four $3\times3$ $=\mathbf{9\times9}$ (with fewer parameters and more non-linearities than one $9\times9$).\\
+Enlarge the RF without more convs: \key{pooling / striding} (downsample), \key{dilated (atrous) convolutions}, an encoder--decoder (downsample then upsample), or global/self-attention.
+
+\subsection{Layer zoo}
+\key{Pooling} (max/avg): no parameters, applied \emph{per channel} independently, downsamples, gives local translation robustness. \key{Unpooling}: place the value in a fixed position (e.g.\ top-left) or replicate; \key{max-unpooling}: put the value back at the \key{remembered argmax position} from the corresponding max-pool layer, zeros elsewhere --- preserves spatial detail, requires the stored switches.\\
+\key{$1\times1$ conv}: changes channel depth only, $C_{in}C_{out}$ params, $=$ an FC layer applied per pixel; used for cheap dimensionality reduction (Inception, bottlenecks).\\
+\key{Grouped conv}: split channels into $G$ groups ($C_{in},C_{out}$ must be multiples of $G$), $G\times$ fewer parameters. \key{Depthwise}: $G=C_{in}=C_{out}$; $+\,1\times1$ pointwise $=$ \key{depthwise separable}.\\
+\key{Transposed conv} (learned upsampling): $H_{out}=S(H_{in}-1)+F-2P$. \tr{If the filter size is not a multiple of the stride $\Rightarrow$ uneven overlap $\Rightarrow$ \key{checkerboard artifacts}.}\\
+Non-linearities: $\sigma(a)=\frac1{1+e^{-a}}$, $\tanh(a)=2\sigma(2a)-1$, $\mathrm{ReLU}=\max(0,a)$ (default: no saturation for $a>0$, fast, sparse).\\
+\key{BatchNorm} normalises over the batch (and $H,W$) per channel; \key{LayerNorm} over channels/features per sample (needed for transformers/small batches).
+
+\subsection{Losses (write the formula \emph{and} define every symbol)}
+$L_1$: $\ \mathcal L=\frac1n\sum_{i=1}^{n}|f(x_i)-t_i|$ (per-pixel/per-channel mean for images) --- robust to outliers, sharper image outputs than $L_2$.\\
+$L_2$: $\ \mathcal L=\frac1n\sum_i\|f(x_i)-t_i\|_2^2$.\\
+Binary CE: $\ \mathcal L=-\frac1n\sum_i\big[t_i\log \hat y_i+(1-t_i)\log(1-\hat y_i)\big]$.\\
+Multi-class CE: $\ \mathcal L=-\frac1n\sum_{i=1}^{n}\sum_{k=1}^{K}t_{ik}\log \hat y_{ik}$, $\ \hat y_{ik}=\mathrm{softmax}(f_k(x_i))$, $t_{ik}$ the one-hot label.\\
+Hinge (SVM): $\ \mathcal L=\sum_n[1-t_n f(x_n)]_+$.\\
+$n$ = minibatch size, $x_i$ input, $t_i$ target, $\hat y$ prediction after softmax/sigmoid.\\
+\key{Semantic segmentation}: cross-entropy \key{does} apply --- it is just per-pixel classification, so average CE over all pixels (optionally class-weighted, or $+$ Dice/IoU loss for class imbalance). For \emph{regression} outputs (colorisation, depth) use $L_1/L_2$ instead.\\
+Regularisers: $L_2$ (weight decay) $\Omega(w)=\frac12\|w\|_2^2$ shrinks weights; $L_1$ $\Omega(w)=\frac12\|w\|_1$ gives sparsity / feature selection. Also dropout, augmentation, early stopping.\\
+\key{Backprop}: forward pass computes the loss; backward pass applies the chain rule over the computational graph (automatic differentiation), reusing intermediates.
+
+\subsection{Architectures (year, idea, numbers)}
+\key{LeNet} 1998 (2 conv $+$ 2 pool $+$ FC) $\cdot$ \key{AlexNet} 2012 (7 layers, 60M params, ReLU, dropout, top-5 error 16.4\%) $\cdot$ \key{VGG} (19 layers, $\sim$150M, only stacked $3\times3$) $\cdot$ \key{GoogLeNet} (Inception modules, $1\times1$ reduction, only 6.8M) $\cdot$ \key{ResNet} ($F(x)=H(x)+x$ residual/skip, $100+$ layers, BatchNorm --- skips fix vanishing gradients and degradation) $\cdot$ \key{EfficientNet} (compound scaling $d=\alpha^\phi,w=\beta^\phi,r=\gamma^\phi$, $\alpha\beta^2\gamma^2\approx2$) $\cdot$ \key{ConvNeXt} 2022 (depthwise conv, LayerNorm, GeLU --- a ``modernised'' CNN matching ViTs).
+
+\subsection{Encoder--decoder \& segmentation}
+Encoder downsamples: large receptive field, global/semantic context, cheap deep computation --- but loses spatial resolution. Decoder upsamples back to the input resolution so we can predict a label \emph{per pixel}.\\
+\key{Skip connections} (U-Net) pass high-resolution, low-level features from encoder to decoder: the decoder alone cannot recover boundary detail destroyed by pooling, and the skips also improve gradient flow. \key{FPN}: multi-scale feature pyramid for dense/multi-scale prediction.\\
+Ways to downsample in the encoder: \key{strided convolution} (learned, $S>1$) and \key{pooling} (max/average, no parameters); also space-to-depth / $1\times1$ after striding.
+
+\subsection{Matching / metric learning}
+\key{Siamese}: two weight-shared copies ($W$) embed two inputs; compare $\|D(x_1)-D(x_2)\|_2$.\\
+Three task formulations: \key{Identification} (multi-class classification loss), \key{Embedding} (continuous space, dot product / large-margin / triplet loss), \key{Verification} (binary same-different).\\
+\key{Triplet loss}: anchor $a$, positive $p$, negative $n$; want $D_{a,p}<D_{a,n}$; with margin $m$: $\mathcal L=\sum[m+D_{a,p}-D_{a,n}]_+$.\\
+Triplets grow cubically and most become uninformative $\Rightarrow$ \key{hard mining}. \key{Offline}: embed the whole set, mine, update (wasteful, stale). \key{Online} (preferred): sample $P$ identities $\times$ $K$ images per batch and form triplets inside the batch. \key{Batch All} sums all valid triplets; \key{Batch Hard} takes, per anchor, the hardest positive and hardest negative.\\
+\key{Contrastive learning}: pull augmentations of the same sample together, push different samples apart (SimCLR/DINO); \key{CLIP} learns a joint image--text space with a contrastive loss on the diagonal of the $N\times N$ similarity matrix.
+
+\section{6 \; 3D Geometry \& Reconstruction}
+
+\subsection{Camera model}
+$$\tilde x = K\,[\,R\mid t\,]\,\tilde X = P\tilde X,\qquad
+K=\begin{bmatrix}\alpha_x & s & c_x\\ 0 & \alpha_y & c_y\\ 0&0&1\end{bmatrix}$$
+$\alpha_x=f m_x,\ \alpha_y=f m_y$: focal length in pixels along $x$/$y$ (differ if pixels are not square); $s$: \key{skew} (non-rectangular pixels, usually 0); $(c_x,c_y)$: \key{principal point}, where the optical axis pierces the image plane (usually near the image centre). $K$ has \key{5 DoF} (intrinsics); $[R|t]$ has \key{6 DoF} (extrinsics: 3 rotation, 3 translation); $P$ is $3\times4$, defined up to scale $\Rightarrow$ \key{11 DoF}.\\
+Perspective projection: $x=f\frac{X}{Z},\ y=f\frac{Y}{Z}$ --- non-linear in Euclidean coordinates, linear in homogeneous coordinates. Parallel lines meet at vanishing points; length and angle are not preserved.
+
+\subsection{Camera centre from $P$}
+$C$ is the point projecting to nothing: $PC=0$ $\Rightarrow$ $C$ is the \key{null space} (right null vector) of $P$. With $P=[M\mid p_4]$ (M is $3\times3$): $\tilde C=-M^{-1}p_4$, homogeneous $C=(\tilde C,1)$.
+{\footnotesize\begin{verbatim}
+def camera_center_from_projection_matrix(P):
+    # null space of P via SVD: last row of Vt
+    U, S, Vt = np.linalg.svd(P)
+    C = Vt[-1]
+    return C[:3] / C[3]      # dehomogenise
+# equivalently: C = -np.linalg.inv(P[:, :3]) @ P[:, 3]
+\end{verbatim}}
+
+\subsection{Epipolar geometry --- vocabulary}
+\key{Baseline}: the line joining the two camera centres $O,O'$. \key{Epipole} $e$ ($e'$): the projection of the \emph{other} camera centre into this image $=$ the intersection of the baseline with the image plane; \key{all epipolar lines pass through it}. \key{Epipolar plane}: the plane spanned by the two centres and the 3D point $X$ --- it contains $O$, $O'$, $X$ and both rays. \key{Epipolar line}: the intersection of the epipolar plane with an image plane $=$ the image of the other camera's ray. \key{Epipolar constraint}: the match for $x$ must lie on the epipolar line $l'=Fx$ --- reduces correspondence search from 2D to \key{1D}.
+
+\subsection{Essential \& fundamental matrix}
+Derivation (calibrated / normalised coordinates). Let $X$ be the point in the left camera frame and $X'=RX+T$ in the right frame, where $(R,T)$ is the relative pose. In the right frame the three vectors $X'$, $T$ (the baseline) and $RX$ all lie in the \key{epipolar plane}, and $X'-T=RX$, so they are \key{coplanar}:
+$$X'\cdot\big(T\times RX\big)=0\ \Longrightarrow\ X'^{\top}[T]_\times R\,X=0$$
+$$X'^{\top}\underbrace{[T]_\times R}_{E}\,X=0,\qquad
+[T]_\times=\begin{bmatrix}0&-T_z&T_y\\ T_z&0&-T_x\\ -T_y&T_x&0\end{bmatrix}$$
+\key{$E=[T]_\times R$}: relates \key{normalised} (calibrated) image coordinates; 5 DoF (3 rotation $+$ 2 translation direction, scale-free); $\det E=0$, two equal singular values.\\
+\key{$F=K'^{-\top}EK^{-1}$}: same relation for \key{raw pixel} coordinates, so it needs \key{no calibration}; $x'^\top F x=0$; 7 DoF (9 entries $-$ scale $-$ rank constraint).\\
+Epipolar lines: $l'=Fx$, $l=F^\top x'$; epipoles: $Fe=0$, $F^\top e'=0$.
+
+\subsection{Eight-point algorithm}
+Write out $y^\top F x=0$ with $x=(x_1,x_2,1)$ (left) and $y=(y_1,y_2,1)$ (right): $\sum_{i,j}y_i F_{ij}x_j=0$, so the coefficient of $F_{ij}$ is $y_ix_j$. Row (for $\mathbf f=(F_{11},F_{12},F_{13},F_{21},\dots,F_{33})^\top$):
+$$[\,y_1x_1\ \ y_1x_2\ \ y_1\ \ y_2x_1\ \ y_2x_2\ \ y_2\ \ x_1\ \ x_2\ \ 1\,]$$
+Stack $\ge8$ such rows $\Rightarrow$ $A\mathbf f=0$. \key{Solve by SVD}: $\mathbf f=$ the right singular vector belonging to the \key{smallest singular value} of $A$ (the least-squares solution under $\|\mathbf f\|=1$); $F$ is only defined \key{up to scale}, hence the norm constraint --- otherwise $\mathbf f=0$.\\
+\key{Why it is inaccurate with noise}: the entries of $A$ mix terms of wildly different magnitude ($x_1y_1\sim10^{5}$ vs $1$) $\Rightarrow$ $A$ is very badly conditioned, and the algebraic least-squares error being minimised has no geometric meaning.\\
+\key{Fix --- Hartley normalisation}: translate each image's points so the centroid is at the origin and scale so the mean distance is $\sqrt2$ ($T,T'$); run the 8-point algorithm on the normalised points; then de-normalise $F=T'^\top \hat F T$. (Optionally refine by minimising the geometric/Sampson error.)\\
+\key{Rank}: $\mathrm{rank}(F)=\mathbf 2$, $\det F=0$. Reason: $F=[e']_\times H$ maps every point to a line through the epipole, and $[e']_\times$ (a skew-symmetric $3\times3$) has rank 2 --- the epipole is the null vector, $Fe=0$.\\
+\key{If $F$ had full rank}: no non-trivial null vector $\Rightarrow$ \key{no epipole}, the computed epipolar lines would not all intersect in one point, so the geometry would be inconsistent and correspondences would be searched along wrong lines.\\
+\key{Enforcing rank 2}: SVD the estimate, $\hat F=U\,\mathrm{diag}(\sigma_1,\sigma_2,\sigma_3)\,V^\top$, set $\sigma_3=0$, recompose $F=U\,\mathrm{diag}(\sigma_1,\sigma_2,0)\,V^\top$ --- the closest rank-2 matrix in Frobenius norm.
+
+\subsection{Triangulation (linear / DLT)}
+Given $x\cong PX$, the cross product vanishes: $x\times PX=0$ gives 2 independent equations per view:
+$$\begin{bmatrix}x\,p_3^\top-p_1^\top\\ y\,p_3^\top-p_2^\top\\ x'\,p_3'^\top-p_1'^\top\\ y'\,p_3'^\top-p_2'^\top\end{bmatrix}X=0 \quad\Rightarrow\quad AX=0$$
+($p_i^\top$ = $i$-th row of $P$.) Solve by SVD (smallest singular vector), dehomogenise. Geometrically: the two rays generally do \key{not} intersect because of noise, so we take the algebraic least-squares point (better: minimise reprojection error $\Rightarrow$ non-linear, ``optimal'' triangulation).\\
+\key{Needs}: calibration (both $P$'s) $+$ correspondences. Degenerate when the point lies on the baseline / the rays are nearly parallel (small baseline $\Rightarrow$ large depth uncertainty).
+
+\subsection{Stereo}
+Rectified, parallel cameras with baseline $B$ and focal $f$: \ \key{$Z=\dfrac{fB}{d}$}, disparity $d=x_l-x_r$. Disparity $\propto 1/Z$: far points barely shift. \key{Rectification} warps both images so epipolar lines are horizontal and corresponding $\Rightarrow$ 1D scanline search.\\
+Window matching: SSD/SAD/NCC (NCC handles gain/bias changes). Problems: textureless regions, repetitive patterns, occlusions, specularities. Window size trades noise (small) against blurred boundaries (large). Add ordering/smoothness constraints or a global (graph-cut/MRF) formulation.\\
+Accuracy improves with a larger baseline, but matching gets harder (more foreshortening, more occlusion).
+
+\subsection{Structure from Motion}
+Given $m$ views of $n$ points, recover camera poses and 3D structure jointly (bundle adjustment minimises reprojection error).\\
+\key{$2mn\ \ge\ 11m+3n-15$}:\\
+$2mn$ = \key{measurements}: each of $n$ points in each of $m$ images gives 2 image coordinates.\\
+$11m$ = \key{unknowns for the cameras}: each projective camera $P$ is $3\times4=12$ entries defined up to scale $\Rightarrow$ 11 DoF each.\\
+$3n$ = \key{unknowns for the structure}: each 3D point has 3 coordinates.\\
+$-15$ = the \key{projective ambiguity}: $P_iH^{-1}$ and $HX_j$ give identical images, and a $4\times4$ homography $H$ has $16-1=15$ DoF --- so 15 of the unknowns are not recoverable and must be subtracted (gauge freedom). With calibrated cameras the ambiguity shrinks to a similarity (7 DoF: scale $+$ rotation $+$ translation).\\
+Pipeline: detect \& match features $\to$ estimate $F$/$E$ with RANSAC $\to$ decompose to $R,t$ $\to$ triangulate $\to$ incrementally add views (PnP) $\to$ bundle adjustment. Metric reconstruction needs calibration; otherwise it is up to a projective transformation, and the absolute scale is never recoverable from images alone.
+
+\section{7 \; Attention \& Transformers}
+\subsection{Scaled dot-product attention (4 named steps)}
+\key{Alignment} $E=QK^\top$ $\to$ \key{Scale} $\hat E=E/\sqrt{D_k}$ (reduces the variance, keeps the softmax smooth / gradients alive) $\to$ \key{Weights} $A=\mathrm{softmax}(\hat E)$ (softmax \emph{across keys}) $\to$ \key{Weighted sum} $C=AV$.\\
+$Q=XW_q,K=XW_k,V=XW_v$ from the same $X$ $\Rightarrow$ \key{self-attention}; $K,V$ from a second source $Y$ $\Rightarrow$ \key{cross-attention} (token counts may differ).\\
+\key{Masked attention}: add a (causal, lower-triangular) mask before the softmax so a position cannot attend to the future --- autoregressive decoding.\\
+\key{Multi-head}: split the feature dimension, $\sum_h d_h=d$, run heads in parallel, concatenate --- diverse subspaces at no extra cost.\\
+\key{Complexity} $O(N^2)$ in the sequence length (the full pairwise matrix) --- the main scaling cost.\\
+\tr{Stacking self-attention layers with no non-linearity between them just re-averages value vectors --- the per-token \key{MLP} sublayer is what gives a transformer its expressive power.}\\
+\key{LayerNorm placement}: original/post-norm $\mathrm{LN}(x+\mathrm{SubLayer}(x))$; modern/pre-norm (more stable) $\mathrm{SubLayer}(\mathrm{LN}(x))+x$.\\
+\key{Positional encoding}: attention is permutation-invariant, data is not. Wanted: unique per position, consistent relative distances across lengths, generalises to longer sequences, bounded, deterministic. Sinusoidal: $\omega_k=1/10000^{2k/d}$, added once to the inputs. \key{RoPE}: rotate query/key pairs by $m\theta_j$, $\theta_j=10000^{-2j/d}$, so the dot product depends only on $m-n$.
+
+\subsection{Vision transformers \& heads}
+\key{ViT}: image $\to$ patches $\to$ flatten $\to$ linear embed $\to$ prepend a learnable \key{CLS} token $\to$ add learnable positional embeddings $\to$ transformer \emph{encoder} (self-attention only, no convolutions) $\to$ MLP head on the CLS token.\\
+CNN inductive biases: \key{locality} (small kernels), \key{equivariance} (weight sharing), \key{invariance} (pooling) --- efficient on small data. ViTs have none of these: they need more data/compute but capture global context and scale better. \key{Swin}: shifted windows, hierarchical, better at small scale. \key{ConvNeXt}: modernised CNN, comparable to ViT.\\
+\key{DETR}: CNN backbone $\to$ encoder ($+$ positional encodings) $\to$ decoder with $N$ learned \key{object queries} ($N=100$ caps the detections) $\to$ shared FFN predicts class$+$box or ``no object''; direct set prediction with a bipartite (Hungarian) matching loss; no NMS, no anchors, $\approx$ half the compute of Faster R-CNN.\\
+\key{Mask2Former}: pixel decoder $+$ learned queries refined by \key{masked cross-attention} (restricted to the previous mask's foreground) $+$ self-attention among queries $+$ FFN; Hungarian matching, ``no object'' padding, mask loss $+$ classification loss. \key{EoMT} (CVPR 2025): strip it down to a plain ViT with \key{mask annealing} $\Rightarrow$ $4\times$ faster, $-1.1$ PQ.\\
+\key{Self-supervision}: next-token prediction; masked content prediction --- \key{MAE} masks $\sim75\%$ of patches, encoder sees only the visible ones, a light decoder reconstructs and is then discarded.
+
+\section{Trap list --- read this last}
+\begin{itemize}
+\item Convolution $=$ correlation \key{only for symmetric kernels}; ``convolve'' means flip first.
+\item Aliasing is caused by \key{subsampling without smoothing}, not by low-pass filtering.
+\item Box smoothing rings; the Gaussian does not. FT(box)$=$sinc, FT(Gaussian)$=$Gaussian.
+\item Median before Canny for salt \& pepper; Gaussian alone smears the impulses.
+\item Harris: rotation-invariant \key{yes}, scale-invariant \key{no}, affine-invariant \key{no}.
+\item $k$-means: converges yes, global optimum no, NP-hard yes.
+\item Mean-shift finds the number of clusters itself; $k$-means does not.
+\item Homography: \key{4} correspondences (8 DoF); fundamental matrix: \key{8} (7 DoF); always solve $A\mathbf h=0$ with the \key{smallest} singular vector.
+\item RANSAC $k$: dividing by $\log(\text{something}<1)$ \key{flips the inequality}.
+\item $\mathrm{rank}(F)=2$; enforce by zeroing $\sigma_3$; normalise coordinates before the 8-point algorithm.
+\item Conv parameter counts are \key{independent of the input resolution}; ReLU and pooling have \key{zero} parameters; don't forget the \key{bias} and BatchNorm's $2C$.
+\item Graph cuts are globally optimal only for \key{binary submodular} energies; multi-label needs $\alpha$-expansion.
+\item Integral images only give constant-time sums for \key{axis-aligned rectangles}.
+\item Weak classifiers only need $\epsilon<0.5$; AdaBoost raises the weights of \key{misclassified} samples.
+\item A detector needs \key{negative} training examples, not just positives.
+\item Pure stacked self-attention has no non-linearity --- the MLP is essential.
+\item When a method has an old and a modern variant (post- vs pre-norm, offline vs online mining, $s$-$t$ cut vs $\alpha$-expansion), \key{name which one you are using and why}.
+\item Show the full multiplication in counting questions --- the arithmetic carries the marks.
+\end{itemize}
+
+\end{multicols}
+\end{document}

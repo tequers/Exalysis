@@ -1,0 +1,707 @@
+{
+  "_comment": "State for /study-run. Per-project: calibration, the active board, and session history.",
+  "calibration": {
+    "k_rung": 0.759,
+    "k_mnemonic": 1.0,
+    "k_exam": 0.98,
+    "alpha": 0.3,
+    "n_sessions": 8,
+    "inherited_from": null,
+    "mode_multiplier": {
+      "steady": 0.85,
+      "stretch": 1.15,
+      "forge": 1.35
+    },
+    "target_completion": {
+      "steady": 0.95,
+      "stretch": 0.85,
+      "forge": 0.7
+    },
+    "baseline_minutes": {
+      "station": 3,
+      "encoding": 6,
+      "question": 12,
+      "concept_map": 10
+    },
+    "difficulty_minutes_fallback": {
+      "1": 15,
+      "2": 45,
+      "3": 120,
+      "4": 240,
+      "5": 420,
+      "6": 600
+    },
+    "default_ramp_rungs": 3,
+    "clamps": {
+      "k": [
+        0.4,
+        3.0
+      ],
+      "mode_multiplier": [
+        0.7,
+        1.6
+      ]
+    }
+  },
+  "active_run": null,
+  "sessions": [
+    {
+      "run_id": "run-2026-08-16-01",
+      "started_at": "2026-08-16T00:00:00",
+      "planned_minutes": 77,
+      "actual_minutes": 80,
+      "mode": "steady",
+      "objective": "depth",
+      "timing": "not_collected",
+      "quests": [
+        {
+          "id": "S1",
+          "type": "review",
+          "label": "[Spaced review] Tensor Products",
+          "topic": "Tensor Products",
+          "detail": "order discipline on 3-factor products; lapsed from rung 4 on 08-14",
+          "est_min": 11.76,
+          "marks": 74.5,
+          "bonus": false,
+          "status": "completed",
+          "result": "PASS",
+          "marks_scored": "6/6",
+          "note": "[Spaced review] fresh exemplar |+>x|0>x|-> expanded correctly, all 4 terms right order/sign, cold unaided first attempt. Mastered, 74.5 marks re-secured."
+        },
+        {
+          "id": "S2",
+          "type": "review",
+          "label": "[Spaced review] Quantum Measurement",
+          "topic": "Quantum Measurement",
+          "detail": "answer every part, including the post-measurement state; lapsed from rung 3 on 08-14",
+          "est_min": 11.76,
+          "marks": 30.5,
+          "bonus": false,
+          "status": "completed",
+          "result": "PASS",
+          "marks_scored": "6/6",
+          "note": "[Spaced review] P(0)=4/9, P(1)=5/9, both post-measurement states given correctly -- the 08-14 omission did not recur. Mastered, 30.5 marks re-secured."
+        },
+        {
+          "id": "M1",
+          "type": "bridge",
+          "label": "[Bridge] Eigen-decomposition consolidation drill",
+          "topic": "Hamiltonian Dynamics",
+          "detail": "H-λI sign handling, eigenvalue count for a 2x2, trivial null-space vs real eigenvector, |0> in |+>/|-> basis",
+          "est_min": 10,
+          "marks": 0,
+          "bonus": false,
+          "status": "completed",
+          "result": "FAIL then PASS",
+          "note": "[Bridge] sign on H-lambdaI for lambda=-2 FAILed once (08-14 bug recurred), corrected, held clean on a second fresh matrix."
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "label": "[Rung 5] Numeric time-evolution, continued",
+          "topic": "Hamiltonian Dynamics",
+          "detail": "rung 5 of 6; budget is tight for 77 min so this may not finish this session",
+          "est_min": 18.6,
+          "marks": 0,
+          "bonus": false,
+          "status": "completed",
+          "result": "PASS (heavy scaffolding)",
+          "note": "[Rung 5] numeric time-evolution via diagonalization on H=[[1,3],[3,1]]. Multiple sub-step errors self-corrected in dialogue: wrong eigenvalues + only-one-eigenvector misconception, eigenvector algebra slip, normalization dropped twice. Final answer correct. New gap flagged: normalization in eigenbasis expansion, distinct from the resolved sign bug."
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 105.0,
+      "interrupted": false,
+      "note": "Board (4/4 non-bonus quests) fully completed: both lapsed reviews (Tensor Products, Quantum Measurement) re-mastered clean on first cold attempt, re-securing all 105 at-risk marks. Eigen-decomposition bridge on H-lambdaI sign for negative eigenvalues FAILed once (the 08-14 bug recurring), corrected, held clean on a second fresh matrix. Hamiltonian Dynamics rung 5 passed via heavy scaffolding (wrong eigenvalues + only-one-eigenvector misconception, eigenvector algebra slip, normalization dropped twice). Session then continued unplanned into HD rung 6 (final rung): FAILed the first cold attempt on eigenvalues, needed extensive worked dialogue (dropped sign, dropped time-evolution phases, an arithmetic slip, and normalization dropped a third time) to reach a correct final answer, but the tutor deliberately deferred the boss-check given visible fatigue/frustration rather than push for a graded finish. HD stays at rung 5 of 6, not mastered. Only a total (80 min vs 77 planned) was given, not a per-quest split, so timing is not_collected and the inner loop is skipped.",
+      "recurring_gap_flagged": "Two distinct Hamiltonian Dynamics gaps this session: (1) sign-handling on H-lambdaI for negative eigenvalues (the 08-14 bug) -- tested via bridge, corrected, held clean on retest -- treat as resolved. (2) Normalization when expanding a state in an eigenbasis (keeping c_+^2+c_-^2=1) -- a NEW gap, distinct from the sign bug, that recurred three separate times in one session (once on the eigenvectors themselves, once on the |0> expansion in rung 5, once again on the final coefficient assembly in rung 6). This is now the clear next target -- do not assume today's bridge covered it, since it never tested normalization specifically.",
+      "ledger_reconciliation": {
+        "written": false,
+        "quests": [],
+        "changes": [],
+        "reason": "Tutor wrote all attempts, mastery, review-queue updates, and rung advances live during the session. Ledger already reflects everything confirmed -- nothing to repair."
+      },
+      "debrief": {
+        "topics": [
+          "Tensor Products",
+          "Quantum Measurement",
+          "Hamiltonian Dynamics"
+        ],
+        "rungs_cleared": 1,
+        "stations_walked": 0,
+        "questions_attempted": 6,
+        "max_depth": {
+          "Tensor Products": "exam-format (review, re-mastered clean)",
+          "Quantum Measurement": "exam-format (review, re-mastered clean)",
+          "Hamiltonian Dynamics": "partial (rung 5 of 6 cleared; final rung attempted, heavy scaffolding, boss-check deferred -- not mastered)"
+        },
+        "first_attempt_pass": [
+          2,
+          5
+        ],
+        "attempt_first": [
+          8,
+          9
+        ],
+        "hints": 9,
+        "min_per_rung": null,
+        "engagement_source": "conversation"
+      }
+    },
+    {
+      "run_id": "run-2026-08-15-01",
+      "started_at": "2026-08-15T00:00:00",
+      "planned_minutes": 85,
+      "actual_minutes": 87,
+      "mode": "stretch",
+      "objective": "depth",
+      "timing": "not_collected",
+      "quests": [
+        {
+          "id": "S1",
+          "type": "review",
+          "topic": "Tensor Products",
+          "est_min": 12,
+          "status": "completed",
+          "note": "FAILed 1/6 — vector-tensor expansion structure wrong (repeated the block instead of distributing each entry against the whole second vector); the previously-flagged factor-order gap did NOT recur"
+        },
+        {
+          "id": "S2",
+          "type": "review",
+          "topic": "Quantum Measurement",
+          "est_min": 12,
+          "status": "completed",
+          "note": "FAILed 2/6 — probability correct, but post-measurement state collapsed to single-qubit kets with two self-cancelling terms; qubit-ordering confusion (which bit is 'first') surfaced and was resolved in dialogue"
+        },
+        {
+          "id": "M1",
+          "type": "bridge",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 11,
+          "status": "completed",
+          "note": "eigenvalues (1,3) missed on first try (sign error), corrected; both eigenvectors ([1,-1],[1,1]) correct on first attempt"
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 44,
+          "status": "completed",
+          "note": "[Rung 4] PASS — numeric time-evolution via diagonalization; first sub-step (expand |0> in eigenbasis) failed once (asked for the formula, then treated |0> as a single eigenstate) before correcting to a=b=1/2; final combination correct"
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 0,
+      "interrupted": true,
+      "note": "All 4 board quests completed (attempted); session then continued unplanned into Hamiltonian Dynamics rung 5 and was cut off mid-question by /study-run close (asking what 'component form' meant, expansion not yet given). Both due reviews FAILed — Tensor Products on a new expansion-structure gap (order-reversal from last time did not recur), Quantum Measurement on post-measurement-state qubit-ordering confusion — so 0 of the 105 marks at stake were re-secured. Main quest landed clean: eigen-decomposition bridge corrected a real gap (sign error on eigenvalues), then rung 4 passed. Extensive back-and-forth on Tensor Products (3 failed attempts at the same expansion step, L2 then L3 then full worked-dialogue) and on basic multi-qubit ket-notation mechanics (index-to-binary mapping, qubit ordering) that turned out to be a real prerequisite gap, not carelessness. User also corrected the tutor twice: once for grading a mid-computation answer as if it were final, and once for asking confidence ratings despite a standing 2026-08-11 override in PROJECT_NOTES.md disabling them — confidence prompts are now off for good this exam. Only a total (87 min vs 85 planned) was given, not a per-quest split, so timing is not_collected and the inner loop is skipped.",
+      "recurring_gap_flagged": "Two new gaps this session, distinct from prior ones: (1) Tensor Products — vector tensor-product expansion structure (each entry of the left vector must spawn an adjacent pair against the whole right vector; instead the whole zero-pattern got repeated as a block). Needed a full worked walkthrough after 3 identical failed attempts and 2 hints — this looks like a standing structural gap, not a slip. (2) Multi-qubit ket notation and qubit ordering were not solid prerequisites going into the Quantum Measurement review — required explaining the index-to-binary mapping from scratch and correcting a left/right qubit-order mixup twice. Both are foundational to Hamiltonian Dynamics, Partial Measurement, and everything downstream — worth a dedicated warm-up before the next review of either topic.",
+      "ledger_reconciliation": {
+        "written": true,
+        "quests": [
+          "S1",
+          "S2",
+          "M2"
+        ],
+        "changes": [
+          {
+            "topic": "Tensor Products",
+            "field": "review_queue.last_seen",
+            "from": "2026-08-14",
+            "to": "2026-08-15"
+          },
+          {
+            "topic": "Tensor Products",
+            "field": "review_queue.next_due",
+            "from": "2026-08-15",
+            "to": "2026-08-16"
+          },
+          {
+            "topic": "Quantum Measurement",
+            "field": "review_queue.last_seen",
+            "from": "2026-08-14",
+            "to": "2026-08-15"
+          },
+          {
+            "topic": "Quantum Measurement",
+            "field": "review_queue.next_due",
+            "from": "2026-08-15",
+            "to": "2026-08-16"
+          },
+          {
+            "topic": "Hamiltonian Dynamics",
+            "field": "rung",
+            "from": 3,
+            "to": 4
+          }
+        ],
+        "reason": "Tutor session never reached its own close sequence (cut short by /study-run close mid-rung-5) — no ledger writes happened live this session. Wrote the gaps close may fill: review last_seen/next_due for both FAILed reviews (interval_days already at 1 from their prior fail, so next_due = last_seen+1 unchanged), and rung 3->4 for the confirmed Hamiltonian Dynamics PASS. Did not write status/mastery changes (neither review topic changed status, Hamiltonian Dynamics stays in_progress) or a fresh next_session block — writing next_session is the tutor's job, not close's, and none was written live this session, so tomorrow's cold start will find a stale one pointing at today's already-completed plan."
+      },
+      "debrief": {
+        "topics": [
+          "Tensor Products",
+          "Quantum Measurement",
+          "Hamiltonian Dynamics"
+        ],
+        "rungs_cleared": 1,
+        "stations_walked": 0,
+        "questions_attempted": 7,
+        "max_depth": {
+          "Tensor Products": "exam-format (review FAILed — new expansion-structure gap, order-reversal gap did not recur)",
+          "Quantum Measurement": "exam-format (review FAILed — post-measurement-state qubit-ordering gap)",
+          "Hamiltonian Dynamics": "partial (rung 4 of 6 cleared; rung 5 in progress, cut off mid-question)"
+        },
+        "first_attempt_pass": [
+          3,
+          7
+        ],
+        "attempt_first": [
+          6,
+          7
+        ],
+        "hints": 2,
+        "min_per_rung": null,
+        "engagement_source": "conversation"
+      }
+    },
+    {
+      "run_id": "run-2026-08-14-01",
+      "started_at": "2026-08-14T00:00:00",
+      "planned_minutes": 85,
+      "actual_minutes": 87,
+      "mode": "stretch",
+      "objective": "depth",
+      "timing": "not_collected",
+      "quests": [
+        {
+          "id": "S1",
+          "type": "review",
+          "topic": "Tensor Products",
+          "est_min": 12,
+          "status": "completed",
+          "note": "FAILed 2/6 -- tensor-product order reversed on a 3-factor product; topic demoted from mastered"
+        },
+        {
+          "id": "S2",
+          "type": "review",
+          "topic": "Quantum Measurement",
+          "est_min": 12,
+          "status": "completed",
+          "note": "FAILed 4/6 -- post-measurement state omitted entirely; topic demoted from mastered"
+        },
+        {
+          "id": "M1",
+          "type": "rung",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 22,
+          "status": "completed",
+          "note": "[Rung 2] PASSed clean, first attempt"
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 22,
+          "status": "completed",
+          "note": "[Setup-only, Rung 3] FAILed first attempt ('it's already set up'), then PASSed on heavily-scaffolded re-ask after correcting several eigen-decomposition sub-errors"
+        },
+        {
+          "id": "B1",
+          "type": "rung",
+          "topic": "Quantum Fourier Transform",
+          "est_min": 22,
+          "status": "not_attempted",
+          "bonus": true,
+          "note": "offered once at close of the board, declined"
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 0,
+      "interrupted": false,
+      "note": "Board's 4 non-bonus quests all attempted and landed (as activities) inside 87 min vs 85 planned -- close at the aggregate level, but only a total was given, not a per-quest split, so timing is not_collected and the inner loop is skipped again. This is now at least the third consecutive close without per-quest timing (run-2026-08-13-01, run-2026-08-13-02, and this one) -- k_rung (0.759) has not been able to correct itself in three tries despite two of those sessions explicitly flagging the ask. Recommend the tutor prompt log per-quest elapsed time as it teaches, since asking for a total in retrospect keeps landing on 'I don't know, here's the sum.' Net effect on coverage this session was negative: two topics lost mastery on review (-105 marks) while Hamiltonian Dynamics banked 0 (partial ramp progress only).",
+      "recurring_gap_flagged": "Two independent recurring-gap notes opened in the ledger this session: (1) both due reviews FAILed the same way -- correct core math, one requested component omitted or misordered, not a wrong belief; (2) Hamiltonian Dynamics rung 3 needed heavy scaffolding on eigen-decomposition mechanics (sign errors, eigenvalue count, trivial-vs-real null space, basis recall) that arguably should already be solid given Unitary Matrices is marked mastered.",
+      "ledger_reconciliation": {
+        "written": false,
+        "quests": [],
+        "changes": [],
+        "reason": "Tutor wrote progress.json live before this close ran (continue-study-session's Step 7). All four non-bonus quests already have matching footprints: review_queue.last_seen=2026-08-14 for S1/S2 with their FAIL attempts logged, and rung 1->3 with PASS attempts logged for M1/M2. Nothing to repair -- ledger already in sync."
+      },
+      "debrief": {
+        "topics": [
+          "Tensor Products",
+          "Quantum Measurement",
+          "Hamiltonian Dynamics"
+        ],
+        "rungs_cleared": 2,
+        "stations_walked": 0,
+        "questions_attempted": 4,
+        "max_depth": {
+          "Tensor Products": "exam-format (review FAILed -- demoted from mastered)",
+          "Quantum Measurement": "exam-format (review FAILed -- demoted from mastered)",
+          "Hamiltonian Dynamics": "partial (rung 3 of 6, Setup-only, heavily scaffolded)"
+        },
+        "first_attempt_pass": [
+          1,
+          4
+        ],
+        "attempt_first": [
+          3,
+          4
+        ],
+        "hints": 6,
+        "min_per_rung": null,
+        "engagement_source": "conversation"
+      }
+    },
+    {
+      "run_id": "run-2026-08-13-02",
+      "started_at": "2026-08-13T00:00:00",
+      "planned_minutes": 44,
+      "actual_minutes": 44,
+      "mode": "stretch",
+      "objective": "depth",
+      "timing": "not_collected",
+      "quests": [
+        {
+          "id": "S1",
+          "type": "review",
+          "topic": "Tensor Products",
+          "est_min": 12,
+          "status": "completed",
+          "note": "confirmed by user at close; per-quest outcome not separately logged"
+        },
+        {
+          "id": "M1",
+          "type": "bridge",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 10,
+          "status": "completed",
+          "note": "eigenvalue/eigenvector prerequisite bridge, confirmed by user at close"
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 22,
+          "status": "completed",
+          "note": "rung 1 (concept recognition), confirmed by user at close"
+        },
+        {
+          "id": "B1",
+          "type": "rung",
+          "topic": "Hamiltonian Dynamics",
+          "est_min": 22,
+          "status": "not_attempted",
+          "bonus": true,
+          "note": "bonus rung 2 not reached; does not count toward completion"
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 0,
+      "interrupted": false,
+      "note": "Closed a day late via user confirmation, not a same-session close -- no tutor transcript available. User confirmed S1/M1/M2 all happened; B1 (bonus) did not. Only aggregate minutes (44, matching the 44-min plan) were available, not a per-quest split, so timing is not_collected and the inner loop is skipped this session. No marks bank this run: Hamiltonian Dynamics is 6 rungs deep and partial ramp progress is worth 0; Tensor Products review re-secures nothing new.",
+      "recurring_gap_flagged": null,
+      "ledger_reconciliation": {
+        "written": true,
+        "quests": [
+          "S1",
+          "M2"
+        ],
+        "changes": [
+          {
+            "topic": "Tensor Products",
+            "field": "review_queue.last_seen",
+            "from": "2026-08-12",
+            "to": "2026-08-13"
+          },
+          {
+            "topic": "Tensor Products",
+            "field": "review_queue.next_due",
+            "from": "2026-08-13",
+            "to": "2026-08-14"
+          },
+          {
+            "topic": "Hamiltonian Dynamics",
+            "field": "status",
+            "from": "unlocked",
+            "to": "in_progress"
+          },
+          {
+            "topic": "Hamiltonian Dynamics",
+            "field": "rung",
+            "from": 0,
+            "to": 1
+          }
+        ],
+        "reason": "Tutor session for run-2026-08-13-02 was never itself logged to progress.json (no attempts, no review update, no rung advance) despite the user confirming S1/M1/M2 happened. Wrote the gaps close may fill: review last_seen/next_due for the confirmed review, and rung/status for the confirmed rung-1 clear. Wrote an 'unverified' attempt marker for each, per rule -- no grade, no marks (rung 1 of 6 is not mastery). M1 (bridge) has no ledger field to advance on its own; folded into the session note only."
+      },
+      "debrief": {
+        "topics": [
+          "Tensor Products",
+          "Hamiltonian Dynamics"
+        ],
+        "rungs_cleared": 1,
+        "stations_walked": 0,
+        "questions_attempted": null,
+        "max_depth": {
+          "Tensor Products": "exam-format (review, reconciled)",
+          "Hamiltonian Dynamics": "recognition (rung 1 of 6)"
+        },
+        "first_attempt_pass": null,
+        "attempt_first": null,
+        "hints": null,
+        "min_per_rung": null,
+        "engagement_source": "self_report"
+      }
+    },
+    {
+      "run_id": "run-2026-08-13-01",
+      "started_at": "2026-08-13T00:00:00",
+      "planned_minutes": 87,
+      "actual_minutes": 87,
+      "mode": "steady",
+      "objective": "depth",
+      "timing": "not_collected",
+      "quests": [
+        {
+          "id": "S1",
+          "type": "review",
+          "topic": "Probabilistic Matrices",
+          "est_min": 12,
+          "status": "completed",
+          "note": "PASS 8/8, fresh weather-system exemplar"
+        },
+        {
+          "id": "S2",
+          "type": "review",
+          "topic": "Probability Distribution Vectors",
+          "est_min": 12,
+          "status": "completed",
+          "note": "PASS 6/6, fresh coin-toss exemplar"
+        },
+        {
+          "id": "M1",
+          "type": "rung",
+          "topic": "Tensor Products",
+          "est_min": 41,
+          "status": "superseded",
+          "note": "Ledger check at session start showed Tensor Products still unlocked/rung0 despite a prior session note claiming mastery; tutor persona initially backfilled mastery from user confirmation, but a re-check of the on-disk ledger mid-close found it had since been updated externally with the real, richer 08-12 attempt history (mastered via boss-check, visualizer built) -- that richer version was kept, the backfill note discarded."
+        },
+        {
+          "id": "M1b",
+          "type": "first_contact_to_mastery",
+          "topic": "Quantum Measurement",
+          "est_min": 36,
+          "status": "completed",
+          "note": "Substituted in for M1 once Tensor Products was found already mastered. Full first-contact (problematic, probe, worked example) through all 4 rungs (D+1=4) to mastery. One FAIL at rung 3 (fatal conceptual error: amplitude-squared vs modulus-squared), corrected on re-ask. Final rung passed cold, unaided, first attempt -- mastered without boss-check."
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 30.5,
+      "interrupted": false,
+      "note": "Board's 3 non-bonus quests all landed (2 reviews + main quest slot, substituted mid-session from Tensor Products to Quantum Measurement once the ledger showed the former already mastered). Unplanned continuation into Hamiltonian Dynamics opened first contact (problematic + probe, both clean) but stalled mid-worked-example on prerequisite eigenvalue/eigenvector confusion -- not graded, not counted, left for next session. Unlocked by Quantum Measurement's mastery: Bomb Tester Experiment, Partial Measurement, Bernstein-Vazirani Algorithm, Physical Qubit Implementation, Grover's Algorithm.",
+      "recurring_gap_flagged": "Complex-amplitude probability: reached for amplitude^2 instead of modulus-squared (amplitude x conjugate) on the first complex-valued rung-3 question. Corrected in-session with a worked conjugate-multiplication example; the very next application (final rung) was clean. Worth one quick check next time complex amplitudes reappear (e.g. early Grover's/QFT work).",
+      "ledger_reconciliation": {
+        "written": true,
+        "quests": [
+          "S1",
+          "S2",
+          "M1b"
+        ],
+        "changes": [
+          {
+            "topic": "Probabilistic Matrices",
+            "field": "review_queue",
+            "from": "next_due 2026-08-13",
+            "to": "next_due 2026-08-15"
+          },
+          {
+            "topic": "Probability Distribution Vectors",
+            "field": "review_queue",
+            "from": "next_due 2026-08-13",
+            "to": "next_due 2026-08-15"
+          },
+          {
+            "topic": "Quantum Measurement",
+            "field": "status",
+            "from": "unlocked",
+            "to": "mastered"
+          },
+          {
+            "topic": "Quantum Measurement",
+            "field": "rung",
+            "from": 0,
+            "to": 4
+          },
+          {
+            "topic": "Quantum Measurement",
+            "field": "marks_secured",
+            "from": 0,
+            "to": 30.5
+          },
+          {
+            "topic": "Bomb Tester Experiment",
+            "field": "status",
+            "from": "locked",
+            "to": "unlocked"
+          },
+          {
+            "topic": "Partial Measurement",
+            "field": "status",
+            "from": "locked",
+            "to": "unlocked"
+          },
+          {
+            "topic": "Bernstein-Vazirani Algorithm",
+            "field": "status",
+            "from": "locked",
+            "to": "unlocked"
+          },
+          {
+            "topic": "Physical Qubit Implementation",
+            "field": "status",
+            "from": "locked",
+            "to": "unlocked"
+          },
+          {
+            "topic": "Grover's Algorithm",
+            "field": "status",
+            "from": "locked",
+            "to": "unlocked"
+          }
+        ],
+        "reason": "Tutor wrote these live during the session; this close step confirmed and flushed them to the on-disk ledger, merging onto a copy of progress.json that had itself changed on disk mid-session (Tensor Products' richer 08-12 history appeared there independently -- kept as-is, not overwritten)."
+      },
+      "debrief": {
+        "topics": [
+          "Probabilistic Matrices",
+          "Probability Distribution Vectors",
+          "Quantum Measurement",
+          "Hamiltonian Dynamics"
+        ],
+        "rungs_cleared": 4,
+        "stations_walked": 0,
+        "questions_attempted": 7,
+        "max_depth": {
+          "Probabilistic Matrices": "exam-format (review)",
+          "Probability Distribution Vectors": "exam-format (review)",
+          "Quantum Measurement": "exam-format (mastered)",
+          "Hamiltonian Dynamics": "first-contact, stalled pre-rung-1"
+        },
+        "first_attempt_pass": [
+          5,
+          6
+        ],
+        "attempt_first": [
+          7,
+          7
+        ],
+        "hints": 1,
+        "min_per_rung": null,
+        "engagement_source": "conversation"
+      }
+    },
+    {
+      "run_id": "run-2026-08-12-01",
+      "started_at": "2026-08-12T00:00:00",
+      "planned_minutes": 60,
+      "actual_minutes": 65,
+      "quests": [
+        {
+          "id": "S1",
+          "type": "review",
+          "topic": "Probability Distribution Vectors",
+          "est_min": 12,
+          "status": "completed",
+          "note": "FAILed (5/6) -- correct values, answered in prose instead of explicit vector notation; interval reset"
+        },
+        {
+          "id": "M1",
+          "type": "drill",
+          "topic": "Unitary Matrices",
+          "est_min": 8,
+          "status": "completed",
+          "note": "two bridge questions on the flagged conjugation gap (entries with nonzero real part); gap reproduced twice, then corrected explicitly"
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "topic": "Unitary Matrices",
+          "est_min": 12,
+          "status": "completed",
+          "note": "first cold attempt (T-gate) FAILed 2/6 -- incomplete, not conceptual (only computed T dagger, never checked T-dagger-T=I); worked dialogue; boss-check on fresh exemplar (U, off-diagonal complex entries) PASSed 6/6 clean -- topic MASTERED, +54.5 marks"
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 129.0,
+      "interrupted": false,
+      "note": "Board (3/3) fully completed, then continued well beyond plan: 3 more due reviews cleared (Probabilistic Matrices FAIL-incomplete, Quantum State Validity PASS, Quantum Amplitudes and Probabilities PASS -- clearing every review due 2026-08-12), one discrimination item (Unitary Matrices vs Probabilistic Matrices, imprecise on first pass), a concept map after Unitary Matrices' mastery, then a full fresh-topic ramp on Tensor Products (rank 1 ROI, newly unlocked) through all 5 rungs to mastery -- including two FAILs and a drop-a-rung recovery on the matrix-block rung that needed an interactive visualizer (built and saved to assets/) before it cleared -- plus a second concept map. Tensor Products mastered clean on first attempt at the final rung, +74.5 marks. Total this session: +129.0 marks (68.5->197.5, 13.9%->40.1%), two topics mastered, Quantum Fourier Transform and Quantum Gate Universality newly unlocked via Unitary Matrices+Tensor Products, Hamiltonian Dynamics newly unlocked via Unitary Matrices+Quantum State Validity. Session closed by explicit /study-run close right as Quantum Measurement's first-contact intro was being opened (not started). Only aggregate session length (65 min) was available at close, not a per-quest timing breakdown -- the k_rung adjustment below is a conservative, directionally-justified estimate, not a precise fit.",
+      "recurring_gap_flagged": null
+    },
+    {
+      "run_id": "run-2026-08-11-02",
+      "started_at": "2026-08-11T00:00:00",
+      "planned_minutes": 87,
+      "actual_minutes": 95,
+      "quests": [
+        {
+          "id": "M1",
+          "type": "rung",
+          "topic": "Quantum Amplitudes and Probabilities",
+          "est_min": 30,
+          "actual_min": 17,
+          "status": "completed"
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "topic": "Quantum Amplitudes and Probabilities",
+          "est_min": 30,
+          "actual_min": 16,
+          "status": "completed"
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 4.0,
+      "interrupted": true,
+      "note": "Board (2/2) fully completed early (~33 min actual vs 60 min estimated -- notably faster than planned). Session then continued unplanned through the rest of Quantum Amplitudes and Probabilities to mastery (+17 marks), Quantum State Validity to mastery (+4 marks), and into Unitary Matrices (rungs 1-4 passed, rung 5 unresolved -- 2 FAILs from a recurring complex-conjugation gap, session ended mid-question on a 3rd exemplar). Only the Quantum State Validity mastery (+4) banked new marks under this run's own board scope; the rest reflects the unplanned continuation. Timing split (board vs. extra) is an estimate, not measured per-quest.",
+      "recurring_gap_flagged": "Unitary Matrices: forgetting to conjugate complex entries when computing U^dagger. See progress.json topic entry for detail -- worth opening next session with a short conjugation drill before returning to rung 5."
+    },
+    {
+      "run_id": "run-2026-08-11-01",
+      "started_at": "2026-08-11T00:00:00",
+      "planned_minutes": 87,
+      "actual_minutes": 87,
+      "quests": [
+        {
+          "id": "M1",
+          "type": "rung",
+          "topic": "Probability Distribution Vectors",
+          "est_min": 15,
+          "actual_min": 20,
+          "status": "completed",
+          "note": "first attempt FAILed on a length-bias misconception; heavier-scaffold re-ask PASSed"
+        },
+        {
+          "id": "M2",
+          "type": "rung",
+          "topic": "Probability Distribution Vectors",
+          "est_min": 15,
+          "actual_min": 10,
+          "status": "completed"
+        },
+        {
+          "id": "B1",
+          "type": "boss",
+          "topic": "Probability Distribution Vectors",
+          "est_min": 15,
+          "actual_min": 14,
+          "status": "completed",
+          "marks": 33.5
+        }
+      ],
+      "completion_rate": 1.0,
+      "marks_secured": 47.5,
+      "interrupted": false,
+      "note": "Board (3/3) fully completed; session continued beyond the plan into Probabilistic Matrices (mastered, +14 marks, unplanned) and first contact on Quantum Amplitudes and Probabilities (in progress at close). User disabled per-answer confidence ratings mid-session (see PROJECT_NOTES.md)."
+    }
+  ]
+}

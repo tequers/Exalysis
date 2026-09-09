@@ -1,4 +1,9 @@
-# Study Run — Time-Boxed Quest Planner (v2, course-agnostic)
+---
+name: study-run
+description: 'EXPLICIT-INVOCATION ONLY. Run only when the user types `/study-run` with a duration (e.g. `/study-run 90m`), or `/study-run close`, `/study-run status`, `/study-run init`. Do NOT auto-trigger from phrases like "let''s study" or "I have an hour" — wait for the explicit slash command. Course-agnostic time-boxed session planner for any learning or exam-prep project: discovers the project''s files, detects which capabilities exist (mastery ledger, priority ranking, spaced-review queue, memory palace, past-paper exemplars, marks coverage), sizes scope to the time available, and renders a quest board — review side quests, a main quest on the current topic ramp, a boss question, an optional bonus. On `close` it debriefs and reconciles the mastery ledger, writing back confirmed rungs, mastery and review dates the tutor left unwritten. Plans and closes only — never teaches, grades, or reveals question content.'
+---
+
+# Study Run — Time-Boxed Quest Planner (v3, course-agnostic)
 
 > **Invocation:** explicit only. `/study-run <duration>`, `/study-run close`,
 > `/study-run status`, `/study-run init`. Never activate from conversation like
@@ -310,25 +315,118 @@ to `null`. The `debrief` block is what makes trends computable later:
 `engagement_source` is one of `tutor_log`, `conversation`, `self_report`, or `none` — trends
 should not mix a self-reported session with logged ones without saying so.
 
+A closed session also carries a `ledger_reconciliation` block recording every write Step 8b made
+back into the ledger. It exists so a stale ledger is diagnosable months later, and so repeated
+reconciliation is visible as the symptom it is:
+
+```json
+"ledger_reconciliation": {
+  "written": true,
+  "quests": ["M1"],
+  "changes": [
+    { "topic": "Tensor Products", "field": "rung",          "from": 0,          "to": 5 },
+    { "topic": "Tensor Products", "field": "status",        "from": "unlocked", "to": "mastered" },
+    { "topic": "Tensor Products", "field": "marks_secured", "from": 0,          "to": 74.5 }
+  ],
+  "reason": "tutor did not write the ledger at session end"
+}
+```
+
+When nothing needed writing, the block is `{ "written": false, "quests": [], "changes": [] }` —
+present either way, so "the ledger was already in sync" and "close never looked" stay
+distinguishable.
+
+`timing` is `"collected"` or `"not_collected"`. A session closed without per-quest actual
+minutes is `not_collected`, and the inner loop is skipped for it — see Step 8.
+
 ---
 
 ## Step 8 — `/study-run close`
 
-1. Read `active_run` and the ledger. **Derive completions from the ledger where possible** — a
-   rung that advanced, a topic newly mastered, a review entry with a newer last-seen date. Ask
-   only for what cannot be derived: elapsed time per quest, and whether the session was
-   interrupted. **One batched question — not an interrogation.**
-2. Compute `completion_rate` over non-bonus quests only.
-3. **Inner loop — fix time estimation.** Per activity class with data:
+1. **Read `active_run` and the ledger, and diff them.** For each non-bonus quest, look for its
+   footprint in the ledger: a rung index that advanced, a `status` that moved to mastered, a
+   review entry whose last-seen date is on or after `started_at`, an attempt timestamped inside
+   the run window. Classify every quest as **confirmed** (the ledger shows it),
+   **contradicted** (the ledger shows no movement), or **unknown**.
+2. **Ask one batched question — never an interrogation.** It covers only what the ledger cannot
+   answer: elapsed minutes per quest, whether the session was interrupted, and — for every
+   *contradicted* quest — whether it actually happened. State confirmed quests back rather than
+   asking about them. Do not ask about grades, marks or correctness: those are the tutor's, and
+   asking invites a self-report this skill must not write.
+3. **Reconcile the ledger (Step 8b).** Write confirmed actuals back before anything is computed
+   from them.
+4. Compute `completion_rate` over non-bonus quests only, **after** reconciliation.
+5. **Inner loop — fix time estimation.** Per activity class with data:
    `k = (1 − alpha)·k + alpha·(actual / estimated)`, alpha 0.3, clamped to [0.4, 3.0].
-4. **Outer loop — fix ambition.** Only once `n_sessions ≥ 3`. If the trailing-5 completion rate
+   **If per-quest actual minutes were not given, mark the session `timing: "not_collected"` and
+   skip the inner loop entirely.** A `k` nudged from a guessed total is worse than a `k` left
+   alone — it launders an invention into the estimator and every later plan inherits it.
+6. **Outer loop — fix ambition.** Only once `n_sessions ≥ 3`. If the trailing-5 completion rate
    for that mode sits more than 10 points above target, add 0.10 to its multiplier; more than
    10 below, subtract 0.10. Clamp [0.7, 1.6]. One nudge per session.
-5. Append the session, clear `active_run`, increment `n_sessions`.
-6. Print the **debrief** (Step 9). That is the whole output — no separate summary.
+7. Append the session, clear `active_run`, increment `n_sessions`.
+8. Print the **debrief** (Step 9). That is the whole output — no separate summary.
 
 **Interrupted sessions** are flagged and excluded from the outer loop — they measure the day,
 not the plan.
+
+---
+
+## Step 8b — Reconcile the ledger
+
+**The ledger is the method prompt's to own and write. It is this skill's to repair.**
+
+The method prompt writes `progress.json` at *its* session end. A tutoring conversation that
+ended without reaching that closing sequence — the window closed, the context ran out, the
+teaching happened in a different conversation from the close — leaves the ledger stale while
+the work really happened. `close` is the last moment at which that truth is still recoverable.
+A close that only records prose in `sessions.json` and leaves the ledger untouched loses it:
+coverage under-reports, the review queue never comes due, and the next board re-plans a
+mastered topic as fresh. That failure is silent, which is what makes it expensive.
+
+So: **for every quest the user confirms as completed whose footprint is missing from the
+ledger, write it.**
+
+### What close may write
+
+Only what is derivable from the board plus a yes/no confirmation:
+
+| Field | Rule |
+|---|---|
+| `rung` / `current_rung` | Advance to the highest rung confirmed cleared — never past it |
+| `status` | `unlocked` → `in_progress` on a first cleared rung; → `mastered` only when the final rung is confirmed **and** the project's own mastery rule is met |
+| `marks_secured` | Set to the topic's full `marks` **on mastery only**. Partial ramp progress banks zero |
+| `review_queue.last_seen` | The run date |
+| `review_queue.next_due` | Recomputed from the `interval_days` and `ease` **already in the entry**. If the entry has no SM-2 fields, write `last_seen` only and leave scheduling to the method prompt — never invent an ease |
+| `coverage.secured_marks` | Recomputed as the sum over topics. Never incremented blind |
+| `attempts[]` | **One** entry per reconciled quest: the run date, the rung, `"result": "unverified"`, `"source": "study-run-close"`. It records *that* the work happened without inventing *how it went* |
+
+### What close must never write
+
+- **A grade.** No PASS/FAIL, no marks on an attempt, no confidence, no note describing an
+  answer this skill did not see. Grading is the method prompt's, and a fabricated PASS corrupts
+  the difficulty controller that reads it.
+- **An unconfirmed rung.** Planned is not done. A quest left `pending` stays absent from the ledger.
+- **Bonus quests**, unless separately confirmed.
+- **Anything already there.** Reconciliation is idempotent: if the ledger's rung is at or past
+  the confirmed one, leave the entry alone. Never double-advance, never re-append an attempt.
+
+### Precedence
+
+**The ledger wins wherever it is richer.** Close fills gaps; it does not overwrite. A
+tutor-written entry carrying real attempt history is always kept over anything reconstructed here.
+
+Record every change in the session's `ledger_reconciliation` block, and report it in the debrief
+as one line — `Ledger  reconciled 1 quest the tutor had not written (Tensor Products, rung 5,
+mastered)` — or `Ledger  in sync` when nothing was needed. **Never reconcile silently.** A silent
+repair hides the thing that is actually broken.
+
+### Reconciliation is a symptom, not a fix
+
+If **three consecutive closes** had to reconcile, stop treating it as routine and say so plainly:
+the method prompt is not writing the ledger at session end, and *that* is the bug — this step is
+a net, not a solution. Recommend the method prompt write the ledger incrementally, as each rung
+resolves, rather than once at session end where a single unclean exit loses the whole session.
 
 ---
 
@@ -347,6 +445,7 @@ this to decide what to change next session.
 | **Fit** | first-attempt pass rate against the 70–85% band | attempts logged this session |
 | **Engagement** | how many questions began with a real attempt · hints requested | tutor engagement log (below) |
 | **Pace** | actual minutes per rung vs planned, and the `k` that moved | this skill's own timing |
+| **Ledger** | whether the ledger was already in sync, or what close had to reconcile | Step 8b |
 
 **Depth levels** — map rung index to a name so "level" means something across projects:
 rung 1 = *recognition*, rung 2 = *guided*, middle rungs = *partial*, final rung = *exam-format*.
@@ -400,6 +499,7 @@ Depth        exam-format on Boosting · SVM stalled at guided
 Fit          first-attempt pass 6/9 (67%) — below band, ramp ran hot
 Engagement   7/9 started with an attempt · 4 hints
 Pace         28 min/rung vs 30 planned (k_rung 1.00 → 0.97)
+Ledger       in sync
 Trend (5)    fit ↑ · engagement → · pace ↑
 
 Both SVM misses were notation, not concept — one bridge rung before retrying.
@@ -413,7 +513,8 @@ Covered      1 topic · 2 rungs
 Depth        guided on Linear Algebra Basics
 Fit          2/2 — too little data to read
 Engagement   not logged; add an engagement field to the tutor prompt to track this
-Pace         22 min/rung vs 25 planned (k_rung 1.00 → 0.96)
+Pace         not collected — inner loop skipped this session
+Ledger       reconciled 1 quest the tutor had not written (Tensor Products, rung 5, mastered)
 
 First session — estimates are still seeds. Nothing to change yet.
 ```
@@ -432,8 +533,11 @@ First session — estimates are still seeds. Nothing to change yet.
 - **Cold start.** With `n_sessions < 3`, force Steady, label it a calibration run, and say the
   estimates are seeds. Do not run the outer loop.
 - **Fatigue.** Refuse more than 180 minutes in one run; propose splitting.
-- **Never fabricate.** Only what happened goes in state. Plans are predictions and never get
-  written into the ledger as history.
+- **Never fabricate — but never lose truth either.** Plans are predictions and never get written
+  into the ledger as history. *Confirmed* actuals are not predictions: a quest the user states
+  they completed is something that happened, and Step 8b writes it. The line is confirmation,
+  not caution. Refusing to write confirmed work is not conservatism — it is how a ledger goes
+  stale and the next board re-plans a mastered topic as fresh.
 - **Narrative budget.** One line on the board. Zero mid-session.
 - **No invented currency.** Where the project has real stakes (marks, weights), those are the
   score. Where it does not, count topics. Never XP, badges, levels or streaks — streak-loss
@@ -453,6 +557,12 @@ A tutor prompt's difficulty controller tunes **question difficulty within a rung
 tunes **how much fits in a session**. Different loops, different variables — neither overrides
 the other. On any disagreement about *teaching*, the method prompt wins; this skill governs
 only scope, budget, and the session ledger.
+
+**On `progress.json` the method prompt is the author and this skill is the repairer.** The tutor
+writes attempts, grades, difficulty state and review scheduling as it teaches. This skill writes
+nothing there while a session is live, and at close writes only the gaps the tutor left — rung,
+status, mastery marks, last-seen — never a grade, never over a richer entry. Both may write
+`progress.json`; only the tutor may judge.
 
 ---
 

@@ -1,0 +1,1531 @@
+{
+ "exam": "Introduction to Quantum Computing (RWTH Aachen)",
+ "exam_date": "2026-08-20",
+ "exam_minutes": null,
+ "exam_minutes_note": "not yet supplied - budgets below are provisional, authored per-archetype rather than derived",
+ "total_marks": 492.0,
+ "mapped_at": "2026-08-18",
+ "mode_version": "EXAM_PREP_PROMPT_v1",
+ "source_exemplars": [
+  "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle.json",
+  "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle.json",
+  "Summer_Semester_2024.json"
+ ],
+ "marks_mapped": 544.0,
+ "marks_unmapped": 48.0,
+ "archetypes": [
+  {
+   "id": "circuit-trace-state",
+   "stem": "State of the system at an intermediate point in a circuit",
+   "format": "mixed:explain_derive/short_answer",
+   "topics": [
+    "Hamiltonian Dynamics",
+    "Partial Measurement",
+    "Quantum Amplitudes and Probabilities",
+    "Quantum Fourier Transform",
+    "Quantum Measurement",
+    "Tensor Products",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 51,
+   "instances": 20,
+   "question_groups": 7,
+   "exemplars": [
+    "E1:Q28a",
+    "E1:Q28b",
+    "E1:Q28c",
+    "E1:Q28",
+    "E1:Q29a",
+    "E1:Q29b",
+    "E1:Q29c",
+    "E1:Q29d",
+    "E1:Q29e",
+    "E1:Q29f",
+    "E1:Q29g",
+    "E1:Q29",
+    "E1:Q35a",
+    "E1:Q35b"
+   ],
+   "playbook": {
+    "trigger": "a circuit diagram and a named point, asks for the state there",
+    "steps": [
+     "write the input state as a full vector in the fixed basis order",
+     "apply gates strictly left to right, one at a time, writing the state after each",
+     "stop at exactly the named point"
+    ],
+    "traps": [
+     "do not skip ahead - the question names a specific point and grades that state",
+     "H on n qubits produces 2^n terms; keep the 2^(-n/2) factor"
+    ],
+    "budget_s": 150
+   },
+   "uses": [
+    "tensor-index-order",
+    "apply-unitary-to-state"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "hamiltonian-time-evolution",
+   "stem": "Which unitary / gate does applying H for time t implement?",
+   "format": "mixed:mcq/short_answer/write_code_or_proof",
+   "topics": [
+    "Hamiltonian Dynamics",
+    "Physical Qubit Implementation",
+    "Tensor Products",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 54,
+   "instances": 10,
+   "question_groups": 9,
+   "exemplars": [
+    "E2:Q30",
+    "E2:Q42",
+    "E2:Q43",
+    "E2:Q44",
+    "E2:Q46",
+    "E2:Q47",
+    "E2:Q48",
+    "E2:Q49",
+    "E2:Q52a",
+    "E2:Q52b"
+   ],
+   "playbook": {
+    "trigger": "a Hamiltonian plus a duration, asks the resulting unitary or named gate",
+    "steps": [
+     "diagonalize H = P D P-dagger",
+     "U = P e^(-i D t) P-dagger : exponentiate the eigenvalues only",
+     "multiply out and compare to the named gates (X, Z, H, S, T, CNOT)"
+    ],
+    "traps": [
+     "exponentiate the DIAGONAL, never the matrix entrywise",
+     "sign of the exponent: e^(-iHt), the minus is load-bearing",
+     "a global phase does not change the gate - factor it out before comparing"
+    ],
+    "budget_s": 180
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "measurement-probability-sequence",
+   "stem": "Probability of measuring 0/1 at first / second measurement",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Probabilistic Matrices",
+    "Quantum Measurement",
+    "Tensor Products",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 30.0,
+   "instances": 13,
+   "question_groups": 5,
+   "exemplars": [
+    "E1:Q13",
+    "E1:Q15a",
+    "E1:Q15b",
+    "E1:Q15c",
+    "E1:Q15d",
+    "E1:Q15",
+    "E1:Q16a",
+    "E1:Q16b",
+    "E1:Q16c",
+    "E1:Q16d",
+    "E1:Q16",
+    "E2:Q28",
+    "E3:E13"
+   ],
+   "playbook": {
+    "trigger": "a circuit with two measurements, asks a marginal or conditional probability",
+    "steps": [
+     "for the FIRST measurement: |amplitude|^2 on the matching basis states, summed",
+     "for the SECOND without knowing the first: sum over both first-outcomes (total probability)",
+     "for the SECOND knowing the first: collapse the state first, THEN square"
+    ],
+    "traps": [
+     "'without knowing the first result' means marginalize, not condition",
+     "conditioning requires renormalizing after the collapse"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "stabilizer-transform",
+   "stem": "Stabilizer set of a transformed state",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Quantum Error Correction",
+    "Stabilizer Formalism"
+   ],
+   "marks_at_stake": 40.0,
+   "instances": 12,
+   "question_groups": 7,
+   "exemplars": [
+    "E2:Q56",
+    "E2:Q57",
+    "E2:Q58a",
+    "E2:Q58b",
+    "E2:Q58c",
+    "E2:Q58d",
+    "E2:Q60a",
+    "E2:Q60b",
+    "E2:Q60c",
+    "E2:Q61",
+    "E3:E17",
+    "E3:E18"
+   ],
+   "playbook": {
+    "trigger": "a state given by its stabilizer set plus a unitary, asks the new stabilizer set",
+    "steps": [
+     "conjugate every generator: S -> U S U-dagger",
+     "use the Clifford table (H: X<->Z, Y->-Y; S: X->Y)",
+     "apply U only on the tensor factors U touches",
+     "carry every sign through"
+    ],
+    "traps": [
+     "signs are load-bearing: -Y stays negative unless the conjugation flips it",
+     "conjugation is U S U-dagger, not U S"
+    ],
+    "budget_s": 150
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "qft-matrix-inverse",
+   "stem": "Matrix of DFT_2, of R_k-dagger, or of DFT_N inverse",
+   "format": "mixed:mcq/short_answer/write_code_or_proof",
+   "topics": [
+    "Quantum Fourier Transform",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 27,
+   "instances": 5,
+   "question_groups": 5,
+   "exemplars": [
+    "E2:Q11",
+    "E2:Q13",
+    "E2:Q16",
+    "E2:Q23",
+    "E2:Q24"
+   ],
+   "playbook": {
+    "trigger": "asks for an explicit DFT / rotation matrix or its inverse",
+    "steps": [
+     "DFT_N entry (k,l) = omega^(k*l)/sqrt(N) with omega = e^(2*pi*i/N)",
+     "DFT_2 = (1/sqrt2)[[1,1],[1,-1]] = H",
+     "inverse = conjugate the phases: omega -> omega-bar"
+    ],
+    "traps": [
+     "the inverse conjugates the exponent, it does not negate the matrix",
+     "R_k-dagger flips the sign in the exponent only, the 1 entries stay"
+    ],
+    "budget_s": 90
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "grover-query-count",
+   "stem": "How many queries / iterations does Grover need?",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Grover's Algorithm",
+    "Quantum Fourier Transform",
+    "Shor's Algorithm"
+   ],
+   "marks_at_stake": 27.0,
+   "instances": 15,
+   "question_groups": 6,
+   "exemplars": [
+    "E2:Q27a",
+    "E2:Q27b",
+    "E2:Q29a",
+    "E2:Q29b",
+    "E2:Q34a",
+    "E2:Q34b",
+    "E2:Q34c",
+    "E2:Q34d",
+    "E2:Q35a",
+    "E2:Q35b",
+    "E2:Q35c",
+    "E2:Q35d",
+    "E2:Q36a",
+    "E2:Q36b"
+   ],
+   "playbook": {
+    "trigger": "a search problem with a stated oracle cost, asks the query or time complexity",
+    "steps": [
+     "Grover needs O(sqrt(N)) queries; N = 2^n -> 2^(n/2)",
+     "multiply by the oracle's own cost to get total time",
+     "for a k-bit key, N = 2^k -> 2^(k/2)"
+    ],
+    "traps": [
+     "sqrt of the SEARCH SPACE, not of n",
+     "an O(n^2) oracle multiplies the total; it does not change the query count"
+    ],
+    "budget_s": 90
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "bv-outcome",
+   "stem": "Outcome of the BV circuit for a given f",
+   "format": "short_answer",
+   "topics": [
+    "Bernstein-Vazirani Algorithm",
+    "Quantum Amplitudes and Probabilities",
+    "Quantum Measurement",
+    "Tensor Products"
+   ],
+   "marks_at_stake": 24.0,
+   "instances": 8,
+   "question_groups": 6,
+   "exemplars": [
+    "E2:Q10a",
+    "E2:Q10b",
+    "E2:Q10c",
+    "E2:Q6",
+    "E2:Q7",
+    "E2:Q8",
+    "E2:Q9",
+    "E3:E2"
+   ],
+   "playbook": {
+    "trigger": "a specific f, asks what BV measures",
+    "steps": [
+     "BV returns s where f(x) = x.s",
+     "f identically 0 -> s = 0^n",
+     "f identically 1 -> s = 0^n with a global -1 phase, measurement still 0^n",
+     "from a truth table: read s off by evaluating f on each e_i (single-1 strings)"
+    ],
+    "traps": [
+     "the measured string is s, not f(s)",
+     "a global phase never changes a measurement outcome",
+     "f(x) = not(x.s) still measures s - negation is a phase"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "bv-fill-the-boxes"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "partial-measurement-postmeasurement",
+   "stem": "Non-normalized then normalized post-measurement state",
+   "format": "short_answer",
+   "topics": [
+    "Partial Measurement",
+    "Probability Distribution Vectors",
+    "Quantum Amplitudes and Probabilities",
+    "Quantum Measurement"
+   ],
+   "marks_at_stake": 20.0,
+   "instances": 16,
+   "question_groups": 4,
+   "exemplars": [
+    "E1:Q19a",
+    "E1:Q19b",
+    "E1:Q19c",
+    "E1:Q19d",
+    "E1:Q19e",
+    "E1:Q19f",
+    "E1:Q19",
+    "E1:Q21a",
+    "E1:Q21b",
+    "E1:Q21c",
+    "E1:Q21d",
+    "E1:Q21e",
+    "E1:Q21f",
+    "E1:Q21"
+   ],
+   "playbook": {
+    "trigger": "a state plus an observed outcome, asks for the resulting state",
+    "steps": [
+     "zero out every component inconsistent with the outcome -> that is the NON-normalized state",
+     "compute the norm of what is left",
+     "divide by it -> the normalized state",
+     "probability of the outcome = the squared norm before dividing"
+    ],
+    "traps": [
+     "ALWAYS write the post-measurement state - omitting it is the single most expensive habit on this paper",
+     "answer both parts when both are asked: non-normalized AND normalized"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "shor-order-finding",
+   "stem": "Order finding and factor extraction",
+   "format": "short_answer",
+   "topics": [
+    "Shor's Algorithm"
+   ],
+   "marks_at_stake": 26.0,
+   "instances": 8,
+   "question_groups": 4,
+   "exemplars": [
+    "E2:Q15a",
+    "E2:Q15b",
+    "E2:Q17a",
+    "E2:Q17b",
+    "E2:Q17c",
+    "E2:Q32a",
+    "E2:Q32b",
+    "E3:E15"
+   ],
+   "playbook": {
+    "trigger": "N, a candidate a, and an order r, asks for a factor",
+    "steps": [
+     "r = ord(a) mod N",
+     "if r is odd or a^(r/2) = -1 mod N, the attempt fails - say so",
+     "otherwise gcd(a^(r/2) - 1, N) and gcd(a^(r/2) + 1, N)",
+     "report the non-trivial one"
+    ],
+    "traps": [
+     "ord(a^2) = r / gcd(r,2) - it is r/2 when r is even, r when r is odd",
+     "always check the odd-r and -1 failure conditions before computing gcd"
+    ],
+    "budget_s": 150
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "hamiltonian-total-energy",
+   "stem": "Total energy of a state under H",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Hamiltonian Dynamics"
+   ],
+   "marks_at_stake": 18,
+   "instances": 3,
+   "question_groups": 3,
+   "exemplars": [
+    "E2:Q40",
+    "E2:Q45",
+    "E2:Q53"
+   ],
+   "playbook": {
+    "trigger": "a Hamiltonian H and a state psi, asks total (expected) energy",
+    "steps": [
+     "compute H psi",
+     "take the inner product <psi| (H psi)",
+     "that scalar is the energy"
+    ],
+    "traps": [
+     "it is <psi|H|psi>, not an eigenvalue, unless psi happens to be an eigenvector",
+     "conjugate the bra side when psi is complex"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "partial-measurement-matrix",
+   "stem": "Give the matrix M such that phi = M psi for a partial measurement",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Partial Measurement",
+    "Probability Distribution Vectors"
+   ],
+   "marks_at_stake": 17,
+   "instances": 11,
+   "question_groups": 3,
+   "exemplars": [
+    "E1:Q17a",
+    "E1:Q17b",
+    "E1:Q17c",
+    "E1:Q17d",
+    "E1:Q17",
+    "E1:Q18",
+    "E1:Q20a",
+    "E1:Q20b",
+    "E1:Q20c",
+    "E1:Q20d",
+    "E1:Q20"
+   ],
+   "playbook": {
+    "trigger": "a partial measurement outcome, asks for the projector matrix or the probability formula",
+    "steps": [
+     "M is diagonal: 1 on basis states consistent with the outcome, 0 elsewhere",
+     "it is a projector: M^2 = M, M-dagger = M",
+     "P(i) = ||M_i psi||^2"
+    ],
+    "traps": [
+     "M is not unitary and not normalized - it is a projector, that is the point",
+     "the probability formula squares the norm; do not report the norm itself"
+    ],
+    "budget_s": 90
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "partial-measurement-membership",
+   "stem": "Is <string> in C_ab for M_1 (x) I (x) M_2?",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Partial Measurement",
+    "Tensor Products"
+   ],
+   "marks_at_stake": 11,
+   "instances": 16,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q30a",
+    "E1:Q30b",
+    "E1:Q30c",
+    "E1:Q30",
+    "E1:Q31a",
+    "E1:Q31b",
+    "E1:Q31c",
+    "E1:Q31d",
+    "E1:Q31e",
+    "E1:Q31f",
+    "E1:Q31g",
+    "E1:Q31h",
+    "E1:Q31i",
+    "E1:Q31j"
+   ],
+   "playbook": {
+    "trigger": "a basis string and a measurement class C_ab, asks membership",
+    "steps": [
+     "identify which qubit positions each M actually measures",
+     "read off those positions from the string, in order",
+     "compare to the subscript ab"
+    ],
+    "traps": [
+     "the I factor is NOT measured - skip its position entirely when reading off",
+     "position order follows the tensor order, left to right"
+    ],
+    "budget_s": 30
+   },
+   "uses": [
+    "tensor-index-order"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "apply-unitary-to-state",
+   "stem": "Apply the given unitary to the given state",
+   "format": "short_answer",
+   "topics": [
+    "Quantum Amplitudes and Probabilities",
+    "Tensor Products",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 16,
+   "instances": 5,
+   "question_groups": 3,
+   "exemplars": [
+    "E1:Q27",
+    "E1:Q36a",
+    "E1:Q36b",
+    "E1:Q36",
+    "E1:Q7"
+   ],
+   "playbook": {
+    "trigger": "a unitary (matrix or |ab> -> |...> rule) and a state, asks for the output",
+    "steps": [
+     "if given as a rule, apply it to each BASIS ket separately",
+     "if given as a matrix, do the matrix-vector product",
+     "carry the amplitudes through unchanged; recombine and simplify"
+    ],
+    "traps": [
+     "U|ab> rules act on basis states - you must expand the superposition first",
+     "1/sqrt2 factors survive the whole computation; do not drop them"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "build-prob-distribution",
+   "stem": "Write the probability distribution vector for a described experiment",
+   "format": "short_answer",
+   "topics": [
+    "Probability Distribution Vectors"
+   ],
+   "marks_at_stake": 15,
+   "instances": 3,
+   "question_groups": 3,
+   "exemplars": [
+    "E1:Q10",
+    "E1:Q8",
+    "E1:Q9"
+   ],
+   "playbook": {
+    "trigger": "a described random experiment, asks for its distribution vector or a statistic of one",
+    "steps": [
+     "enumerate the outcome space in a FIXED order and say what the order is",
+     "count favourable cases / total cases per outcome",
+     "check the vector sums to 1 before writing it"
+    ],
+    "traps": [
+     "3 coin tosses counting heads -> 4 outcomes (0,1,2,3), not 8",
+     "mean of entries of an n-dim distribution is 1/n, independent of the distribution"
+    ],
+    "budget_s": 90
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "ket-to-vector",
+   "stem": "Write a ket superposition as a column vector",
+   "format": "short_answer",
+   "topics": [
+    "Probability Distribution Vectors",
+    "Tensor Products"
+   ],
+   "marks_at_stake": 12,
+   "instances": 10,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q33a",
+    "E1:Q33b",
+    "E1:Q33c",
+    "E1:Q33d",
+    "E1:Q33",
+    "E1:Q37a",
+    "E1:Q37b",
+    "E1:Q37c",
+    "E1:Q37d",
+    "E1:Q37"
+   ],
+   "playbook": {
+    "trigger": "a superposition in ket notation, asks for the column vector",
+    "steps": [
+     "fix the basis order: |00>,|01>,|10>,|11> - binary counting order",
+     "the ket's binary string IS the index",
+     "put each amplitude at its index, zeros everywhere else"
+    ],
+    "traps": [
+     "|101> in 3 qubits is index 5 of 8, not index 3",
+     "the vector has 2^n entries - most of them zero; write them all"
+    ],
+    "budget_s": 60
+   },
+   "uses": [
+    "tensor-index-order"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "qft-phase-decomposition",
+   "stem": "DFT_{2^n}|x> as a product of single-qubit phases",
+   "format": "mixed:short_answer/write_code_or_proof",
+   "topics": [
+    "Quantum Fourier Transform",
+    "Tensor Products"
+   ],
+   "marks_at_stake": 19,
+   "instances": 6,
+   "question_groups": 4,
+   "exemplars": [
+    "E2:Q14",
+    "E2:Q18",
+    "E2:Q20a",
+    "E2:Q20b",
+    "E2:Q20c",
+    "E2:Q21"
+   ],
+   "playbook": {
+    "trigger": "DFT of a basis ket written as a tensor product of (|0>+e^a|1>)/sqrt2 factors",
+    "steps": [
+     "write x as a binary fraction read from the RIGHT",
+     "factor k (from the left) gets phase 2*pi*i*0.x_(n-k+1)...x_n",
+     "read each exponent off that fraction"
+    ],
+    "traps": [
+     "the binary fraction is read backwards relative to the ket - this is the whole trap",
+     "each factor uses a DIFFERENT number of trailing bits; do not reuse the first one"
+    ],
+    "budget_s": 150
+   },
+   "uses": [
+    "tensor-index-order"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "compute-tensor-product",
+   "stem": "Compute the tensor product of the given vectors / matrices",
+   "format": "short_answer",
+   "topics": [
+    "Tensor Products"
+   ],
+   "marks_at_stake": 14,
+   "instances": 11,
+   "question_groups": 3,
+   "exemplars": [
+    "E1:Q24a",
+    "E1:Q24b",
+    "E1:Q24c",
+    "E1:Q24d",
+    "E1:Q24",
+    "E1:Q25a",
+    "E1:Q25b",
+    "E1:Q25c",
+    "E1:Q25d",
+    "E1:Q25",
+    "E1:Q34"
+   ],
+   "playbook": {
+    "trigger": "two vectors or two matrices, asks for their tensor product explicitly",
+    "steps": [
+     "fix the output order: every entry of the FIRST factor scales the WHOLE second factor",
+     "vectors: n*m entries, block by block",
+     "matrices: (n*p) x (m*q), each a_ij scales a full copy of B"
+    ],
+    "traps": [
+     "order matters: A (x) B is not B (x) A - reversing it is the classic loss here",
+     "write every entry, including the zeros"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "tensor-index-order"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "tensor-detect-entangled",
+   "stem": "Is this vector a tensor product / is this state entangled?",
+   "format": "mcq",
+   "topics": [
+    "Quantum State Validity",
+    "Tensor Products"
+   ],
+   "marks_at_stake": 10,
+   "instances": 2,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q12",
+    "E1:Q26"
+   ],
+   "playbook": {
+    "trigger": "a vector in R^4 or a 2-qubit state, asks product vs entangled",
+    "steps": [
+     "write it as [a,b,c,d]",
+     "product iff a*d == b*c",
+     "cross-product equal -> separable, unequal -> entangled"
+    ],
+    "traps": [
+     "the a*d == b*c test is the whole question - do not try to factor by hand",
+     "|00>+|11> has ad=1, bc=0 -> entangled"
+    ],
+    "budget_s": 45
+   },
+   "uses": [
+    "tensor-index-order"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "shor-circuit-states",
+   "stem": "States inside the Shor circuit",
+   "format": "short_answer",
+   "topics": [
+    "Partial Measurement",
+    "Quantum Amplitudes and Probabilities",
+    "Quantum Fourier Transform",
+    "Shor's Algorithm",
+    "Tensor Products"
+   ],
+   "marks_at_stake": 15,
+   "instances": 10,
+   "question_groups": 2,
+   "exemplars": [
+    "E2:Q25",
+    "E2:Q26a",
+    "E2:Q26b",
+    "E2:Q26c",
+    "E2:Q26d",
+    "E2:Q26e",
+    "E2:Q26f",
+    "E2:Q26g",
+    "E2:Q26h",
+    "E2:Q26i"
+   ],
+   "playbook": {
+    "trigger": "a small Shor circuit, asks a state or probability at a named point",
+    "steps": [
+     "build the first register in uniform superposition",
+     "apply f(x) into the second register",
+     "measuring the second register collapses the first to the matching periodic set",
+     "renormalize"
+    ],
+    "traps": [
+     "the first register keeps ALL x consistent with the measured f value - it is a set, not one term",
+     "renormalize after every collapse"
+    ],
+    "budget_s": 120
+   },
+   "uses": [
+    "partial-measurement-postmeasurement"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "validity-probabilistic-matrix",
+   "stem": "The following matrix is a valid probabilistic process",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Probabilistic Matrices"
+   ],
+   "marks_at_stake": 9,
+   "instances": 2,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q1",
+    "E1:Q11"
+   ],
+   "playbook": {
+    "trigger": "a square matrix, asks 'valid stochastic/probabilistic?'",
+    "steps": [
+     "check every entry >= 0",
+     "sum each COLUMN",
+     "every column sums to exactly 1"
+    ],
+    "traps": [
+     "rows vs columns - it is columns that sum to 1",
+     "a negative entry kills it instantly, check before summing"
+    ],
+    "budget_s": 45
+   },
+   "uses": [
+    "column-sum-test"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "tensor-dimension-entries",
+   "stem": "Dimension / entry count / specific entry of a tensor product",
+   "format": "short_answer",
+   "topics": [
+    "Tensor Products"
+   ],
+   "marks_at_stake": 10,
+   "instances": 4,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q22",
+    "E1:Q23a",
+    "E1:Q23b",
+    "E1:Q23"
+   ],
+   "playbook": {
+    "trigger": "a tensor product of vectors, asks a dimension or a particular entry",
+    "steps": [
+     "dim(x (x) y) = n * m, always multiply",
+     "n copies of a d-dim vector -> d^n entries",
+     "entry at index i: write i in the factor bases and multiply the corresponding components"
+    ],
+    "traps": [
+     "dimensions MULTIPLY, they do not add",
+     "index order is fixed by the factor order - reversing it is the single most common loss here"
+    ],
+    "budget_s": 60
+   },
+   "uses": [
+    "tensor-index-order"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "qec-threshold",
+   "stem": "Fault-tolerance threshold arithmetic",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Quantum Error Correction"
+   ],
+   "marks_at_stake": 10,
+   "instances": 4,
+   "question_groups": 2,
+   "exemplars": [
+    "E2:Q62",
+    "E2:Q63a",
+    "E2:Q63b",
+    "E2:Q63c"
+   ],
+   "playbook": {
+    "trigger": "gate counts and error probabilities, asks a threshold or a failure probability",
+    "steps": [
+     "failure per logical gate ~ (number of physical gates) * p",
+     "concatenation squares the effective error each level",
+     "below threshold means the squared term beats the linear one"
+    ],
+    "traps": [
+     "multiply by the gate count before comparing to the threshold"
+    ],
+    "budget_s": 90
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "qft-binary-fraction-modulus",
+   "stem": "Absolute value of e^(2 pi i . binary fraction)",
+   "format": "short_answer",
+   "topics": [
+    "Quantum Amplitudes and Probabilities",
+    "Quantum Fourier Transform"
+   ],
+   "marks_at_stake": 6,
+   "instances": 3,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q31a",
+    "E2:Q31b",
+    "E2:Q31c"
+   ],
+   "playbook": {
+    "trigger": "a complex exponential of a binary fraction, asks its modulus",
+    "steps": [
+     "|e^(i theta)| = 1 for every real theta",
+     "answer 1"
+    ],
+    "traps": [
+     "the fraction is a distractor - the modulus is always 1",
+     "if the question asks for the VALUE not the modulus, compute the angle properly"
+    ],
+    "budget_s": 20
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "validity-quantum-state",
+   "stem": "The following vector is a valid quantum state",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Quantum State Validity"
+   ],
+   "marks_at_stake": 6.0,
+   "instances": 2,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q3",
+    "E3:E14"
+   ],
+   "playbook": {
+    "trigger": "a column vector or ket, possibly complex, asks 'valid quantum state?'",
+    "steps": [
+     "take |a_i|^2 for every amplitude",
+     "sum them",
+     "equals exactly 1"
+    ],
+    "traps": [
+     "complex entries: |a+bi|^2 = a^2+b^2, NOT (a+bi)^2",
+     "|i/sqrt2|^2 = 1/2, not -1/2",
+     "squares sum to 1 here, NOT the entries themselves"
+    ],
+    "budget_s": 45
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "amplitude-and-probability",
+   "stem": "Amplitude and probability of 0 / of 1",
+   "format": "short_answer",
+   "topics": [
+    "Quantum Amplitudes and Probabilities"
+   ],
+   "marks_at_stake": 6,
+   "instances": 5,
+   "question_groups": 1,
+   "exemplars": [
+    "E1:Q6a",
+    "E1:Q6b",
+    "E1:Q6c",
+    "E1:Q6d",
+    "E1:Q6"
+   ],
+   "playbook": {
+    "trigger": "a 2-entry quantum state, asks amplitude and/or probability of an outcome",
+    "steps": [
+     "amplitude of outcome k = the k-th entry, verbatim, complex included",
+     "probability of outcome k = |that entry|^2",
+     "|a+bi|^2 = a^2+b^2"
+    ],
+    "traps": [
+     "amplitude is NOT squared - a huge number of marks die here",
+     "answer every sub-part; these come in 4s (amp 0, prob 0, amp 1, prob 1)"
+    ],
+    "budget_s": 45
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "validity-unitary",
+   "stem": "The following matrix is a valid unitary",
+   "format": "mcq",
+   "topics": [
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 6,
+   "instances": 2,
+   "question_groups": 2,
+   "exemplars": [
+    "E1:Q4",
+    "E2:Q38"
+   ],
+   "playbook": {
+    "trigger": "a square matrix, possibly complex, asks 'valid unitary?'",
+    "steps": [
+     "form U-dagger (transpose then conjugate)",
+     "multiply U-dagger U",
+     "is it the identity?"
+    ],
+    "traps": [
+     "dagger = transpose AND conjugate; forgetting the conjugate passes bad matrices",
+     "fast check: columns orthonormal - cheaper than the full product",
+     "for e^D with D diagonal: e^D is unitary iff every diagonal entry is purely imaginary; hermitian iff every entry is real"
+    ],
+    "budget_s": 60
+   },
+   "uses": [
+    "complex-modulus"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "energy-levels-photon",
+   "stem": "Energy levels, photon energy, sideband cooling",
+   "format": "write_code_or_proof",
+   "topics": [
+    "Hamiltonian Dynamics",
+    "Physical Qubit Implementation"
+   ],
+   "marks_at_stake": 8,
+   "instances": 1,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q50"
+   ],
+   "playbook": {
+    "trigger": "a ladder of energy levels in eV, asks a photon energy or a cooling step",
+    "steps": [
+     "photon energy = difference between the two levels, exactly",
+     "cooling drives downward; identify the target lowest level",
+     "an unstable level that decays is a pump route, not a qubit level"
+    ],
+    "traps": [
+     "use the difference, never the absolute level value",
+     "check which levels are stable before choosing the qubit pair"
+    ],
+    "budget_s": 120
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "shor-code-syndrome",
+   "stem": "Which error hit this Shor-code codeword?",
+   "format": "mixed:mcq/short_answer",
+   "topics": [
+    "Quantum Error Correction",
+    "Stabilizer Formalism"
+   ],
+   "marks_at_stake": 9.0,
+   "instances": 3,
+   "question_groups": 2,
+   "exemplars": [
+    "E2:Q55a",
+    "E2:Q55b",
+    "E3:E6"
+   ],
+   "playbook": {
+    "trigger": "a corrupted 9-qubit codeword, asks the error or the resulting stabilizer set",
+    "steps": [
+     "compare block by block against the clean encoding",
+     "a flipped sign inside a block -> phase error on that block",
+     "a flipped bit inside a triple -> bit-flip error at that position",
+     "name the error and its location"
+    ],
+    "traps": [
+     "Z^(x)9 on |0-tilde> is a logical operation, not a detectable error",
+     "check all three blocks - the error is often in the one you skim"
+    ],
+    "budget_s": 150
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "hamiltonian-ground-state",
+   "stem": "Ground state of H",
+   "format": "short_answer",
+   "topics": [
+    "Hamiltonian Dynamics"
+   ],
+   "marks_at_stake": 6,
+   "instances": 1,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q51"
+   ],
+   "playbook": {
+    "trigger": "a Hamiltonian matrix, asks for the ground state",
+    "steps": [
+     "find the eigenvalues",
+     "take the SMALLEST one",
+     "report its normalized eigenvector"
+    ],
+    "traps": [
+     "ground = minimum eigenvalue, not maximum",
+     "normalize the eigenvector before reporting it"
+    ],
+    "budget_s": 90
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "bomb-tester",
+   "stem": "Bomb tester probabilities",
+   "format": "short_answer",
+   "topics": [
+    "Bomb Tester Experiment"
+   ],
+   "marks_at_stake": 6,
+   "instances": 7,
+   "question_groups": 1,
+   "exemplars": [
+    "E1:Q14a",
+    "E1:Q14b",
+    "E1:Q14c",
+    "E1:Q14d",
+    "E1:Q14e",
+    "E1:Q14f",
+    "E1:Q14"
+   ],
+   "playbook": {
+    "trigger": "the Elitzur-Vaidman setup with a stated beam splitter, asks outcome probabilities",
+    "steps": [
+     "no bomb: the interferometer recombines - amplitudes interfere, one detector gets everything",
+     "bomb present: the bomb measures the path, so treat each path classically then square",
+     "report the probability per detector"
+    ],
+    "traps": [
+     "with the bomb present you must collapse first, THEN square - interference is gone",
+     "a non-50/50 beam splitter changes the amplitudes; do not reuse the 1/sqrt2 result"
+    ],
+    "budget_s": 120
+   },
+   "uses": [
+    "measurement-probability-sequence"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "bv-uf-replacement",
+   "stem": "Are these unitaries good replacements for U_f?",
+   "format": "mcq",
+   "topics": [
+    "Bernstein-Vazirani Algorithm",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 5,
+   "instances": 1,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q5"
+   ],
+   "playbook": {
+    "trigger": "candidate transformations, asks which validly implement U_f",
+    "steps": [
+     "U_f must be unitary and reversible",
+     "it must act as |x,y> -> |x, y XOR f(x)>",
+     "check it preserves x and only touches y through XOR"
+    ],
+    "traps": [
+     "anything that overwrites y (rather than XOR) is irreversible -> bad",
+     "anything that changes x is bad regardless of what it does to y"
+    ],
+    "budget_s": 90
+   },
+   "uses": [
+    "validity-unitary"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "stochastic-proof-gapfill",
+   "stem": "Fill in the gaps in the proof about stochastic matrices",
+   "format": "short_answer",
+   "topics": [
+    "Probabilistic Matrices",
+    "Probability Distribution Vectors"
+   ],
+   "marks_at_stake": 5,
+   "instances": 1,
+   "question_groups": 1,
+   "exemplars": [
+    "E1:Q5"
+   ],
+   "playbook": {
+    "trigger": "a proof written out with boxes to complete",
+    "steps": [
+     "read the line BELOW the gap first - it tells you what the gap must produce",
+     "name the property being used at each step (non-negativity, column sums, linearity)",
+     "close with the statement the proof set out to prove"
+    ],
+    "traps": [
+     "do not skip the final line - the concluding statement carries marks",
+     "gaps want a justification, not a restatement"
+    ],
+    "budget_s": 150
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "bv-fill-the-boxes",
+   "stem": "Fill the boxes so the circuit outputs the given state",
+   "format": "write_code_or_proof",
+   "topics": [
+    "Bernstein-Vazirani Algorithm"
+   ],
+   "marks_at_stake": 4,
+   "instances": 4,
+   "question_groups": 4,
+   "exemplars": [
+    "E2:Q1",
+    "E2:Q2",
+    "E2:Q3",
+    "E2:Q4"
+   ],
+   "playbook": {
+    "trigger": "a BV/oracle circuit with empty boxes and a target output state",
+    "steps": [
+     "read the TARGET state and ask what basis it lives in",
+     "|x,f(x)> -> H^(x)n on the first register then U_f",
+     "(-1)^f(x)|x> (x) |-> -> put the second register in |-> first (X then H), then U_f (phase kickback)",
+     "|x> (x) |0> -> uncompute: apply U_f twice, or undo the second register"
+    ],
+    "traps": [
+     "phase kickback needs |-> in the second register - forgetting the X before the H loses it",
+     "the (-1)^f(x) phase survives the second Hadamard layer; do not cancel it"
+    ],
+    "budget_s": 120
+   },
+   "uses": [
+    "apply-unitary-to-state"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "validity-prob-distribution",
+   "stem": "The following vector is a valid probabilistic state",
+   "format": "mcq",
+   "topics": [
+    "Probability Distribution Vectors"
+   ],
+   "marks_at_stake": 1,
+   "instances": 1,
+   "question_groups": 1,
+   "exemplars": [
+    "E1:Q2"
+   ],
+   "playbook": {
+    "trigger": "a column vector of reals, asks 'valid probability distribution?'",
+    "steps": [
+     "all entries >= 0",
+     "sum the entries",
+     "equals exactly 1"
+    ],
+    "traps": [
+     "entries must be >= 0, not just real",
+     "sums to 1, NOT squares to 1 - that is the quantum test"
+    ],
+    "budget_s": 30
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "correct-false-nonsense",
+   "stem": "Is <expression> correct, false or nonsense",
+   "format": "mcq",
+   "topics": [
+    "Quantum State Validity",
+    "Tensor Products",
+    "Unitary Matrices"
+   ],
+   "marks_at_stake": 1,
+   "instances": 8,
+   "question_groups": 1,
+   "exemplars": [
+    "E1:Q32a",
+    "E1:Q32b",
+    "E1:Q32c",
+    "E1:Q32d",
+    "E1:Q32e",
+    "E1:Q32f",
+    "E1:Q32g",
+    "E1:Q32"
+   ],
+   "playbook": {
+    "trigger": "a notation claim, three options: correct / false / nonsense",
+    "steps": [
+     "type-check first: do the dimensions and objects even match?",
+     "if types are wrong -> NONSENSE, stop",
+     "if types are fine, evaluate both sides",
+     "equal -> correct, unequal -> false"
+    ],
+    "traps": [
+     "'nonsense' means ill-typed, not merely wrong - do not use it for a false-but-well-formed claim",
+     "||psi>+|phi>> style nesting is a type error, not an arithmetic one"
+    ],
+    "budget_s": 45
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "gate-universality",
+   "stem": "Universal, universal for 1-qubit gates, or not universal?",
+   "format": "mcq",
+   "topics": [
+    "Quantum Gate Universality"
+   ],
+   "marks_at_stake": 0.0,
+   "instances": 4,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q54a",
+    "E2:Q54b",
+    "E2:Q54c",
+    "E2:Q54d"
+   ],
+   "playbook": {
+    "trigger": "a gate set, asks universal / universal for 1-qubit / not universal",
+    "steps": [
+     "is there an entangling 2-qubit gate (CNOT/CZ)? no -> at best 1-qubit",
+     "do the 1-qubit gates generate a dense subgroup? finite sets like {X,Y,Z} do not",
+     "rotations R_X,R_Y,R_Z -> dense on 1 qubit; {CNOT,H,T} -> fully universal"
+    ],
+    "traps": [
+     "{X,Y,Z} is finite -> NOT universal even for 1 qubit",
+     "no entangling gate means never fully universal"
+    ],
+    "budget_s": 30
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "physical-qubit-truefalse",
+   "stem": "True/False on ions, cooling, photon energy",
+   "format": "mcq",
+   "topics": [
+    "Physical Qubit Implementation"
+   ],
+   "marks_at_stake": 0.0,
+   "instances": 4,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q39a",
+    "E2:Q39b",
+    "E2:Q39c",
+    "E2:Q39d"
+   ],
+   "playbook": {
+    "trigger": "a one-line physical claim about ions/cooling/energy levels, true or false",
+    "steps": [
+     "photon energy for E_a -> E_b is exactly (E_b - E_a), never a multiple",
+     "cooling = driving to the lowest energy level",
+     "a >2-level ion CAN be a qubit if two levels are addressable in isolation"
+    ],
+    "traps": [
+     "'needs 2(E_2-E_1)' style distractors are always false",
+     "'more than 2 levels cannot be a qubit' is false"
+    ],
+    "budget_s": 30
+   },
+   "uses": [],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  },
+  {
+   "id": "grover-state-matching",
+   "stem": "Which psi_i equals phi_j across two circuits?",
+   "format": "short_answer",
+   "topics": [
+    "Grover's Algorithm",
+    "Quantum Measurement"
+   ],
+   "marks_at_stake": 0.0,
+   "instances": 9,
+   "question_groups": 1,
+   "exemplars": [
+    "E2:Q33a",
+    "E2:Q33b",
+    "E2:Q33c",
+    "E2:Q33d",
+    "E2:Q33e",
+    "E2:Q33f",
+    "E2:Q33g",
+    "E2:Q33h",
+    "E2:Q33i"
+   ],
+   "playbook": {
+    "trigger": "two circuits with labelled intermediate states, asks which correspond",
+    "steps": [
+     "trace both circuits to their labelled points",
+     "match on the state vector, not on the position in the diagram"
+    ],
+    "traps": [
+     "equal states can sit at different depths - compare vectors, not diagram positions"
+    ],
+    "budget_s": 60
+   },
+   "uses": [
+    "circuit-trace-state"
+   ],
+   "state": "cold",
+   "streak": 0,
+   "best_time_s": null,
+   "drills_seen": []
+  }
+ ]
+}

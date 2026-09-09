@@ -1,0 +1,22 @@
+{
+  "_comment": "EXAM-PREP CACHE ONLY. Deliberately carries no `paths`/`method` block for deep mode: the previous full .study-run.json in this Course was deleted because it pinned a superseded tutor prompt version and went stale (see final_26_08_2026/PROJECT_NOTES.md). /study-run still re-discovers its own paths by search every time. Only /start-session, /session-end and /mock-exam read this file.",
+  "course": "Computer Vision (RWTH Aachen)",
+  "exam": "final_26_08_2026",
+  "exam_prep": {
+    "method": "../../tutor/EXAM_PREP_PROMPT_v1.md",
+    "archetypes": "final_26_08_2026/archetypes.json",
+    "postprocess": "final_26_08_2026/archetypes_postprocess.py",
+    "ledger": "final_26_08_2026/progress.json",
+    "exemplars": "final_26_08_2026/parsed/*.json",
+    "taxonomy": "final_26_08_2026/taxonomy.json",
+    "priority": "final_26_08_2026/Exam_ROI_Pipeline.xlsx#ROI Scores",
+    "glossary": null,
+    "exam_date": "2026-08-26",
+    "exam_minutes": 90,
+    "exam_minutes_confidence": "CONFIRMED from current official slides: 'Written exam, duration 90min, closed book.'",
+    "budget_basis": "2023_Exam ONLY (94 marks / 47 questions) - the single genuine sitting. NOT the 220-mark sum of all three papers, NOT Old_Exam_Tasks (a compilation of tasks, not a paper), NOT mockup_exam_2023 (practice). Those two supply archetypes and exemplars but never timing.",
+    "real_paper": "final_26_08_2026/parsed/2023_Exam.json",
+    "resolved_at": "2026-08-21",
+    "aids": "NONE - closed book (current slides). /cheat-sheet does not apply to this exam."
+  }
+}
