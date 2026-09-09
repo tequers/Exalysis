@@ -1,0 +1,187 @@
+{
+  "topics": {
+    "Probabilistic Matrices": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Probability Distribution Vectors"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Probability Distribution Vectors": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Quantum State Validity": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Quantum Amplitudes and Probabilities"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Unitary Matrices": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Quantum State Validity",
+        "Probabilistic Matrices"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Quantum Amplitudes and Probabilities": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Probability Distribution Vectors"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Tensor Products": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Quantum State Validity",
+        "Unitary Matrices"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Quantum Measurement": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Quantum Amplitudes and Probabilities",
+        "Quantum State Validity"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Bomb Tester Experiment": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 1,
+      "prerequisites": [
+        "Quantum Measurement",
+        "Unitary Matrices"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Partial Measurement": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Tensor Products",
+        "Quantum Measurement"
+      ],
+      "first_seen": "Practice_E-test_1__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Bernstein-Vazirani Algorithm": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Quantum Amplitudes and Probabilities",
+        "Quantum Measurement",
+        "Unitary Matrices",
+        "Tensor Products"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Quantum Fourier Transform": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Unitary Matrices",
+        "Tensor Products",
+        "Quantum Amplitudes and Probabilities"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Shor's Algorithm": {
+      "difficulty_d": 5,
+      "difficulty_hours": "6–15h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Quantum Fourier Transform",
+        "Unitary Matrices",
+        "Quantum Measurement"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Grover's Algorithm": {
+      "difficulty_d": 4,
+      "difficulty_hours": "3–6h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Quantum Amplitudes and Probabilities",
+        "Unitary Matrices",
+        "Quantum Measurement",
+        "Tensor Products"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Physical Qubit Implementation": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 1,
+      "prerequisites": [
+        "Quantum State Validity",
+        "Quantum Measurement"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Hamiltonian Dynamics": {
+      "difficulty_d": 5,
+      "difficulty_hours": "6–15h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Unitary Matrices",
+        "Quantum State Validity"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Quantum Gate Universality": {
+      "difficulty_d": 3,
+      "difficulty_hours": "1–3h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Unitary Matrices",
+        "Tensor Products"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Quantum Error Correction": {
+      "difficulty_d": 5,
+      "difficulty_hours": "6–15h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Stabilizer Formalism",
+        "Quantum Measurement",
+        "Partial Measurement"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    },
+    "Stabilizer Formalism": {
+      "difficulty_d": 5,
+      "difficulty_hours": "6–15h",
+      "connection_c": 3,
+      "prerequisites": [
+        "Quantum Measurement",
+        "Unitary Matrices",
+        "Tensor Products",
+        "Partial Measurement"
+      ],
+      "first_seen": "Practice_E-test_2__Überprüfung_des_Testversuchs___RWTHmoodle"
+    }
+  }
+}

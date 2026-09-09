@@ -29,9 +29,25 @@ env/
 Thumbs.db
 Desktop.ini
 .DS_Store
+~$*
+__MACOSX/
 
 # Pipeline outputs (regenerated on every run)
 Exam_ROI_Pipeline.xlsx
+_roi_stage_copy.xlsx
+
+# Copyrighted / personal course material (lecture slides, exam papers, exercise
+# sheets, personal exam submissions & grades, and the verbatim text the pipeline
+# extracts from them). The pipeline reads these locally; the repo only ships the
+# code that processes them, never the source material itself.
+Courses/**/lectures/
+Courses/**/exercises/
+Courses/**/exams/
+Courses/**/anki/
+Courses/**/parsed/
+
+# Scratch / superseded-content folders
+**/_to_delete/
 
 # Dependencies
 node_modules/

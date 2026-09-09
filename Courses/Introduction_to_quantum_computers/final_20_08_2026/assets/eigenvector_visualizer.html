@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matrix action &amp; eigenvectors</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#2a2f3a; --txt:#e6e8ee; --dim:#9aa3b2;
+    --in:#5b9cf6; --out:#f2994a; --eig:#4ec9a0; --grid:#1e222b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px}
+  h1{font-size:17px;margin:0 0 2px;font-weight:600}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 16px}
+  .cols{display:flex;gap:16px;flex-wrap:wrap}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .stage{flex:1 1 420px;min-width:340px}
+  .side{flex:1 1 320px;min-width:300px}
+  canvas{width:100%;height:auto;display:block;border-radius:6px;cursor:crosshair;touch-action:none}
+  .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+  .mat{display:grid;grid-template-columns:repeat(2,64px);gap:6px;margin-bottom:6px}
+  input[type=number]{width:100%;background:#0d0f14;border:1px solid var(--line);color:var(--txt);
+       border-radius:6px;padding:6px 8px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center}
+  input[type=number]:focus{outline:none;border-color:var(--in)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  button{background:#212633;border:1px solid var(--line);color:var(--txt);border-radius:999px;
+       padding:5px 11px;font-size:12px;cursor:pointer}
+  button:hover{border-color:var(--in);color:#fff}
+  .work{font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;background:#0d0f14;
+       border:1px solid var(--line);border-radius:8px;padding:11px;margin-top:12px;white-space:pre-wrap}
+  .k{color:var(--dim)}
+  .vin{color:var(--in)} .vout{color:var(--out)} .ve{color:var(--eig)}
+  .verdict{margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);
+       background:#0d0f14;font-size:13px}
+  .verdict.hit{border-color:var(--eig);background:rgba(78,201,160,.09)}
+  .verdict b{color:var(--eig)}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--dim);margin-top:10px;flex-wrap:wrap}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .hint{color:var(--dim);font-size:12px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>What a matrix does to a vector — and which vectors survive it</h1>
+  <p class="sub">Drag the blue vector. Orange is <em>Hv</em>. Green rays are the eigenvectors: the only directions <em>H</em> leaves alone, stretching them by &lambda; instead of turning them.</p>
+
+  <div class="cols">
+    <div class="card stage">
+      <canvas id="cv" width="880" height="880"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--in)"></i>v (drag me)</span>
+        <span><i class="sw" style="background:var(--out)"></i>Hv</span>
+        <span><i class="sw" style="background:var(--eig)"></i>eigen-directions</span>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <p class="lbl">H (symmetric &rarr; real eigenvalues)</p>
+        <div class="mat">
+          <input type="number" id="a" value="3" step="0.5">
+          <input type="number" id="b" value="1" step="0.5">
+          <input type="number" id="c" value="1" step="0.5">
+          <input type="number" id="d" value="3" step="0.5">
+        </div>
+        <div class="presets">
+          <button data-m="3,1,1,3">[[3,1],[1,3]]</button>
+          <button data-m="1,0.5,0.5,1">[[1,½],[½,1]]</button>
+          <button data-m="1,1,1,1">[[1,1],[1,1]]</button>
+          <button data-m="1,0,0,2">[[1,0],[0,2]]</button>
+          <button data-m="0,1,1,0">X = [[0,1],[1,0]]</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <p class="lbl">The multiplication, row by row</p>
+        <div class="work" id="work"></div>
+        <div class="verdict" id="verdict"></div>
+        <p class="hint">Every entry of <em>Hv</em> is one row of <em>H</em> dotted with the whole of <em>v</em>. Row 1 makes entry 1, row 2 makes entry 2 — that is the entire rule.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+  var S=880, O=S/2, U=78;               // size, origin, pixels per unit
+  var v={x:1,y:1};
+  var ids=['a','b','c','d'];
+
+  function M(){ return ids.map(function(i){ return parseFloat(document.getElementById(i).value)||0; }); }
+  function mul(m,p){ return {x:m[0]*p.x+m[1]*p.y, y:m[2]*p.x+m[3]*p.y}; }
+
+  // eigen-decomposition of [[a,b],[c,d]] (real branch only)
+  function eig(m){
+    var a=m[0],b=m[1],c=m[2],d=m[3];
+    var tr=a+d, det=a*d-b*c, disc=tr*tr/4-det;
+    if(disc< -1e-12) return null;
+    var s=Math.sqrt(Math.max(disc,0)), l1=tr/2+s, l2=tr/2-s;
+    function vec(l){
+      if(Math.abs(b)>1e-9) return norm({x:b,y:l-a});
+      if(Math.abs(c)>1e-9) return norm({x:l-d,y:c});
+      return Math.abs(a-l)<1e-9?{x:1,y:0}:{x:0,y:1};
+    }
+    return [{l:l1,v:vec(l1)},{l:l2,v:vec(l2)}];
+  }
+  function norm(p){ var n=Math.hypot(p.x,p.y)||1; return {x:p.x/n,y:p.y/n}; }
+  function X(u){ return O+u*U; }
+  function Y(u){ return O-u*U; }
+  function fmt(n){ var r=Math.round(n*1000)/1000; return (Object.is(r,-0)?0:r).toString(); }
+
+  function arrow(p,color,width,head){
+    ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=width; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(X(0),Y(0)); ctx.lineTo(X(p.x),Y(p.y)); ctx.stroke();
+    var ang=Math.atan2(-(p.y),p.x), hx=X(p.x), hy=Y(p.y), h=head;
+    ctx.beginPath();
+    ctx.moveTo(hx,hy);
+    ctx.lineTo(hx-h*Math.cos(ang-0.4),hy+h*Math.sin(ang-0.4));
+    ctx.lineTo(hx-h*Math.cos(ang+0.4),hy+h*Math.sin(ang+0.4));
+    ctx.closePath(); ctx.fill();
+  }
+
+  function draw(){
+    var m=M(), Hv=mul(m,v), E=eig(m);
+    ctx.clearRect(0,0,S,S);
+
+    // grid
+    ctx.strokeStyle='#1e222b'; ctx.lineWidth=1;
+    for(var g=-5;g<=5;g++){
+      ctx.beginPath(); ctx.moveTo(X(g),0); ctx.lineTo(X(g),S); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,Y(g)); ctx.lineTo(S,Y(g)); ctx.stroke();
+    }
+    ctx.strokeStyle='#39404e'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(S,Y(0)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(0),0); ctx.lineTo(X(0),S); ctx.stroke();
+
+    // eigen-rays
+    if(E){
+      ctx.setLineDash([7,7]); ctx.lineWidth=2; ctx.strokeStyle='rgba(78,201,160,.65)';
+      E.forEach(function(e){
+        ctx.beginPath();
+        ctx.moveTo(X(-e.v.x*6),Y(-e.v.y*6));
+        ctx.lineTo(X( e.v.x*6),Y( e.v.y*6));
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+      ctx.font='500 15px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillStyle='rgba(78,201,160,.95)';
+      E.forEach(function(e){
+        ctx.fillText('λ = '+fmt(e.l), X(e.v.x*4.35)+8, Y(e.v.y*4.35));
+      });
+    }
+
+    arrow(Hv,'#f2994a',5,15);
+    arrow(v,'#5b9cf6',5,15);
+
+    ctx.font='600 16px ui-sans-serif,system-ui,sans-serif';
+    ctx.fillStyle='#5b9cf6'; ctx.fillText('v',   X(v.x)+12,  Y(v.y)-8);
+    ctx.fillStyle='#f2994a'; ctx.fillText('Hv',  X(Hv.x)+12, Y(Hv.y)-8);
+
+    // working
+    var w=document.getElementById('work');
+    w.innerHTML =
+      '<span class="k">H = [['+fmt(m[0])+', '+fmt(m[1])+'], ['+fmt(m[2])+', '+fmt(m[3])+']]</span>\n'+
+      '<span class="vin">v = ['+fmt(v.x)+', '+fmt(v.y)+']</span>\n\n'+
+      'row 1 · v = '+fmt(m[0])+'('+fmt(v.x)+') + '+fmt(m[1])+'('+fmt(v.y)+') = <span class="vout">'+fmt(Hv.x)+'</span>\n'+
+      'row 2 · v = '+fmt(m[2])+'('+fmt(v.x)+') + '+fmt(m[3])+'('+fmt(v.y)+') = <span class="vout">'+fmt(Hv.y)+'</span>\n\n'+
+      '<span class="vout">Hv = ['+fmt(Hv.x)+', '+fmt(Hv.y)+']</span>';
+
+    // parallel test
+    var cross=v.x*Hv.y-v.y*Hv.x, mag=Math.hypot(v.x,v.y)*Math.hypot(Hv.x,Hv.y);
+    var par = mag>1e-9 && Math.abs(cross)/mag < 0.02;
+    var vd=document.getElementById('verdict');
+    if(par){
+      var lam = Math.abs(v.x)>Math.abs(v.y) ? Hv.x/v.x : Hv.y/v.y;
+      vd.className='verdict hit';
+      vd.innerHTML='<b>Eigenvector.</b> Hv points along v — no turn, pure scaling. '+
+                   'Hv = <b>'+fmt(lam)+'</b> · v, so λ = <b>'+fmt(lam)+'</b>.';
+    }else{
+      vd.className='verdict';
+      vd.innerHTML='Hv has been <em>rotated</em> off v — so v is not an eigenvector of this H. '+
+                   'Drag it onto a green ray.';
+    }
+  }
+
+  function place(ev){
+    var r=cv.getBoundingClientRect();
+    var px=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+    var py=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+    var sx=cv.width/r.width, sy=cv.height/r.height;
+    v.x=Math.round(((px*sx)-O)/U*4)/4;
+    v.y=Math.round((O-(py*sy))/U*4)/4;
+    if(v.x===0&&v.y===0) v.x=0.25;
+    draw();
+  }
+  var down=false;
+  cv.addEventListener('pointerdown',function(e){down=true;cv.setPointerCapture(e.pointerId);place(e);});
+  cv.addEventListener('pointermove',function(e){if(down)place(e);});
+  cv.addEventListener('pointerup',function(){down=false;});
+  ids.forEach(function(i){document.getElementById(i).addEventListener('input',draw);});
+  Array.prototype.forEach.call(document.querySelectorAll('[data-m]'),function(b){
+    b.addEventListener('click',function(){
+      var p=b.dataset.m.split(',');
+      ids.forEach(function(id,k){document.getElementById(id).value=p[k];});
+      draw();
+    });
+  });
+  draw();
+})();
+</script>
+</body>
+</html>

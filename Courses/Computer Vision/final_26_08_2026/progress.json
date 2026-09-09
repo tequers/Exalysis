@@ -1,154 +1,579 @@
 {
-  "_comment": "Mastery ledger for the progressive-exam tutor. Claude reads this at the start of every session and updates it at the end. Status flow per rung: locked -> unlocked -> mastered. A topic is mastered only when its final rung is mastered. Do NOT start a topic until all its prerequisites are mastered. Ramp length = D + 1 (rungs). Rung goals: 1=concept recognition, 2=guided application, mid=partial exam, last=full exam.",
-  "exam": "Computer Vision (RWTH Aachen)",
-  "exam_date": "2026-08-26",
-  "ramp_rule": "rungs = difficulty_d + 1; rung1=concept recognition (mcq/short), rung2=guided application (skeleton given), middle=partial exam (skeleton removed, hint on failure-mode), last=full exam-format question, no scaffold",
-  "mastery_rule": "Advance a rung only on a passing graded answer. Two consecutive fails on a rung -> drop one rung. Topic mastered only when final rung mastered.",
-  "topics": [
-    { "rank": 1, "topic": "Image Filtering and Convolution", "D": 2, "rungs": 3, "prerequisites": [], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-23", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-23", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-23", "rung": 3, "result": "PASS"}
-    ]},
-    { "rank": 2, "topic": "Feature Detection and Description", "D": 3, "rungs": 4, "prerequisites": ["Image Filtering and Convolution"], "status": "mastered", "current_rung": 4, "rung_status": ["mastered","mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-23", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-23", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-23", "rung": 3, "result": "PASS"},
-      {"timestamp": "2026-06-23", "rung": 4, "result": "PASS"}
-    ]},
-    { "rank": 3, "topic": "Clustering and Mixture Models", "D": 2, "rungs": 3, "prerequisites": [], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-24", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-24", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-24", "rung": 3, "result": "PASS"}
-    ]},
-    { "rank": 4, "topic": "Sliding-Window Object Detection", "D": 2, "rungs": 3, "prerequisites": ["Feature Detection and Description", "Support Vector Machines"], "status": "locked", "current_rung": 1, "rung_status": ["locked","locked","locked"], "attempts": [] },
-    { "rank": 5, "topic": "Convolutional Neural Networks", "D": 3, "rungs": 4, "prerequisites": ["Image Filtering and Convolution", "Neural Network Training and Loss Functions"], "status": "mastered", "current_rung": 4, "rung_status": ["mastered","mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-28", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 3, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 4, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 4, "result": "PASS", "note": "boss-check"}
-    ]},
-    { "rank": 6, "topic": "Stereo Vision and Epipolar Geometry", "D": 4, "rungs": 5, "prerequisites": ["Camera Models and Projection", "Homography and Image Alignment"], "status": "locked", "current_rung": 1, "rung_status": ["locked","locked","locked","locked","locked"], "attempts": [] },
-    { "rank": 7, "topic": "Edge Detection", "D": 2, "rungs": 3, "prerequisites": ["Image Filtering and Convolution"], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-25", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-25", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-25", "rung": 3, "result": "PASS"}
-    ]},
-    { "rank": 8, "topic": "Neural Network Training and Loss Functions", "D": 2, "rungs": 3, "prerequisites": [], "status": "mastered", "current_rung": 3, "rung_status": ["mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-25", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-25", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-25", "rung": 3, "result": "FAIL"},
-      {"timestamp": "2026-06-25", "rung": 3, "result": "FAIL"},
-      {"timestamp": "2026-06-25", "rung": 3, "result": "PASS"}
-    ]},
-    { "rank": 9, "topic": "Boosting and Ensemble Classifiers", "D": 3, "rungs": 4, "prerequisites": [], "status": "mastered", "current_rung": 4, "rung_status": ["mastered","mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-28", "rung": 1, "result": "FAIL"},
-      {"timestamp": "2026-06-28", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 3, "result": "FAIL"},
-      {"timestamp": "2026-06-28", "rung": 3, "result": "PASS"},
-      {"timestamp": "2026-06-29", "rung": 4, "result": "PASS", "note": "boss-check"}
-    ]},
-    { "rank": 15, "topic": "Semantic Segmentation with Deep Learning", "D": 3, "rungs": 4, "prerequisites": ["Convolutional Neural Networks", "Neural Network Training and Loss Functions"], "status": "mastered", "current_rung": 4, "rung_status": ["mastered","mastered","mastered","mastered"], "attempts": [
-      {"timestamp": "2026-06-28", "rung": 1, "result": "FAIL"},
-      {"timestamp": "2026-06-28", "rung": 1, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 2, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 3, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 4, "result": "PASS"},
-      {"timestamp": "2026-06-28", "rung": 4, "result": "PASS", "note": "boss-check"}
-    ]}
-  ],
-  "exam_coverage": {
-    "note": "Based on combined marks across 2023_Exam + Old_Exam_Tasks (175 total marks). Semantic Segmentation marks estimated from parsed question totals (~8 marks across 2023+mockup exams). Updated each time a topic is mastered.",
-    "total_combined_marks": 175,
-    "mastered": {
-      "Image Filtering and Convolution": {"marks": 20, "pct": 11.4},
-      "Feature Detection and Description": {"marks": 20, "pct": 11.4},
-      "Clustering and Mixture Models": {"marks": 28, "pct": 16.0},
-      "Edge Detection": {"marks": 18, "pct": 10.3},
-      "Neural Network Training and Loss Functions": {"marks": 16, "pct": 9.1},
-      "Convolutional Neural Networks": {"marks": 17, "pct": 9.7},
-      "Semantic Segmentation with Deep Learning": {"marks": 8, "pct": 4.6},
-      "Boosting and Ensemble Classifiers": {"marks": 11, "pct": 6.3}
-    },
-    "mastered_total_marks": 138,
-    "mastered_total_pct": 78.9,
-    "coverage_banner_template": "Coverage: {mastered_total_marks}/175 marks ({mastered_total_pct}%) — approx {mastered_total_pct} exam points secured"
-  },
-  "review_queue": [
+ "_comment": "Mastery ledger for the progressive-exam tutor. Claude reads this at the start of every session and updates it at the end. Status flow per rung: locked -> unlocked -> mastered. A topic is mastered only when its final rung is mastered. Do NOT start a topic until all its prerequisites are mastered. Ramp length = D + 1 (rungs). Rung goals: 1=concept recognition, 2=guided application, mid=partial exam, last=full exam.",
+ "course": "Computer Vision (RWTH Aachen)",
+ "exam": "final_26_08_2026",
+ "exam_date": "2026-08-26",
+ "ramp_rule": "New topics open with first contact (Problematic -> hook -> [Probe] ungraded -> [Worked example] faded) BEFORE rung 1. Then rungs = difficulty_d + 1; rung1=concept recognition (mcq/short), rung2=guided application (skeleton given), middle=partial exam (skeleton removed, hint on failure-mode), last=full exam-format question, no scaffold.",
+ "mastery_rule": "Advance a rung only on a passing graded answer: >=85% of marks AND no fatal conceptual error (final rung >=90%). A fatal error fails the answer at any score. Two consecutive fails on a rung -> drop one rung; at rung 1 -> fuller worked example instead. Topic mastered only when final rung mastered.",
+ "topics": [
+  {
+   "rank": 1,
+   "topic": "Image Filtering and Convolution",
+   "D": 2,
+   "rungs": 3,
+   "prerequisites": [],
+   "status": "mastered",
+   "current_rung": 3,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
     {
-      "topic": "Clustering and Mixture Models",
-      "last_seen": "2026-06-28",
-      "interval": 3,
-      "ease": 2.5,
-      "next_due": "2026-07-01",
-      "note": "Loci walked (all 5 stations ✅). Spaced exam question PASS. SM-2: interval 1→3."
+     "timestamp": "2026-06-23",
+     "rung": 1,
+     "result": "PASS"
     },
     {
-      "topic": "Edge Detection",
-      "last_seen": "2026-06-28",
-      "interval": 3,
-      "ease": 2.5,
-      "next_due": "2026-07-01",
-      "note": "Loci walked (all 5 stations ✅). Spaced exam question PASS (full Canny pipeline). SM-2: interval 1→3."
+     "timestamp": "2026-06-23",
+     "rung": 2,
+     "result": "PASS"
     },
     {
-      "topic": "Neural Network Training and Loss Functions",
-      "last_seen": "2026-06-29",
-      "interval": 3,
-      "ease": 2.5,
-      "next_due": "2026-07-02",
-      "note": "Loci walked (4.1–4.3 ✅). Spaced exam PASS (cross-entropy single example). SM-2: interval 1→3."
-    },
-    {
-      "topic": "Semantic Segmentation with Deep Learning",
-      "last_seen": "2026-06-29",
-      "interval": 1,
-      "ease": 2.5,
-      "next_due": "2026-06-30",
-      "note": "Due today but cap reached (2 exam questions done). No exam question. Interval unchanged."
-    },
-    {
-      "topic": "Convolutional Neural Networks",
-      "last_seen": "2026-06-29",
-      "interval": 3,
-      "ease": 2.5,
-      "next_due": "2026-07-02",
-      "note": "Loci 5.1 walked. Spaced exam PASS (parameter counting, corrected bias-per-output-channel). SM-2: interval 1→3."
-    },
-    {
-      "topic": "Boosting and Ensemble Classifiers",
-      "last_seen": "2026-06-29",
-      "interval": 1,
-      "ease": 2.5,
-      "next_due": "2026-06-30",
-      "note": "Just mastered — weak classifiers, alpha trust weight, example upweighting, weighted vote. First review due tomorrow."
-    },
-    {
-      "topic": "Feature Detection and Description",
-      "last_seen": "2026-06-28",
-      "interval": 2,
-      "ease": 2.5,
-      "next_due": "2026-06-30",
-      "note": "Loci walked today, no exam question. Short interval."
-    },
-    {
-      "topic": "Image Filtering and Convolution",
-      "last_seen": "2026-06-28",
-      "interval": 3,
-      "ease": 2.5,
-      "next_due": "2026-07-01",
-      "note": "Spaced review PASS today (needed guidance on border artifact framing). Loci fully walked."
+     "timestamp": "2026-06-23",
+     "rung": 3,
+     "result": "PASS"
     }
+   ]
+  },
+  {
+   "rank": 2,
+   "topic": "Feature Detection and Description",
+   "D": 3,
+   "rungs": 4,
+   "prerequisites": [
+    "Image Filtering and Convolution"
+   ],
+   "status": "mastered",
+   "current_rung": 4,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-23",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-23",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-23",
+     "rung": 3,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-23",
+     "rung": 4,
+     "result": "PASS"
+    }
+   ]
+  },
+  {
+   "rank": 3,
+   "topic": "Clustering and Mixture Models",
+   "D": 2,
+   "rungs": 3,
+   "prerequisites": [],
+   "status": "mastered",
+   "current_rung": 3,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-24",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-24",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-24",
+     "rung": 3,
+     "result": "PASS"
+    }
+   ]
+  },
+  {
+   "rank": 4,
+   "topic": "Sliding-Window Object Detection",
+   "D": 2,
+   "rungs": 3,
+   "prerequisites": [
+    "Feature Detection and Description",
+    "Support Vector Machines"
+   ],
+   "status": "locked",
+   "current_rung": 1,
+   "rung_status": [
+    "locked",
+    "locked",
+    "locked"
+   ],
+   "attempts": []
+  },
+  {
+   "rank": 5,
+   "topic": "Convolutional Neural Networks",
+   "D": 3,
+   "rungs": 4,
+   "prerequisites": [
+    "Image Filtering and Convolution",
+    "Neural Network Training and Loss Functions"
+   ],
+   "status": "mastered",
+   "current_rung": 4,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-28",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 3,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 4,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 4,
+     "result": "PASS",
+     "note": "boss-check"
+    }
+   ]
+  },
+  {
+   "rank": 6,
+   "topic": "Stereo Vision and Epipolar Geometry",
+   "D": 4,
+   "rungs": 5,
+   "prerequisites": [
+    "Camera Models and Projection",
+    "Homography and Image Alignment"
+   ],
+   "status": "locked",
+   "current_rung": 1,
+   "rung_status": [
+    "locked",
+    "locked",
+    "locked",
+    "locked",
+    "locked"
+   ],
+   "attempts": []
+  },
+  {
+   "rank": 7,
+   "topic": "Edge Detection",
+   "D": 2,
+   "rungs": 3,
+   "prerequisites": [
+    "Image Filtering and Convolution"
+   ],
+   "status": "mastered",
+   "current_rung": 3,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-25",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-25",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-25",
+     "rung": 3,
+     "result": "PASS"
+    }
+   ]
+  },
+  {
+   "rank": 8,
+   "topic": "Neural Network Training and Loss Functions",
+   "D": 2,
+   "rungs": 3,
+   "prerequisites": [],
+   "status": "mastered",
+   "current_rung": 3,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-25",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-25",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-25",
+     "rung": 3,
+     "result": "FAIL"
+    },
+    {
+     "timestamp": "2026-06-25",
+     "rung": 3,
+     "result": "FAIL"
+    },
+    {
+     "timestamp": "2026-06-25",
+     "rung": 3,
+     "result": "PASS"
+    }
+   ]
+  },
+  {
+   "rank": 9,
+   "topic": "Boosting and Ensemble Classifiers",
+   "D": 3,
+   "rungs": 4,
+   "prerequisites": [],
+   "status": "mastered",
+   "current_rung": 4,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-28",
+     "rung": 1,
+     "result": "FAIL"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 3,
+     "result": "FAIL"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 3,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-29",
+     "rung": 4,
+     "result": "PASS",
+     "note": "boss-check"
+    }
+   ]
+  },
+  {
+   "rank": 15,
+   "topic": "Semantic Segmentation with Deep Learning",
+   "D": 3,
+   "rungs": 4,
+   "prerequisites": [
+    "Convolutional Neural Networks",
+    "Neural Network Training and Loss Functions"
+   ],
+   "status": "mastered",
+   "current_rung": 4,
+   "rung_status": [
+    "mastered",
+    "mastered",
+    "mastered",
+    "mastered"
+   ],
+   "attempts": [
+    {
+     "timestamp": "2026-06-28",
+     "rung": 1,
+     "result": "FAIL"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 1,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 2,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 3,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 4,
+     "result": "PASS"
+    },
+    {
+     "timestamp": "2026-06-28",
+     "rung": 4,
+     "result": "PASS",
+     "note": "boss-check"
+    }
+   ]
+  }
+ ],
+ "exam_coverage": {
+  "note": "Based on combined marks across 2023_Exam + Old_Exam_Tasks (175 total marks). Semantic Segmentation marks estimated from parsed question totals (~8 marks across 2023+mockup exams). Updated each time a topic is mastered.",
+  "total_combined_marks": 175,
+  "mastered": {
+   "Image Filtering and Convolution": {
+    "marks": 20,
+    "pct": 11.4
+   },
+   "Feature Detection and Description": {
+    "marks": 20,
+    "pct": 11.4
+   },
+   "Clustering and Mixture Models": {
+    "marks": 28,
+    "pct": 16.0
+   },
+   "Edge Detection": {
+    "marks": 18,
+    "pct": 10.3
+   },
+   "Neural Network Training and Loss Functions": {
+    "marks": 16,
+    "pct": 9.1
+   },
+   "Convolutional Neural Networks": {
+    "marks": 17,
+    "pct": 9.7
+   },
+   "Semantic Segmentation with Deep Learning": {
+    "marks": 8,
+    "pct": 4.6
+   },
+   "Boosting and Ensemble Classifiers": {
+    "marks": 11,
+    "pct": 6.3
+   }
+  },
+  "mastered_total_marks": 138,
+  "mastered_total_pct": 78.9,
+  "coverage_banner_template": "Coverage: {mastered_total_marks}/175 marks ({mastered_total_pct}%) \u2014 approx {mastered_total_pct} exam points secured"
+ },
+ "next_session": {
+  "planned_on": "2026-08-08",
+  "lesson": "Review-heavy: clear the 3 oldest overdue items, then open 'Support Vector Machines' at first contact (Problematic -> Probe -> Worked example -> Rung 1)",
+  "why": "18 days to exam and the whole review_queue is ~5 weeks overdue, so review outranks new material. SVM is the blocking prerequisite for rank-4 Sliding-Window Object Detection; without it, both remaining unstarted topics stay locked.",
+  "review_due": [
+   "Semantic Segmentation with Deep Learning",
+   "Boosting and Ensemble Classifiers",
+   "Feature Detection and Description"
   ],
-  "session_log": [
-    "2026-06-23: Mastered Image Filtering and Convolution (all 3 rungs). Unlocked Feature Detection and Description.",
-    "2026-06-23: Mastered Feature Detection and Description (all 4 rungs). Harris, SIFT. Unlocked Sliding-Window Object Detection prereq chain.",
-    "2026-06-24: Mastered Clustering and Mixture Models (all 3 rungs). k-means, k-means++, Mean Shift.",
-    "2026-06-25: Loci review and sharpening subsections 1-3. Mastered Edge Detection. Mastered Neural Network Training and Loss Functions. CNNs unlocked.",
-    "2026-06-28: Loci review subsections 1-2 (1.1 Mona Lisa sharpened, 2.2 Plusle/Minun encoded, 2.3 Kevin ice-arrow sharpened, 2.5 fingerprint scale sharpened). Spaced review: Image Filtering border padding PASS. Mastered CNNs (weight sharing, parameter counting (3x3x4+1)x10=370, feature maps, MaxPool). Semantic Segmentation unlocked. SM-2 scheduling added to review_queue.",
-    "2026-06-28 (session 2): Loci review subsections 3+4+1 (all Clustering ✅, all Edge Detection ✅, NN Training 4.1-4.3 ✅). Spaced exam review: Clustering PASS (k-means vs Mean-Shift on crescent data), Edge Detection PASS (full Canny pipeline). Mastered Semantic Segmentation with Deep Learning (encoder-decoder, MaxPool/Unpool with saved indices, skip connections for sharp boundaries, per-pixel cross-entropy). SM-2 updated: Clustering+Edge Detection interval→3, NN Training stays 1 (no exam question). Coverage: 127/175 (72.6%).",
-    "2026-06-29: Loci review NN Training 4.1-4.3 ✅, CNN 5.1 ✅. Spaced exam: NN Training PASS (cross-entropy single example — learned 1/n divides over examples not classes), CNNs PASS (parameter counting — known error: bias per output not per input). Mastered Boosting and Ensemble Classifiers (weak classifiers, alpha=½ln((1-e)/e), example upweighting e^±α, H(x)=sign(Σα·h(x)), Viola-Jones use case). SM-2: NN Training+CNNs interval→3, Semantic Seg stays 1 (cap reached). Coverage: 138/175 (78.9%). Pending: loci encodings 4.4, 4.5, 5.2-5.5; fix piano encoding for per-example summation; fix CNN parameter counting loci note."
-  ]
+  "adapter": "detect from that topic's exemplars at first contact - not yet determined",
+  "opening_move": "[Spaced review] on Semantic Segmentation with Deep Learning",
+  "est_minutes": 35,
+  "intention": "",
+  "note": "Bootstrap block written by hand when the ledger was migrated to TUTOR_SYSTEM_PROMPT_v9. Overwrite it normally at the end of the next session."
+ },
+ "review_queue": [
+  {
+   "topic": "Clustering and Mixture Models",
+   "last_seen": "2026-06-28",
+   "interval": 3,
+   "ease": 2.5,
+   "next_due": "2026-07-01",
+   "note": "Loci walked (all 5 stations \u2705). Spaced exam question PASS. SM-2: interval 1\u21923."
+  },
+  {
+   "topic": "Edge Detection",
+   "last_seen": "2026-06-28",
+   "interval": 3,
+   "ease": 2.5,
+   "next_due": "2026-07-01",
+   "note": "Loci walked (all 5 stations \u2705). Spaced exam question PASS (full Canny pipeline). SM-2: interval 1\u21923."
+  },
+  {
+   "topic": "Neural Network Training and Loss Functions",
+   "last_seen": "2026-06-29",
+   "interval": 3,
+   "ease": 2.5,
+   "next_due": "2026-07-02",
+   "note": "Loci walked (4.1\u20134.3 \u2705). Spaced exam PASS (cross-entropy single example). SM-2: interval 1\u21923."
+  },
+  {
+   "topic": "Semantic Segmentation with Deep Learning",
+   "last_seen": "2026-06-29",
+   "interval": 1,
+   "ease": 2.5,
+   "next_due": "2026-06-30",
+   "note": "Due today but cap reached (2 exam questions done). No exam question. Interval unchanged."
+  },
+  {
+   "topic": "Convolutional Neural Networks",
+   "last_seen": "2026-06-29",
+   "interval": 3,
+   "ease": 2.5,
+   "next_due": "2026-07-02",
+   "note": "Loci 5.1 walked. Spaced exam PASS (parameter counting, corrected bias-per-output-channel). SM-2: interval 1\u21923."
+  },
+  {
+   "topic": "Boosting and Ensemble Classifiers",
+   "last_seen": "2026-06-29",
+   "interval": 1,
+   "ease": 2.5,
+   "next_due": "2026-06-30",
+   "note": "Just mastered \u2014 weak classifiers, alpha trust weight, example upweighting, weighted vote. First review due tomorrow."
+  },
+  {
+   "topic": "Feature Detection and Description",
+   "last_seen": "2026-06-28",
+   "interval": 2,
+   "ease": 2.5,
+   "next_due": "2026-06-30",
+   "note": "Loci walked today, no exam question. Short interval."
+  },
+  {
+   "topic": "Image Filtering and Convolution",
+   "last_seen": "2026-06-28",
+   "interval": 3,
+   "ease": 2.5,
+   "next_due": "2026-07-01",
+   "note": "Spaced review PASS today (needed guidance on border artifact framing). Loci fully walked."
+  }
+ ],
+ "session_log": [
+  "2026-06-23: Mastered Image Filtering and Convolution (all 3 rungs). Unlocked Feature Detection and Description.",
+  "2026-06-23: Mastered Feature Detection and Description (all 4 rungs). Harris, SIFT. Unlocked Sliding-Window Object Detection prereq chain.",
+  "2026-06-24: Mastered Clustering and Mixture Models (all 3 rungs). k-means, k-means++, Mean Shift.",
+  "2026-06-25: Loci review and sharpening subsections 1-3. Mastered Edge Detection. Mastered Neural Network Training and Loss Functions. CNNs unlocked.",
+  "2026-06-28: Loci review subsections 1-2 (1.1 Mona Lisa sharpened, 2.2 Plusle/Minun encoded, 2.3 Kevin ice-arrow sharpened, 2.5 fingerprint scale sharpened). Spaced review: Image Filtering border padding PASS. Mastered CNNs (weight sharing, parameter counting (3x3x4+1)x10=370, feature maps, MaxPool). Semantic Segmentation unlocked. SM-2 scheduling added to review_queue.",
+  "2026-06-28 (session 2): Loci review subsections 3+4+1 (all Clustering \u2705, all Edge Detection \u2705, NN Training 4.1-4.3 \u2705). Spaced exam review: Clustering PASS (k-means vs Mean-Shift on crescent data), Edge Detection PASS (full Canny pipeline). Mastered Semantic Segmentation with Deep Learning (encoder-decoder, MaxPool/Unpool with saved indices, skip connections for sharp boundaries, per-pixel cross-entropy). SM-2 updated: Clustering+Edge Detection interval\u21923, NN Training stays 1 (no exam question). Coverage: 127/175 (72.6%).",
+  "2026-06-29: Loci review NN Training 4.1-4.3 \u2705, CNN 5.1 \u2705. Spaced exam: NN Training PASS (cross-entropy single example \u2014 learned 1/n divides over examples not classes), CNNs PASS (parameter counting \u2014 known error: bias per output not per input). Mastered Boosting and Ensemble Classifiers (weak classifiers, alpha=\u00bdln((1-e)/e), example upweighting e^\u00b1\u03b1, H(x)=sign(\u03a3\u03b1\u00b7h(x)), Viola-Jones use case). SM-2: NN Training+CNNs interval\u21923, Semantic Seg stays 1 (cap reached). Coverage: 138/175 (78.9%). Pending: loci encodings 4.4, 4.5, 5.2-5.5; fix piano encoding for per-example summation; fix CNN parameter counting loci note."
+ ],
+ "exam_prep": {
+  "_comment": "State for the fast exam-prep mode (/start-session, /session-end, /mock-exam). ADDITIVE and self-contained: this mode never writes topics[], status, rung, current_rung, rung_status, attempts[], exam_coverage, next_session, review_queue or session_log - those belong to the deep-mode tutor. `exam_ready` and `mastered` are different criteria and are never conflated: mastered = unaided 90% on an exam-format question; exam_ready = 2 consecutive clean drills inside budget.",
+  "mode_version": "exam-prep-v1",
+  "archetypes_file": "archetypes.json",
+  "method": "../../../tutor/EXAM_PREP_PROMPT_v1.md",
+  "exam_minutes": 90,
+  "exam_minutes_confidence": "CONFIRMED from the current official course slides (2026-08-21): 'Written exam, duration 90min, closed book.' Corroborated by the 2023 paper's cover sheet.",
+  "archetypes_total": 42,
+  "exam_ready_archetypes": 1,
+  "exam_ready_marks": 22.35,
+  "total_marks_at_stake": 218.4,
+  "real_paper_marks": 94,
+  "must_cover_archetypes": [
+   "algorithm-steps-recall",
+   "def-formula-gloss",
+   "read-figure-identify",
+   "derive-homography-A",
+   "derive-epipolar-constraint"
+  ],
+  "sessions": [
+   {
+    "date": "2026-08-23",
+    "minutes": 90,
+    "timing": "collected",
+    "interrupted": true,
+    "drills": 21,
+    "clean": 2,
+    "archetypes_ready": [
+     "read-figure-identify"
+    ],
+    "pace_ratio": null,
+    "traps_logged": 13,
+    "note": "First exam-prep session. Dominated by reteaching (repeated 'no idea' / ask-for-answer responses triggering full explanations) rather than steady timed drilling on already-known material -- pace not representative, excluded from k_drill calibration. Session ended mid-drill (RANSAC/homography variant posed, unanswered)."
+   },
+   {
+    "date": "2026-08-23",
+    "minutes": 50,
+    "timing": "collected",
+    "interrupted": true,
+    "drills": 8,
+    "clean": 3,
+    "archetypes_ready": [],
+    "pace_ratio": null,
+    "traps_logged": 2,
+    "note": "Second session same day. read-figure-identify's exam-ready status from session 1 did not survive a warm-up decay-check (stereo-vocabulary half failed again) -- reverted to cold, exam_ready_marks corrected down to 0.0. algorithm-steps-recall made real progress (RANSAC finally executed correctly once, k-Means fixed) but never strung 2 clean drills together; Hough Transform surfaced as a new gap (confused with HOG). Session ended mid-drill (cross-entropy retry posed, unanswered)."
+   },
+   {
+    "date": "2026-08-23",
+    "minutes": 35,
+    "timing": "collected",
+    "interrupted": true,
+    "drills": 6,
+    "clean": 2,
+    "archetypes_ready": [
+     "algorithm-steps-recall"
+    ],
+    "pace_ratio": null,
+    "traps_logged": 5,
+    "note": "Third session same day. Reordered queue to 2023-exam archetypes by ROI per user request. algorithm-steps-recall finally strung 2 consecutive clean drills (sliding-window, then Hough) and went exam-ready (+22.35 marks) -- but RANSAC and Mean-Shift sub-drills within the same archetype are still uncorrected misses; the streak is archetype-level, not per-sub-algorithm. User requested playbooks carry a why-clause per step going forward (saved to project memory). Started invariance-properties-check (cold shot only, partial answer; playbook shown; first drill posed unanswered). Session ended mid-drill."
+   },
+   {
+    "date": "2026-08-24",
+    "minutes": 300,
+    "timing": "collected",
+    "interrupted": true,
+    "drills": 24,
+    "clean": 7,
+    "archetypes_ready": [],
+    "pace_ratio": null,
+    "traps_logged": 22,
+    "note": "Fourth exam-prep session, 5h. Heavily interrupted for calibration purposes: extensive reteaching/notation-clarification throughout (correlation formula variable-naming collisions across sources, receptive field, C_in/C_out/depth confusion, Hough transform mechanics, max pooling/unpooling), two mid-session strategy pivots by user (real-paper archetypes prioritized over no-exemplar syllabus archetypes; switched from ROI-ranked queue to covering real exam papers block-by-block), and user supplied real photographed exam figures for two previously figure_dependent exemplars (mockup_exam_2023 Q1a: 1D image+2-tap filter; 2023_Exam Q5d: conv-taxonomy figures), recovering real content that had been drilled as generated variants. algorithm-steps-recall round-tripped: exam_ready decayed to cold on a warm-up retest of RANSAC/Mean-Shift, then recovered to exam_ready via Hough+Canny clean drills within 2023_Exam Q1 (RANSAC/Mean-Shift themselves remain uncorrected misses, owed for next warm-up). 12 other archetypes opened this session (11 brand new, 1 continued from prior session) at streak 0-1, none reached exam_ready. Excluded from k_drill calibration given the reteaching load."
+   }
+  ],
+  "calibration": {
+   "k_drill": 1.0,
+   "alpha": 0.3,
+   "n_sessions": 0
+  },
+  "note_deep_mode": "8 of 16 topics were mastered in deep mode but have been untouched since 2026-06-29. Every archetype still starts `cold` here; the staleness only discounts est_drill_minutes by 0.70, it never sets exam_ready."
+ }
 }

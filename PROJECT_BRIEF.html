@@ -163,6 +163,24 @@
   .note { color: var(--muted); font-style: italic; }
   hr.soft { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
 
+  /* Inline code + terminal-style blocks */
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .9em; background: #f1f5f9; padding: 1px 5px; border-radius: 4px;
+  }
+  pre {
+    background: #1e293b; color: #e2e8f0; border-radius: 10px;
+    padding: 14px 16px; margin: 14px 0; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+  /* Badge base, so badges used outside a card header still render as pills */
+  .badge {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+  }
+  .prob .pbody h3 .badge { margin-left: 6px; vertical-align: middle; }
+
   @media print {
     nav.topbar { display: none; }
     .card.collapsed .card-body { max-height: none !important; padding: 0 22px 22px !important; opacity: 1 !important; }
@@ -180,7 +198,9 @@
     <a href="#layer1">Layer 1 · CLI</a>
     <a href="#layer2">Layer 2 · Tutor</a>
     <a href="#state">Current State</a>
+    <a href="#resolved">Resolved</a>
     <a href="#problems">Open Problems</a>
+    <a href="#next">Read Next</a>
   </span>
   <button id="toggleAll">Expand all</button>
 </nav>
@@ -190,11 +210,12 @@
   <header class="hero">
     <div class="kicker">Project Brief</div>
     <h1>Computer Science Exams Pipeline</h1>
-    <div class="sub">Ground truth document. Read this before designing any solution for this project.</div>
+    <div class="sub">Ground truth document. Read this before designing any solution for this project. — Last updated 2026-08-08, for TUTOR_SYSTEM_PROMPT_v9.</div>
     <div class="chips">
       <span class="chip">Layer 1 — CLI Pipeline</span>
       <span class="chip">Layer 2 — Cowork Tutor</span>
-      <span class="chip">Active exam: Computer Vision (RWTH Aachen)</span>
+      <span class="chip">Active Exam: Computer Vision · final_26_08_2026</span>
+      <span class="chip">Course-agnostic</span>
     </div>
   </header>
 
@@ -215,7 +236,11 @@
         <h3>2. Cowork Tutor</h3>
         <p>Runs during active study. Teaches you the prioritized topics using evidence-based learning methods.</p>
       </div>
-      <p>Computer Vision (RWTH Aachen) is the current active exam. The architecture must generalize to any future CS exam without structural changes.</p>
+      <p>Computer Vision (RWTH Aachen), exam <code>final_26_08_2026</code>, is the current active Exam. <strong>The architecture is course-agnostic</strong>: a new course requires creating a folder and running the pipeline — no prompt rewriting. See <code>CONTEXT.md</code> for the Course / Exam / Topic / Lesson vocabulary and <code>docs/adr/</code> for the decisions behind the structure.</p>
+
+      <div class="callout amber">
+        <strong>The design goal, stated plainly.</strong> The student types one command and studies. Nothing else. They should never have to decide what to work on, where they left off, or what comes next — planning is the system's job, learning is the student's. Every design decision is subordinate to that, with one exception: <strong>accuracy is never traded for comfort</strong>. Verdicts are literal, feedback is specific, and nothing is sugarcoated.
+      </div>
     </div>
   </section>
 
@@ -238,10 +263,11 @@
 
       <div class="panel">
         <h3>What it produces</h3>
+        <p class="note">Inside <code>Courses/&lt;Course&gt;/&lt;Exam&gt;/</code>:</p>
         <ul class="clean">
           <li><strong>Exam_ROI_Pipeline.xlsx</strong> — a ranked table of every exam topic, sorted by Study Priority Score (ROI). This is the study agenda.</li>
-          <li><strong>taxonomy.json</strong> — per-topic difficulty (D), connection value (C), and prerequisites. Used by the tutor.</li>
-          <li><strong>parsed/*.json</strong> — every past exam question, tagged by topic, with marks and format. Used by the tutor as the gold-standard target for final-rung questions.</li>
+          <li><strong>taxonomy.json</strong> — per-topic difficulty (D), connection value (C), and prerequisites. Used by the tutor for sequencing and for identifying confusable topic pairs.</li>
+          <li><strong>parsed/*.json</strong> — every past exam question, tagged by topic, with marks and <code>format</code>. The gold-standard target for final-rung questions <em>and</em> the evidence for which discipline adapter a topic needs.</li>
         </ul>
       </div>
 
@@ -253,6 +279,11 @@
       <div class="panel red">
         <h3>What it does NOT do</h3>
         <p>It does not teach. It does not evaluate your understanding. It only produces the inputs the tutor needs.</p>
+      </div>
+
+      <div class="panel">
+        <h3>Active-Exam resolution</h3>
+        <p>Commands auto-detect the Exam when exactly one exists anywhere under <code>Courses/</code>, and require explicit <code>--course</code> / <code>--exam</code> the moment a second one does — ambiguity is never silently guessed. See <code>docs/adr/0003-active-exam-resolution.md</code>.</p>
       </div>
 
     </div>
@@ -269,18 +300,28 @@
 
       <div class="panel">
         <h3>How to start a session</h3>
-        <p>Run <strong><code>/continue-study-session</code></strong> in Cowork. This skill re-onboards the tutor in one command: it loads the latest <code>TUTOR_SYSTEM_PROMPT_v*.md</code> (highest version wins), reads all the state files below, and continues the session exactly where it was left off — one atomic step per turn (one question/station at a time). Invoke it explicitly with the slash command; it is not meant to auto-trigger from conversation.</p>
+        <p>Run <strong><code>/continue-study-session</code></strong> in Cowork. The skill loads the latest <code>TUTOR_SYSTEM_PROMPT_v*.md</code> (highest version wins, <code>_archive/</code> ignored), reads the active Exam's state files, and resumes exactly where the last session ended. Invoke it explicitly; it is not meant to auto-trigger from conversation.</p>
+        <p><strong>From v9, a session opens in three lines and goes straight into a question:</strong></p>
+        <pre><code>📊 Computer Vision · final_26_08_2026 — 138/175 marks secured (79%) · 18 days to exam
+Today: 3 overdue review items, then open Support Vector Machines. ~35 min.
+
+[Spaced review] …</code></pre>
+        <p>Path resolution, ledger reads, ROI ranking and topic selection all happen <strong>silently</strong>. The tutor announces a decision; it never stages a deliberation in front of the student. Exactly two questions may be asked before teaching starts: which Exam (only when several exist) and the exam date (only when unset).</p>
       </div>
 
       <div class="panel">
         <h3>What you feed it</h3>
+        <p class="note">Per Exam, under <code>Courses/&lt;Course&gt;/&lt;Exam&gt;/</code>:</p>
         <ul class="clean">
-          <li><code>progress.json</code> — mastery state (which topics are unlocked, on which rung, mastered, in review queue)</li>
+          <li><code>progress.json</code> — the mastery ledger: rung state, attempts with confidence, coverage, review queue, and the <code>next_session</code> plan</li>
           <li><code>Exam_ROI_Pipeline.xlsx</code> — topic priority order</li>
-          <li><code>taxonomy.json</code> — difficulty, prerequisites</li>
+          <li><code>taxonomy.json</code> — difficulty, prerequisites, connections</li>
           <li><code>parsed/*.json</code> — real past-exam questions as exemplars</li>
-          <li><code>loci_living_room.md</code> — the memory palace station map</li>
-          <li><code>loci_encodings.md</code> — concept-to-station encodings with quality status <span class="note">(schema TBD)</span></li>
+          <li><code>PROJECT_NOTES.md</code> — per-Exam quirks that override defaults</li>
+        </ul>
+        <p class="note">Global and optional:</p>
+        <ul class="clean">
+          <li><code>loci/</code> — memory palace files. <strong>An optional add-on. The system is complete without it.</strong></li>
         </ul>
       </div>
 
@@ -294,28 +335,58 @@
 
       <div class="panel blue">
         <h4>2. Desirable Difficulty / Retrieval Practice</h4>
-        <p>The student always attempts first — the tutor never explains before asking. Questions are calibrated to be ~70–85% passable at the current rung. Free recall is forced from rung 2 onwards. Spaced review pulls mastered topics back at full exam difficulty before each new session.</p>
+        <p>The student always attempts first — the tutor never explains before asking, and never reveals an answer no matter how much the student stalls. Free recall is forced from rung 2 onwards. Spaced review pulls mastered topics back at full exam difficulty.</p>
       </div>
 
       <div class="panel blue">
         <h4>3. Mastery Gating</h4>
-        <p>Every answer is graded against an explicit rubric (PASS/FAIL + specific missed step). PASS advances the rung. Two consecutive FAILs drop a rung. A topic is only marked <code>mastered</code> when the final rung passes. The tutor tracks all of this in <code>progress.json</code> and writes it at session end.</p>
+        <p>Every answer is graded in <strong>marks against an explicit rubric</strong>, then converted to PASS/FAIL: <strong>≥85% and no fatal conceptual error</strong> for rungs, <strong>≥90%</strong> for the final rung. A fatal error (wrong invariant, inverted inequality, wrong complexity class, broken proof step) fails the answer <em>at any score</em> — the no-fatal-error clause, not the percentage, is what protects rigour. Two consecutive FAILs drop a rung. A topic is <code>mastered</code> only when the final rung passes cold and unaided.</p>
       </div>
 
-      <div class="panel amber">
-        <h4>Method of Loci integration <span class="note">(partially implemented — under redesign)</span></h4>
-        <p>After each concept is first encountered, the student encodes it into a physical station in their memory palace. Before spaced review questions, the student retrieves the mnemonic image first, then answers the question. This compounds mnemonic and cognitive retrieval. Details of the encoding evaluation and file schema are the subject of active design work.</p>
+      <h3 style="margin-top:22px;">The four mechanisms that make it work in practice</h3>
+
+      <div class="panel green">
+        <h4>First contact — teaching a topic the student has no schema for</h4>
+        <p>A new topic opens <code>[Problematic]</code> → relevance hook → <code>[Probe]</code> → <code>[Worked example]</code> → <code>[Rung 1]</code>. The problematic states the <em>problem</em> the topic solves, bounded so it never leaks the mechanism. The probe is one cold question that is <strong>ungraded and ungated</strong> ("I don't know" is a complete answer) — attempting retrieval before instruction improves later retention even when the attempt fails. The worked example is a canonical instance with one step blanked. Only then does the retrieval-first gate switch on, and it is absolute from that point.</p>
+      </div>
+
+      <div class="panel green">
+        <h4>Discipline adapters — one system, many exam shapes</h4>
+        <p>A proof course's exam question is a proof; an OS course's is a trace; a databases course's is a query. The tutor picks an adapter <strong>per topic</strong> from the <code>format</code> field on that topic's exemplars — code-writing, proof/formal, algorithmic/complexity, systems/conceptual, or quantitative — which fixes the intermediate rung type, the final-rung format, and what counts as a <em>fatal</em> error in that discipline. Exemplars always win over assumptions about the subject.</p>
+      </div>
+
+      <div class="panel green">
+        <h4>Confidence and hypercorrection</h4>
+        <p>Before every verdict the student states one word: <code>low</code> / <code>ok</code> / <code>high</code>. A <strong>high-confidence wrong answer is the highest-value moment in the system</strong> — it is corrected explicitly and then re-tested within the same session, because such errors are corrected best and do not return when a test follows the feedback. A low-confidence right answer is not treated as mastery. Periodically the tutor reports calibration honestly: <em>"you said <code>high</code> six times and got three right."</em></p>
+      </div>
+
+      <div class="panel green">
+        <h4>The Lesson — a bounded unit</h4>
+        <p>A Lesson is due review + one topic advanced 1–3 rungs + any mastery event, with its size stated up front and an explicit end ("that's the lesson — another, or stop here?"). Unbounded tasks are harder to start than bounded ones. The <strong>next</strong> Lesson is chosen from how this one went and written into the ledger's <code>next_session</code> block at session close — which is what lets the following session open in three lines.</p>
+      </div>
+
+      <h3 style="margin-top:22px;">Motivation model</h3>
+
+      <div class="panel green">
+        <h4>Used</h4>
+        <p>Competence made visible (the coverage banner, marks secured, mastery events, days remaining), and an implementation intention at session close — <em>"when and where is the next one?"</em> — which is the best-evidenced intervention for the specific failure of never getting started.</p>
+      </div>
+
+      <div class="panel red">
+        <h4>Deliberately never used</h4>
+        <p>Streaks, points, XP, badges, or any reward for showing up. Completion-contingent rewards measurably undermine intrinsic motivation, and over a months-long exam horizon that trade is bad. Also banned: commentary on the student's effort, discipline or character. The tutor's wit targets the work — the mistake, the reasoning, the missed step — <strong>never the person</strong>, because self-directed feedback is the documented way feedback stops working.</p>
       </div>
 
       <h3 style="margin-top:22px;">Session flow</h3>
-      <p>Started via <code>/continue-study-session</code>. One atomic step per turn — never stack a banner, a review walk, and an exam question in the same message.</p>
       <ol class="clean">
-        <li>Read <code>progress.json</code> → print coverage banner (marks secured / total) + two orientation lines</li>
-        <li><strong>Loci review first</strong> — walk one station at a time until the review queue has no due items</li>
-        <li><strong>Exam review</strong> — one full-difficulty question per turn on mastered/due topics, until due items clear or 3 questions max (skip if nothing is mastered yet)</li>
-        <li><strong>Progressive learning</strong> — the current topic's ramp, one rung per turn: question → student attempts → PASS/FAIL + rubric → gate</li>
-        <li>On mastery: update coverage, unlock next topic</li>
-        <li>Write updated <code>progress.json</code> (and any loci changes) at session end</li>
+        <li>Resolve the Exam, read state, <strong>execute <code>next_session</code></strong> — all silent. Print banner + one "Today" line.</li>
+        <li>Due spaced review (0–2 items, full exam difficulty).</li>
+        <li>New topic → first contact. Continuing topic → resume at <code>current_rung</code>.</li>
+        <li>Run the ramp: labelled question → attempt → confidence → marks + rubric + verdict → gate. Apply the difficulty controller.</li>
+        <li>Final rung cold and unaided; boss-check only after a failed first attempt.</li>
+        <li>On mastery: concept map (text) → discrimination set if a confusable neighbour is mastered → update coverage → unlock next.</li>
+        <li>End the Lesson explicitly and offer another.</li>
+        <li>On stop: write the ledger, <strong>write <code>next_session</code></strong>, ask for the implementation intention.</li>
       </ol>
 
     </div>
@@ -336,55 +407,63 @@
         <tbody>
           <tr>
             <td class="comp"><span class="dot g"></span>CLI pipeline</td>
-            <td>Working. Produces ROI spreadsheet, taxonomy, parsed questions.</td>
+            <td><strong>Working.</strong> Produces ROI spreadsheet, taxonomy, parsed questions. Multi-course aware.</td>
+          </tr>
+          <tr>
+            <td class="comp"><span class="dot g"></span>Course/Exam hierarchy</td>
+            <td><strong>Done.</strong> <code>Courses/&lt;Course&gt;/&lt;Exam&gt;/</code> is the atomic state boundary (ADR 0001), with auto-detect/explicit resolution (ADR 0003).</td>
           </tr>
           <tr>
             <td class="comp"><span class="dot g"></span>Tutor system prompt</td>
-            <td>Working for CV. Mastery gating, ramp, spaced review implemented.</td>
+            <td><strong>Working and course-agnostic</strong> (<code>TUTOR_SYSTEM_PROMPT_v9</code>). Mastery gating, ramp, first contact, discipline adapters, spaced review, confidence routing, bounded Lessons.</td>
           </tr>
           <tr>
-            <td class="comp"><span class="dot a"></span>Loci integration in tutor</td>
-            <td>Partially implemented. Trigger timing and spaced review protocol are correct. Encoding ownership, evaluation rubric, and file schema are unresolved.</td>
+            <td class="comp"><span class="dot g"></span>Zero-decision session start</td>
+            <td><strong>Done in v9.</strong> <code>next_session</code> written at session close, executed at session open.</td>
           </tr>
           <tr>
-            <td class="comp"><span class="dot r"></span><code>loci_encodings.md</code></td>
-            <td>Does not exist yet. Schema must be designed before creation.</td>
+            <td class="comp"><span class="dot g"></span>Generalization</td>
+            <td><strong>Done.</strong> A new course needs a folder and a pipeline run — no prompt edits. See <code>docs/solid/new-course-setup.md</code>.</td>
           </tr>
           <tr>
-            <td class="comp"><span class="dot r"></span>Generalization</td>
-            <td>Not yet done. Tutor prompt is CV-specific. Needs parameterization so any course can be loaded by swapping files.</td>
+            <td class="comp"><span class="dot g"></span>Loci integration</td>
+            <td><strong>Decoupled by design.</strong> Optional add-on, off by default, never gates mastery. Files exist (<code>loci_living_room.md</code>, <code>loci_encodings.md</code>) and the Living Room palace is near full.</td>
+          </tr>
+          <tr>
+            <td class="comp"><span class="dot g"></span>Learning-science review</td>
+            <td><strong>Done.</strong> Nine weaknesses identified and fixed in v9; rationale recorded in <code>docs/open/critique-tutor-learning-science.md</code>.</td>
           </tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- Open Design Problems -->
-  <section id="problems" class="card accent-amber">
+  <!-- Resolved Design Problems -->
+  <section id="resolved" class="card accent-blue">
     <div class="card-head">
-      <h2>Open Design Problems <span style="font-weight:400;font-size:15px;color:var(--muted);">(for Opus)</span></h2>
-      <span class="badge amber">Unresolved</span>
-      <span class="chev">▾</span>
+      <h2>Resolved design problems</h2>
+      <span class="badge blue">Settled</span>
+      <span class="chev">&#9662;</span>
     </div>
     <div class="card-body">
-      <p>These are the problems that need to be solved before the system is complete:</p>
+      <p class="note">Original numbering preserved — <code>docs/adr/0002</code> references these numbers.</p>
 
       <div class="prob">
         <div class="num">1</div>
         <div class="pbody">
-          <h3>Loci encoding ownership and evaluation</h3>
-          <p>The student proposes the encoding first. Claude evaluates it on two axes:</p>
+          <h3>Loci encoding ownership and evaluation <span class="badge green">Resolved in principle</span></h3>
+          <p>The student encodes first; the tutor evaluates on two axes and only supplies a fallback image when the student is genuinely stuck. Implemented in the v9 add-on section.</p>
           <div class="two-axes">
             <div class="panel blue">
               <h4 style="margin-top:0;">Information accuracy</h4>
-              <p>Does the image structurally reflect the concept?</p>
+              <p>Does the image structurally reflect the concept's defining properties?</p>
             </div>
             <div class="panel blue">
               <h4 style="margin-top:0;">Retrieval power</h4>
-              <p>Is it vivid, bizarre, emotionally charged enough to stick?</p>
+              <p>Anchored to the station object, physical, emotionally charged, vivid, specific?</p>
             </div>
           </div>
-          <p>Claude only offers its own encoding as a fallback if the student is genuinely stuck. A concrete rubric for both axes is needed.</p>
+          <p><em>Remaining:</em> the axes are stated as criteria, not as a numeric rubric — see <code>docs/open/loci-method-analysis.md</code>. Low priority now that the layer is optional.</p>
         </div>
       </div>
 
@@ -393,8 +472,8 @@
       <div class="prob">
         <div class="num">2</div>
         <div class="pbody">
-          <h3><code>loci_encodings.md</code> schema</h3>
-          <p>A file structure that records: station ID, concept, encoding description, status (❌/⚠️/✅), evaluation notes, last updated. Must support the ⚠️ → ✅ sharpening flow.</p>
+          <h3><code>loci_encodings.md</code> schema <span class="badge green">Resolved</span></h3>
+          <p>The file exists and records station, concept, image, status (&#10060;/&#9888;&#65039;/&#9989;), accuracy note, retrieval-power note, owning Course/Exam, and date.</p>
         </div>
       </div>
 
@@ -403,17 +482,8 @@
       <div class="prob">
         <div class="num">3</div>
         <div class="pbody">
-          <h3>Palace scaling architecture</h3>
-          <p>The living room palace has 27 stations. More concepts than 27 will be taught across courses. When a palace fills, a new one is added. The unresolved question is whether to use:</p>
-          <div class="panel">
-            <p><span class="lead-tag tag-green">A</span><strong>single master file</strong> — simple, slow to scale, expensive in context</p>
-          </div>
-          <div class="panel">
-            <p><span class="lead-tag tag-blue">B</span><strong>tree/graph structure</strong> — one file per palace, linked by index — scalable but adds multi-file navigation complexity</p>
-          </div>
-          <div class="callout amber">
-            This decision must be made before the schema is defined, because the two approaches produce fundamentally different file structures.
-          </div>
+          <h3>Palace scaling architecture <span class="badge green">Resolved: one file per palace</span></h3>
+          <p>A new physical room gets its own <code>loci_&lt;room&gt;.md</code>, indexed rather than merged into a master file — a palace <em>is</em> a room, so the file shape matches the domain. See ADR 0002.</p>
         </div>
       </div>
 
@@ -422,8 +492,8 @@
       <div class="prob">
         <div class="num">4</div>
         <div class="pbody">
-          <h3>Tutor prompt generalization</h3>
-          <p>The current tutor prompt is hardcoded to Computer Vision. The goal is a course-agnostic prompt where a new exam requires only swapping the course files (<code>progress.json</code>, ROI sheet, taxonomy, parsed questions) — no prompt rewriting. The loci layer must be shared infrastructure across courses, not owned by a single course.</p>
+          <h3>Tutor prompt generalization <span class="badge green">Resolved</span></h3>
+          <p>v8 replaced hardcoded course details with the Course/Exam folder contract; v9 added per-topic discipline adapters so the prompt fits proof, systems, algorithmic and code-writing courses, not just vision-shaped ones.</p>
         </div>
       </div>
 
@@ -432,11 +502,52 @@
       <div class="prob">
         <div class="num">5</div>
         <div class="pbody">
-          <h3>Station reuse across courses</h3>
-          <p>A station used for a CV concept may need to hold a different course's concept in future exams. The encoding file and the tutor logic must handle this: tracking which course an encoding belongs to, and managing the transition when a station is repurposed.</p>
+          <h3>Station reuse across courses <span class="badge green">Resolved</span></h3>
+          <p>Loci stays one shared resource across all Courses and Exams; each encoding is tagged with its owning Course/Exam so a station becomes identifiable as repurposable once that Exam is done. The concrete retirement workflow is deliberately left undesigned until a second course exists to design it against. See ADR 0002.</p>
         </div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- Open Problems -->
+  <section id="problems" class="card accent-amber">
+    <div class="card-head">
+      <h2>Open problems</h2>
+      <span class="badge amber">Unresolved</span>
+      <span class="chev">&#9662;</span>
+    </div>
+    <div class="card-body">
+      <p>Genuinely open, in priority order:</p>
+      <ol class="clean">
+        <li><strong>Second-course validation.</strong> Everything is course-agnostic <em>by construction</em> but has only ever run against one Exam. The first real second course is the test of the folder contract, the adapters, and station contention.</li>
+        <li><strong>v9 field validation.</strong> First contact, the 85%-plus-no-fatal-error bar, confidence routing and the <code>next_session</code> handoff are all argued from the literature but unobserved in this system. Watch for: probes that leak into rung 1, the calibration line landing as nagging, and <code>next_session</code> going stale when a session ends abruptly.</li>
+        <li><strong>Loci retirement workflow</strong> — undesigned on purpose (see resolved #5); needs a finished course to design against.</li>
+        <li><strong>Concept-map and connection tooling</strong> — see <code>docs/open/critique-mindmap-graph-connections.md</code> and <code>docs/open/solution-research-*.md</code>. The discrimination-set mechanism in v9 covers part of what these were reaching for; the rest is unresolved.</li>
+        <li><strong>The <code>.skill</code> bundle</strong> is a zip whose internal <code>SKILL.md</code> may name a prompt version; it needs unpacking to verify against v9.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Where to read next -->
+  <section id="next" class="card accent-blue">
+    <div class="card-head">
+      <h2>Where to read next</h2>
+      <span class="badge blue">Index</span>
+      <span class="chev">&#9662;</span>
+    </div>
+    <div class="card-body">
+      <table class="status">
+        <thead><tr><th>You want</th><th>Read</th></tr></thead>
+        <tbody>
+          <tr><td class="comp">Vocabulary and domain model</td><td><code>CONTEXT.md</code></td></tr>
+          <tr><td class="comp">Repo layout and conventions</td><td><code>README.md</code></td></tr>
+          <tr><td class="comp">Why the structure is this way</td><td><code>docs/adr/</code></td></tr>
+          <tr><td class="comp">How to add a course</td><td><code>docs/solid/new-course-setup.md</code></td></tr>
+          <tr><td class="comp">Why the tutor's rules are what they are</td><td><code>docs/open/critique-tutor-learning-science.md</code></td></tr>
+          <tr><td class="comp">The tutor itself</td><td><code>tutor/TUTOR_SYSTEM_PROMPT_v9.md</code></td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 

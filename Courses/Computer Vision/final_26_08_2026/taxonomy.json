@@ -135,6 +135,15 @@
         "RANSAC and Robust Estimation"
       ],
       "first_seen": "2023_Exam"
+    },
+    "Hough Transform and Line Detection": {
+      "difficulty_d": 2,
+      "difficulty_hours": "30min–1h",
+      "connection_c": 2,
+      "prerequisites": [
+        "Edge Detection"
+      ],
+      "first_seen": "mockup_2023"
     }
   }
 }
