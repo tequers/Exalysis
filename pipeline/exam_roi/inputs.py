@@ -1,4 +1,4 @@
-"""Turn a source paper into text with its page references; no CLI, provider, or course paths.
+"""Select source papers and extract text using explicit paths, without CLI or providers.
 
 Text is read, never rendered: a PDF is accepted only when every page carries an
 extractable text layer. That check answers one question — did this page yield any
@@ -7,18 +7,109 @@ formulas flattened into noise, and text extracted out of reading order all pass
 it. It is a floor under the model's input, not a guarantee that the input is
 faithful.
 
-Callers decide how to present the outcome: every failure here raises
-ExtractionError with a reason and a remedy, and nothing in this module prints,
+Callers decide how to present the outcome: selection raises InputSelectionError;
+extraction raises ExtractionError with a reason and a remedy. Nothing here prints,
 exits, or calls a model.
 """
 
 import codecs
 from dataclasses import dataclass
 from io import BytesIO
+import os
+from pathlib import Path
 import re
 
 SUPPORTED_SUFFIXES = (".txt", ".pdf")
 TEXT_ENCODING = "utf-8"
+
+
+class InputSelectionError(ValueError):
+    """The requested paths do not select readable paper file types."""
+
+
+def resolve_input_path(raw, course_dir, *, working_dir=None):
+    """Prefer an existing working-directory path, then try the course folder."""
+    working_dir = Path.cwd() if working_dir is None else Path(working_dir)
+    path = working_dir / raw
+    if path.exists():
+        return path.resolve()
+    inside = Path(course_dir) / raw
+    if inside.exists():
+        return inside.resolve()
+    raise InputSelectionError(
+        f"File or folder not found: {raw}\n"
+        f"Looked in {working_dir} and in {course_dir}. Name an existing file or folder.")
+
+
+def collect_exam_files(course_dir, raw_paths=(), recursive=False, *, working_dir=None):
+    """Return resolved, deduplicated papers in selection order.
+
+    Default selection combines the course root and exams/. Explicit paths replace
+    that default. Folder entries are sorted, recursion is opt-in, and the course's
+    candidates/ and parsed/ directories are always excluded, including aliases.
+    Directory symlinks are not traversed by recursive searches.
+    """
+    course = Path(course_dir).resolve()
+    excluded = {course / name for name in ("candidates", "parsed")}
+    excluded.update(path.resolve() for path in tuple(excluded))
+
+    def is_managed(path):
+        resolved = path.resolve()
+        return any(root == resolved or root in resolved.parents for root in excluded)
+
+    def scan(folder):
+        if is_managed(folder):
+            return []
+        found = []
+
+        def walk_error(error):
+            raise error
+
+        for directory, dirs, names in os.walk(folder, onerror=walk_error):
+            if recursive:
+                dirs[:] = sorted(
+                    name for name in dirs
+                    if (Path(directory) / name).resolve() == Path(directory) / name
+                    and not is_managed(Path(directory) / name))
+            else:
+                dirs[:] = []
+            for name in names:
+                path = Path(directory) / name
+                if (path.suffix.lower() in SUPPORTED_SUFFIXES
+                        and path.is_file() and not is_managed(path)):
+                    found.append(path.resolve())
+        return sorted(found)
+
+    try:
+        files = []
+        if not raw_paths:
+            files.extend(scan(course))
+            if (course / "exams").is_dir():
+                files.extend(scan(course / "exams"))
+        else:
+            for raw in raw_paths:
+                path = resolve_input_path(raw, course, working_dir=working_dir)
+                if is_managed(path):
+                    raise InputSelectionError(
+                        f"Cannot select pipeline-managed state: {path}. Select source papers outside candidates/ and parsed/.")
+                if path.is_dir():
+                    found = scan(path)
+                    if not found:
+                        hint = "" if recursive else " Use --recursive to search subfolders."
+                        raise InputSelectionError(f"No .txt/.pdf papers found in {path}.{hint}")
+                    files.extend(found)
+                elif path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES:
+                    files.append(path)
+                else:
+                    raise InputSelectionError(f"Unsupported paper: {path}. Select a .txt or .pdf file.")
+        if not files:
+            raise InputSelectionError(
+                f"No .txt/.pdf papers found in {course} or its exams/ subfolder. "
+                "Put papers there, name a source file, or use --recursive to search deeper.")
+        return list(dict.fromkeys(files))
+    except (OSError, RuntimeError) as exc:
+        raise InputSelectionError(
+            f"Cannot select papers: {exc}. Check the input paths and directory permissions.") from exc
 
 #: What the completeness check does and does not cover, for messages and docs.
 DETECTION_LIMIT = (

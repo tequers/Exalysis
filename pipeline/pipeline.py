@@ -102,13 +102,17 @@ import os
 import re
 import sys
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 
-from exam_roi.inputs import SUPPORTED_SUFFIXES, ExtractionError, extract_exam_text
+from exam_roi.inputs import (
+    ExtractionError, InputSelectionError, collect_exam_files, extract_exam_text,
+)
 from exam_roi.taxonomy import aggregate_taxonomy
 from exam_roi.identity import ExamIdentityError, exam_record_path, validate_exam_id
+from exam_roi.review import review_candidate, MAX_CORRECTIONS
 from exam_roi.llm import (
-    ModelClient, RequestLimits, RequestLimitError, TruncatedResponse,
+    ModelClient, RequestLimits, RequestLimitError, TruncatedResponse, configured_model_client,
     estimate_tokens, run_batches,
     text_from_anthropic as _text_from_anthropic,
     text_from_openai as _text_from_openai,
@@ -129,6 +133,99 @@ from exam_roi.evaluation import (
 # terminal that still cannot encode something.
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+
+# ── CLI outcomes and exit codes ─────────────────────────────────────────────────
+# Per ADR 0008, outcome rendering and exit-code selection live only here in the CLI
+# layer; process_exam_file and friends return one of the outcomes below or raise a
+# defined failure, never sys.exit and never print a verdict of their own.
+#
+# Exit codes, so a script (or a person reading $?/$LASTEXITCODE) can tell these
+# apart without parsing text:
+#   0  every requested unit of work succeeded. Skips and no-op rebuilds count as
+#      success — they did what was asked, which was nothing.
+#   1  a setup/usage problem stopped the command before any of the work ran (bad
+#      arguments, an unreadable course folder, missing provider credentials, an
+#      unknown topic name, ...). This is the existing sys.exit("ERROR: ...") path.
+#      (argparse's own usage errors — an unknown flag, a bad choice — keep their
+#      own exit code 2; both mean "nothing ran", just from different code.)
+#   3  at least one requested paper failed to process. Papers that did succeed
+#      keep their saved candidates; this code means "partial", not "crashed".
+#   4  the ranked outputs (.xlsx/.json) could not be written. Parsed papers and
+#      taxonomy already on disk are unaffected; rerunning rebuild once the cause
+#      (e.g. the spreadsheet is open elsewhere) is cleared is the whole fix.
+EXIT_OK             = 0
+EXIT_SETUP_ERROR    = 1
+EXIT_PAPER_FAILURE  = 3
+EXIT_EXPORT_FAILURE = 4
+
+
+class ExamOutcome(Enum):
+    """What happened to one paper requested on an add-exam run.
+
+    Only outcomes the pipeline can actually produce today are represented — see
+    docs/adr/0008 and ticket 15: there is no promotion-to-accepted step yet, and
+    no candidate is ever silently discarded, so neither state exists here.
+    """
+    SAVED                 = "saved"                  # new candidate saved; nothing flagged
+    SAVED_PENDING_REVIEW  = "saved_pending_review"    # new candidate saved; a person should check it
+    SKIPPED_ACCEPTED      = "skipped_accepted"        # parsed/<id>.json already exists — nothing to do
+    SKIPPED_CANDIDATE     = "skipped_candidate"       # candidates/<id>.json already exists — use --force
+
+
+class RecoveryKind(Enum):
+    """What kind of action, if any, would move a failed paper or a failed export forward."""
+    NONE             = "none"               # already in a final, acceptable state
+    INPUT_CORRECTION = "input_correction"   # the source file itself needs fixing, then a rerun
+    REVIEW           = "review"             # a person needs to read the saved candidate
+    REPROCESSING     = "reprocessing"       # rerun add-exam (typically with --force)
+    REBUILD          = "rebuild"            # papers are fine; rerun rebuild once possible
+
+    @property
+    def instruction(self):
+        return {
+            RecoveryKind.NONE:             "nothing to do",
+            RecoveryKind.INPUT_CORRECTION: "fix the input file, then rerun add-exam",
+            RecoveryKind.REVIEW:           "read the saved candidate — a person needs to review it before it can be accepted",
+            RecoveryKind.REPROCESSING:     "rerun add-exam (--force to reprocess)",
+            RecoveryKind.REBUILD:          "rerun rebuild once the cause above is fixed",
+        }[self]
+
+
+class PaperFailure:
+    """One requested paper that add-exam could not save this run.
+
+    Never raised itself — built by the CLI from whatever defined failure
+    process_exam_file let through, so the batch summary and the exit code have a
+    single place to read every failure from.
+    """
+    __slots__ = ("path", "recovery", "reason")
+
+    def __init__(self, path, recovery, reason):
+        self.path = path
+        self.recovery = recovery
+        self.reason = reason
+
+
+def _classify_paper_failure(path, exc) -> PaperFailure:
+    """Turn one processing exception into a PaperFailure with a matching recovery kind.
+
+    ExtractionError and CandidateValidationError already carry the information a
+    reusable module is expected to raise (see ADR 0008); everything else (a model
+    or network problem, a limits/identity error, ...) gets the same reprocessing
+    guidance a transient failure needs.
+    """
+    if isinstance(exc, ExtractionError):
+        return PaperFailure(path, RecoveryKind.INPUT_CORRECTION, f"{exc.reason} {exc.remedy}")
+    if isinstance(exc, CandidateValidationError):
+        # needs_review means the model's own output was too ambiguous to resolve
+        # automatically (a person has to look); correction_required means the
+        # output was simply wrong against the contract, worth retrying.
+        recovery = (RecoveryKind.REVIEW if exc.disposition == "needs_review"
+                    else RecoveryKind.REPROCESSING)
+        return PaperFailure(path, recovery,
+                            f"analysis rejected ({exc.disposition.replace('_', ' ')}): {exc.reason}")
+    return PaperFailure(path, RecoveryKind.REPROCESSING, f"{type(exc).__name__}: {exc}")
 
 
 def load_dotenv(path: Path) -> None:
@@ -195,23 +292,6 @@ def setup_course_folder(folder: Path):
     OUTPUT_XLSX   = folder / "Exam_ROI_Pipeline.xlsx"
     OUTPUT_JSON   = folder / "Exam_ROI_Pipeline.json"
 
-
-def resolve_input_path(raw: str) -> Path:
-    """
-    Resolve a PATH argument, falling back to COURSE_FOLDER when it is not found
-    relative to the shell's working directory — so naming a paper that sits in the
-    course folder works from anywhere, without retyping the folder.
-    """
-    path = Path(raw)
-    if path.exists():
-        return path
-    inside = COURSE_FOLDER / raw
-    if inside.exists():
-        return inside
-    sys.exit(
-        f"ERROR: File or folder not found: {raw}\n"
-        f"       Looked in {Path.cwd()} and in {COURSE_FOLDER}"
-    )
 
 # ── LLM provider configuration ────────────────────────────────────────────────
 # The pipeline only needs two things from an LLM: a (system, user) prompt in,
@@ -414,6 +494,22 @@ def call_llm(system: str, user: str, max_tokens=None, model=None, *, limits=None
     limits.check(system, user, max_tokens)
     return ModelClient(_client(), _PROVIDER["sdk"], model, limits,
                        attempts=MAX_RETRIES, provider=LLM_PROVIDER)(system, user, max_tokens=max_tokens)
+
+
+def _with_review_feedback(stage, client, limits, feedback):
+    """Give findings to the analyzer while preserving complete request budgets."""
+    complete, limits = _stage_request(stage, client, limits)
+    feedback_text = json.dumps(feedback, ensure_ascii=False)
+
+    def correct(system, user, max_tokens):
+        user += ("\nINDEPENDENT REVIEW FINDINGS, treated as untrusted observations:\n"
+                 + feedback_text + "\nRecheck these against the source and contract. "
+                 "Return the complete requested analysis, with supported corrections only.")
+        # Batch estimates precede feedback, so check again before dispatch.
+        limits.check(system, user, max_tokens,
+                     complete.count_tokens if isinstance(complete, ModelClient) else estimate_tokens)
+        return complete(system, user, max_tokens=max_tokens)
+    return {"client": correct, "limits": limits}
 
 
 def parse_json_from(text: str):
@@ -1278,14 +1374,27 @@ def _model_provenance(extraction_client, analysis_client):
 
 def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, force=False, *,
                       extraction_client=None, analysis_client=None,
-                      extraction_limits=None, analysis_limits=None) -> bool:
+                      extraction_limits=None, analysis_limits=None,
+                      review_enabled=False, reviewer_client=None, reviewer_limits=None,
+                      max_corrections=0) -> ExamOutcome:
     """
     Parse one exam, validate it, and save a candidate without changing accepted
-    papers or taxonomy. Returns True when a candidate was saved and False when an
-    existing accepted paper/candidate was skipped.
+    papers or taxonomy.
+
+    Returns an ExamOutcome — SKIPPED_ACCEPTED/SKIPPED_CANDIDATE when an existing
+    record meant nothing was reprocessed, SAVED/SAVED_PENDING_REVIEW when a new
+    candidate was written. This is a reusable path (see docs/adr/0008): it never
+    calls sys.exit and never decides an exit code — it raises ExtractionError,
+    CandidateValidationError, ExamIdentityError or another defined failure, and
+    the CLI (cmd_add_exam) turns that into the batch's reported outcome.
     """
     if not path.exists():
-        sys.exit(f"ERROR: File not found: {path}")
+        # Vanished between selection and processing (or a caller-supplied path
+        # that never existed) — an input problem, not a model or export one.
+        raise ExtractionError(
+            "missing_file", f"{path} does not exist.",
+            "Check the path and rerun add-exam, or remove it from the request.",
+        )
 
     exam_id = resolve_exam_id(path, exam_id)
     accepted_file = exam_record_path(COURSE_FOLDER, "parsed", exam_id)
@@ -1294,9 +1403,11 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     candidate_file.parent.mkdir(exist_ok=True)
 
     if (accepted_file.exists() or candidate_file.exists()) and not force:
-        location = "parsed" if accepted_file.exists() else "candidates"
-        print(f"   ⏭  Skipping {path.name} — {location}/{exam_id}.json already exists (use --force to reprocess)")
-        return False
+        if accepted_file.exists():
+            print(f"   ⏭  Skipping {path.name} — parsed/{exam_id}.json is already accepted (use --force to reprocess)")
+            return ExamOutcome.SKIPPED_ACCEPTED
+        print(f"   ⏭  Skipping {path.name} — candidates/{exam_id}.json already exists (use --force to reprocess)")
+        return ExamOutcome.SKIPPED_CANDIDATE
 
     print(f"\n📄 Exam : {path.name}")
     source_bytes = path.read_bytes()
@@ -1306,143 +1417,137 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     exam_text = extraction.text
     print(f"   → {extraction.summary()} — sent to {LLM_PROVIDER} for analysis")
 
-    year_label, source = None, "--year"
-    if not year:
-        year, year_label, found_in = infer_year(path, exam_text)
-        source = f"from the {found_in}" if found_in else None
+    requested_year, requested_marks = year, total_marks
 
-    # ── Stage 1 ──
-    print("🤖 Stage 1 : Extracting questions…")
-    extraction_dependencies = ({"client": extraction_client, "limits": extraction_limits}
-        if extraction_client is not None or extraction_limits is not None else {})
-    questions, year_from_model = stage1_extract(exam_text, total_marks, **extraction_dependencies)
-    print(f"   → {len(questions)} questions extracted")
+    def make_candidate(_previous=None, feedback=None):
+        year, total_marks = requested_year, requested_marks
+        year_label, source = None, "--year"
+        if not year:
+            year, year_label, found_in = infer_year(path, exam_text)
+            source = f"from the {found_in}" if found_in else None
 
-    if not year and year_from_model:
-        year, source = year_from_model, "from the paper, via the model"
-    if year:
-        print(f"   → Year : {year_label or year}  ({source})")
-    else:
-        print(
-            f"   ⚠  No year found in the filename or the paper — filed without one. "
-            f"Re-run with --year <YYYY> to set it."
+        # ── Stage 1 ──
+        print("🤖 Stage 1 : Extracting questions…")
+        extraction_dependencies = ({"client": extraction_client, "limits": extraction_limits}
+            if extraction_client is not None or extraction_limits is not None else {})
+        if feedback is not None:
+            extraction_dependencies = _with_review_feedback(
+                1, extraction_client, extraction_limits, feedback)
+        questions, year_from_model = stage1_extract(exam_text, total_marks, **extraction_dependencies)
+        print(f"   → {len(questions)} questions extracted")
+
+        if not year and year_from_model:
+            year, source = year_from_model, "from the paper, via the model"
+        if year:
+            print(f"   → Year : {year_label or year}  ({source})")
+        else:
+            print(
+                f"   ⚠  No year found in the filename or the paper — filed without one. "
+                f"Re-run with --year <YYYY> to set it."
+            )
+
+        if not total_marks:
+            marks_vals  = [q["marks"] for q in questions if isinstance(q.get("marks"), (int, float))]
+            total_marks = sum(marks_vals) if marks_vals else 100
+            print(f"   → Total marks : {total_marks} (summed from questions)")
+
+        # ── Stage 2 ──
+        taxonomy = load_taxonomy()
+        print("🤖 Stage 2 : Tagging topics and scoring parameters…")
+        analysis_dependencies = ({"client": analysis_client, "limits": analysis_limits}
+            if analysis_client is not None or analysis_limits is not None else {})
+        if feedback is not None:
+            analysis_dependencies = _with_review_feedback(
+                2, analysis_client, analysis_limits, feedback)
+        result = stage2_tag_score(questions, taxonomy, total_marks, **analysis_dependencies)
+        per_topic = result.get("per_topic", {})
+        new_names = result.get("new_topic_names", [])
+        print(f"   → {len(per_topic)} topics tagged  ({len(new_names)} new)")
+        if new_names:
+            print(f"   ⚠  New topics : {', '.join(new_names)}")
+            print("      Review proposed_taxonomy_changes in the saved candidate.")
+
+        # Build the candidate and its proposed taxonomy completely in memory. Invalid
+        # model output raises before accepted paper or taxonomy files are touched.
+        candidate = build_candidate_analysis(
+            exam_id=exam_id,
+            year=year,
+            year_label=year_label,      # academic year as written, e.g. "2021-2022"
+            total_marks=total_marks,
+            analysis=result,
+            known_topics=sorted(taxonomy["topics"]),
+            source_provenance={
+                "file_name": path.name,
+                "resolved_path": str(path.resolve()),
+                "sha256": hashlib.sha256(source_bytes).hexdigest(),
+                # Page and offset references for later evidence checks: where in the
+                # source each piece of the analysed text came from.
+                "extraction": extraction.provenance(),
+            },
+            model_provenance=_model_provenance(extraction_client, analysis_client),
+            processed_at=datetime.now().isoformat(),
         )
+        # Model work can take minutes. Check both boundaries again before reading
+        # accepted records or saving a candidate, including forced reprocessing.
+        exam_record_path(COURSE_FOLDER, "parsed", exam_id, expected_path=accepted_file)
+        exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
+        accepted_exams = load_all_exams()
+        proposed_exams = dict(accepted_exams)
+        proposed_exams[exam_id] = candidate  # A forced reparse replaces this paper's contribution.
+        proposed_taxonomy = aggregate_taxonomy(taxonomy, proposed_exams)
+        candidate = finalize_candidate_analysis(
+            candidate, proposed_taxonomy, taxonomy.get("topics", {}))
+        return candidate
 
-    if not total_marks:
-        marks_vals  = [q["marks"] for q in questions if isinstance(q.get("marks"), (int, float))]
-        total_marks = sum(marks_vals) if marks_vals else 100
-        print(f"   → Total marks : {total_marks} (summed from questions)")
-
-    # ── Stage 2 ──
-    taxonomy = load_taxonomy()
-    print("🤖 Stage 2 : Tagging topics and scoring parameters…")
-    analysis_dependencies = ({"client": analysis_client, "limits": analysis_limits}
-        if analysis_client is not None or analysis_limits is not None else {})
-    result = stage2_tag_score(questions, taxonomy, total_marks, **analysis_dependencies)
-    per_topic = result.get("per_topic", {})
-    new_names = result.get("new_topic_names", [])
-    print(f"   → {len(per_topic)} topics tagged  ({len(new_names)} new)")
-    if new_names:
-        print(f"   ⚠  New topics : {', '.join(new_names)}")
-        print("      Review proposed_taxonomy_changes in the saved candidate.")
-
-    # Build the candidate and its proposed taxonomy completely in memory. Invalid
-    # model output raises before accepted paper or taxonomy files are touched.
-    candidate = build_candidate_analysis(
-        exam_id=exam_id,
-        year=year,
-        year_label=year_label,      # academic year as written, e.g. "2021-2022"
-        total_marks=total_marks,
-        analysis=result,
-        known_topics=sorted(taxonomy["topics"]),
-        source_provenance={
-            "file_name": path.name,
-            "resolved_path": str(path.resolve()),
-            "sha256": hashlib.sha256(source_bytes).hexdigest(),
-            # Page and offset references for later evidence checks: where in the
-            # source each piece of the analysed text came from.
-            "extraction": extraction.provenance(),
-        },
-        model_provenance=_model_provenance(extraction_client, analysis_client),
-        processed_at=datetime.now().isoformat(),
-    )
-    # Model work can take minutes. Check both boundaries again before reading
-    # accepted records or saving a candidate, including forced reprocessing.
-    exam_record_path(COURSE_FOLDER, "parsed", exam_id, expected_path=accepted_file)
-    exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
-    accepted_exams = load_all_exams()
-    proposed_exams = dict(accepted_exams)
-    proposed_exams[exam_id] = candidate  # A forced reparse replaces this paper's contribution.
-    proposed_taxonomy = aggregate_taxonomy(taxonomy, proposed_exams)
-    candidate = finalize_candidate_analysis(
-        candidate, proposed_taxonomy, taxonomy.get("topics", {}))
+    candidate = make_candidate()
+    provider, model = None, None
+    if review_enabled and reviewer_client is None:
+        provider = os.environ.get("LLM_REVIEW_PROVIDER", LLM_PROVIDER).lower()
+        model = os.environ.get("LLM_REVIEW_MODEL")
+        try:
+            reviewer_limits = reviewer_limits or RequestLimits(
+                context_tokens=int(os.environ.get("LLM_REVIEW_CONTEXT_TOKENS", 128000)),
+                output_tokens=int(os.environ.get("LLM_REVIEW_MAX_OUTPUT_TOKENS", 32000)),
+                overhead_tokens=int(os.environ.get("LLM_REVIEW_OVERHEAD_TOKENS", 1024)))
+        except ValueError as exc:
+            def failed_reviewer(system, user, max_tokens, error=exc):
+                raise error
+            reviewer_client = failed_reviewer
+        else:
+            # Delay SDK/credential setup until after the complete request fits.
+            def configured_reviewer(system, user, max_tokens):
+                return configured_model_client(
+                    provider, model, reviewer_limits, providers=PROVIDERS, env=os.environ,
+                    attempts=MAX_RETRIES)(
+                    system, user, max_tokens=max_tokens)
+            reviewer_client = configured_reviewer
+    candidate, review = review_candidate(
+        candidate, exam_text, enabled=review_enabled, client=reviewer_client,
+        limits=reviewer_limits, provider=provider,
+        model=model, correct=make_candidate, max_corrections=max_corrections)
+    candidate["independent_review"] = review
+    if review["disposition"] == "needs_review":
+        candidate["candidate_status"] = "needs-review"
+    if review_enabled:
+        print(f"   Independent review: {review['disposition']}"
+              f" ({review.get('reason', 'evidence checks completed')})")
     candidate_file = exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
     candidate_file.write_text(json.dumps(candidate, indent=2, ensure_ascii=False), encoding='utf-8')
     print(f"   ✓ Saved candidate → candidates/{exam_id}.json")
     print("     Accepted papers and taxonomy were not changed.")
-    return True
-
-
-# One list of readable file types: discovery must not offer a paper the reader
-# would then refuse for its type alone.
-EXAM_EXTENSIONS = SUPPORTED_SUFFIXES
-
-
-def _exam_files_in(folder: Path, recursive: bool) -> list:
-    """Every exam file in a folder, skipping the pipeline's own parsed/ output."""
-    pattern = "**/*" if recursive else "*"
-    return sorted(
-        p for p in folder.glob(pattern)
-        if p.is_file()
-        and p.suffix.lower() in EXAM_EXTENSIONS
-        and PARSED_DIR not in p.parents
-    )
-
-
-def collect_exam_files(raw_paths: list, recursive: bool) -> list:
-    """
-    Turn add-exam's PATH arguments into a concrete, de-duplicated file list.
-
-    A PATH is a file or a folder, and either kind can be given more than once. With
-    no PATH at all the course folder is scanned, then its exams/ subfolder — so
-    "analyse the papers I put in this folder" needs no argument beyond the folder
-    itself, whether the papers sit in it or one level down.
-    """
-    if not raw_paths:
-        files = _exam_files_in(COURSE_FOLDER, recursive)
-        if not files and (COURSE_FOLDER / "exams").is_dir():
-            files = _exam_files_in(COURSE_FOLDER / "exams", recursive)
-        if not files:
-            sys.exit(
-                f"ERROR: No .txt/.pdf exam files found in {COURSE_FOLDER}\n"
-                f"       Put the papers in that folder, or name one:\n"
-                f"       python pipeline.py {COURSE_FOLDER} add-exam <file>"
-            )
-        return files
-
-    files = []
-    for raw in raw_paths:
-        path = resolve_input_path(raw)
-        if path.is_dir():
-            found = _exam_files_in(path, recursive)
-            if not found:
-                hint = "" if recursive else "  (add --recursive to search subfolders)"
-                sys.exit(f"ERROR: No .txt/.pdf files found in {path}{hint}")
-            files += found
-        else:
-            files.append(path)
-
-    seen, unique = set(), []
-    for p in files:
-        key = p.resolve()
-        if key not in seen:
-            seen.add(key)
-            unique.append(p)
-    return unique
+    if candidate.get("candidate_status") == "needs-review":
+        print("     Status: pending review — a person should check this candidate before it is accepted.")
+        return ExamOutcome.SAVED_PENDING_REVIEW
+    return ExamOutcome.SAVED
 
 
 def cmd_add_exam(args):
-    files = collect_exam_files(args.paths, args.recursive)
+    if getattr(args, "review_corrections", 0) and not getattr(args, "review", False):
+        raise ValueError("--review-corrections requires --review")
+    try:
+        files = collect_exam_files(COURSE_FOLDER, args.paths, args.recursive)
+    except InputSelectionError as exc:
+        sys.exit(f"ERROR: {exc}")
 
     # --year and --exam-id describe one specific paper; silently applying either to
     # a whole batch would stamp every exam with the same year, or overwrite one
@@ -1454,41 +1559,69 @@ def cmd_add_exam(args):
             f"filename or its own text)."
         )
 
-    if len(files) > 1:
-        print(f"\n📁 {len(files)} exam file(s) to process")
+    print(f"\nSelected {len(files)} paper(s):")
+    for path in files:
+        print(f"  {path}")
+    if getattr(args, "dry_run", False):
+        print("Dry run complete. No papers were processed.")
+        return EXIT_OK
 
-    processed, skipped, failed = 0, 0, []
+    # Tally every outcome ExamOutcome can name, plus every failure the CLI turns
+    # a raised exception into, so the summary below can differentiate all of
+    # them instead of collapsing to a single processed/skipped/failed count.
+    counts = {outcome: 0 for outcome in ExamOutcome}
+    failures: list[PaperFailure] = []
     for path in files:
         try:
-            if process_exam_file(
+            outcome = process_exam_file(
                 path,
                 year=args.year,
                 total_marks=args.total_marks,
                 exam_id=args.exam_id,
                 force=args.force,
-            ):
-                processed += 1
-            else:
-                skipped += 1
-        except ExtractionError as exc:
-            # The input itself needs correcting, so the message says what is wrong
-            # and what to change rather than reporting a failed analysis.
-            print(f"   ✗ Not analysed — {exc.reason}")
-            print(f"      {exc.remedy}")
-            failed.append(path.name)
+                review_enabled=getattr(args, "review", False),
+                max_corrections=getattr(args, "review_corrections", 0),
+            )
+            counts[outcome] += 1
         except Exception as exc:
-            print(f"   ✗ Failed on {path.name}: {exc}")
-            failed.append(path.name)
+            failure = _classify_paper_failure(path, exc)
+            print(f"   ✗ Not saved — {failure.reason}")
+            print(f"      Recovery: {failure.recovery.instruction}")
+            failures.append(failure)
 
-    if len(files) > 1 or failed:
-        print(f"\n📦 {processed} processed · {skipped} skipped · {len(failed)} failed")
-        if failed:
-            print(f"   Failed files: {', '.join(failed)}")
+    saved          = counts[ExamOutcome.SAVED]
+    pending_review = counts[ExamOutcome.SAVED_PENDING_REVIEW]
+    processed      = saved + pending_review
+    skipped_accepted  = counts[ExamOutcome.SKIPPED_ACCEPTED]
+    skipped_candidate = counts[ExamOutcome.SKIPPED_CANDIDATE]
+    skipped        = skipped_accepted + skipped_candidate
 
-    if processed:
-        print(f"   {processed} candidate(s) await acceptance or review; accepted outputs are unchanged.")
+    if len(files) > 1 or failures:
+        print(
+            f"\n📦 {processed} processed ({pending_review} pending review) · "
+            f"{skipped} skipped ({skipped_accepted} already accepted, "
+            f"{skipped_candidate} already a candidate) · {len(failures)} failed"
+        )
+        if failures:
+            print(f"   Failed files: {', '.join(f.path.name for f in failures)}")
+
+    # The summary sentence is what "did this run work?" boils down to for a
+    # person or a script skimming the last line, so it must never claim success
+    # (or silently omit) a batch where every requested paper failed — ticket 15.
+    if failures and not processed:
+        print(f"   All {len(failures)} requested paper(s) failed — nothing was added; "
+              "outputs left unchanged. See the recovery notes above.")
+    elif failures:
+        print(f"   {processed} candidate(s) saved despite {len(failures)} failure(s) — "
+              "accepted outputs are unchanged. See the recovery notes above for what to fix.")
+    elif processed:
+        review_note = f" ({pending_review} pending review)" if pending_review else ""
+        print(f"   {processed} candidate(s) await acceptance or review{review_note}; "
+              "accepted outputs are unchanged.")
     else:
         print("   Nothing new to add — outputs left unchanged (use --force to reprocess).")
+
+    return EXIT_PAPER_FAILURE if failures else EXIT_OK
 
 
 def cmd_rebuild(_args):
@@ -1502,7 +1635,7 @@ def cmd_rebuild(_args):
 
     if not all_exams:
         print("   No accepted exams found. Candidate analyses do not enter reports until accepted.")
-        return
+        return EXIT_OK
 
     # A paper with no year sorts first, before every dated one, rather than crashing
     # the comparison against None.
@@ -1587,9 +1720,21 @@ def cmd_rebuild(_args):
         row["rank"] = i + 1
         row["tier"] = "★ Tier 1" if i < tier1_n else ""
 
-    write_xlsx(rows, exam_list, taxonomy)
-    write_json(rows)
+    # Parsed papers and taxonomy are already safely on disk at this point — only
+    # the write below can still fail (a locked file, a full disk, a missing
+    # openpyxl install), so it gets its own outcome rather than an uncaught
+    # traceback standing in for "rebuild failed".
+    try:
+        write_xlsx(rows, exam_list, taxonomy)
+        write_json(rows)
+    except Exception as exc:
+        print(f"   ✗ Export failed — {type(exc).__name__}: {exc}")
+        print("     Parsed papers and taxonomy on disk are unchanged. "
+              f"Recovery: {RecoveryKind.REBUILD.instruction}.")
+        return EXIT_EXPORT_FAILURE
+
     print(f"   ✓ {OUTPUT_XLSX.name}, {OUTPUT_JSON.name}  ({len(rows)} topics · {n_exams} exams · {tier1_n} Tier 1)")
+    return EXIT_OK
 
 
 def cmd_status(_args):
@@ -1611,6 +1756,7 @@ def cmd_status(_args):
     print(f"   Spreadsheet : {'✓ exists' if OUTPUT_XLSX.exists() else 'not created yet'}")
     print(f"   Ranked JSON : {'✓ exists' if OUTPUT_JSON.exists() else 'not created yet'}")
     print()
+    return EXIT_OK
 
 
 def cmd_edit_topic(args):
@@ -1637,9 +1783,11 @@ def cmd_edit_topic(args):
         changed = True
     if not changed:
         print("Nothing changed — pass --diff or --conn (or both).")
-        return
+        return EXIT_OK
     save_taxonomy(taxonomy)
-    cmd_rebuild(None)
+    # edit-topic's own exit status has to reflect a failed rebuild too — an
+    # override that saved correctly but could not be exported is not a success.
+    return cmd_rebuild(None)
 
 
 def _record_override(topic, field, value):
@@ -1671,7 +1819,8 @@ USAGE
 
 COMMANDS
   add-exam [FILE|FOLDER ...]  Read past papers and save validated candidate analyses.
-                              No argument: reads every .txt/.pdf in COURSE_FOLDER.
+                              No argument: reads .txt/.pdf in COURSE_FOLDER and exams/.
+                              --dry-run lists selected paths without AI calls.
   status                      Show what the folder holds so far.
   rebuild                     Redo the ranking from papers already read (no AI calls).
   edit-topic TOPIC            Correct a topic's scores by hand, then rebuild.
@@ -1753,13 +1902,21 @@ def main():
     pa = sub.add_parser("add-exam", help="Validate exam papers and save candidate analyses")
     pa.add_argument("paths", nargs="*", metavar="PATH",
                     help="Exam file(s) or folder(s): UTF-8 .txt, or .pdf with a text layer "
-                         "(default: the exam files in COURSE_FOLDER, or in its exams/ subfolder)")
+                         "(default: papers in both COURSE_FOLDER and its exams/ subfolder; "
+                         "relative paths prefer the working directory, then COURSE_FOLDER)")
     pa.add_argument("--year",        type=int,            help="Year this paper was sat (read from the filename or the paper itself if omitted)")
     pa.add_argument("--total-marks", type=float,          help="Total marks (summed from questions if omitted)")
     pa.add_argument("--exam-id", type=_exam_id_argument,
                     help="Custom filename ID, not a path (defaults to the filename with spaces replaced by underscores)")
     pa.add_argument("--force",       action="store_true", help="Reprocess papers with a candidate or accepted record")
-    pa.add_argument("--recursive",   action="store_true", help="Search subfolders of any folder given")
+    pa.add_argument("--review", action="store_true",
+                    help="Run an independent evidence review before saving the candidate")
+    pa.add_argument("--review-corrections", type=int, choices=range(MAX_CORRECTIONS + 1), default=0,
+                    help="Maximum analyzer correction attempts after review findings (default: 0)")
+    pa.add_argument("--recursive", action="store_true",
+                    help="Search subfolders; excludes course candidates/ and parsed/ state")
+    pa.add_argument("--dry-run", action="store_true",
+                    help="List selected resolved .txt/.pdf paths and stop before processing")
 
     sub.add_parser("rebuild", help="Rebuild the spreadsheet and JSON from the papers already parsed")
     sub.add_parser("status",  help="Show what this course folder currently holds")
@@ -1779,13 +1936,13 @@ def main():
         )
     if len(sys.argv) == 1:
         p.print_help()
-        return
+        return EXIT_OK
 
     args = p.parse_args()
     if not args.cmd:
         p.print_help()
         print(f"\nERROR: which command? Pick one of: {', '.join(COMMANDS)}")
-        return
+        return EXIT_SETUP_ERROR
 
     setup_course_folder(Path(args.course_folder))
 
@@ -1795,8 +1952,10 @@ def main():
         "status":     cmd_status,
         "edit-topic": cmd_edit_topic,
     }
-    dispatch[args.cmd](args)
+    # Every dispatched command returns one of the EXIT_* codes above; this is the
+    # one place that turns that into the process's actual exit status.
+    return dispatch[args.cmd](args)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

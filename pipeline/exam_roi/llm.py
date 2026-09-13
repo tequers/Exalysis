@@ -163,3 +163,27 @@ def run_batches(items, make_prompt, consume, *, system, client, limits,
     for half in (items[:middle], items[middle:]):
         run_batches(half, make_prompt, consume, system=system, client=client,
                     limits=limits, output_estimate=output_estimate, label=label)
+
+
+def configured_model_client(provider, model, limits, *, providers, env, attempts=3):
+    """Construct an independent reviewer; setup failures are review failures."""
+    if provider not in providers:
+        raise ValueError(f"Unknown reviewer provider: {provider}")
+    if not model or not model.strip():
+        raise ValueError("Set LLM_REVIEW_MODEL to an exact reviewer model ID")
+    config = providers[provider]
+    key_names = (config["key_env"], *config.get("key_env_aliases", ()))
+    key = next((env.get(name) for name in key_names if env.get(name)), None)
+    if not key:
+        raise ValueError(f"Reviewer credential {config['key_env']} is not set")
+    if config["sdk"] == "anthropic":
+        import anthropic
+        sdk_client = anthropic.Anthropic(api_key=key)
+    else:
+        import openai
+        kwargs = {"api_key": key}
+        if config["base_url"]:
+            kwargs["base_url"] = config["base_url"]
+        sdk_client = openai.OpenAI(**kwargs)
+    return ModelClient(sdk_client, config["sdk"], model, limits,
+                       attempts=attempts, provider=provider)

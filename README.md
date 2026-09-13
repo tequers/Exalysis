@@ -34,6 +34,12 @@ The authoritative [evaluation contract 1.2.0](pipeline/exam_roi/contracts/evalua
 defines the six difficulty anchors, evidence requirements, and ambiguity rules. New topic
 scores cite their source questions and record the contract version.
 
+Add `--review` to `add-exam` to run an independent evidence review before saving
+the candidate. Configure `LLM_REVIEW_MODEL` and optionally `LLM_REVIEW_PROVIDER`.
+Review failures and unresolved findings leave a `needs-review` candidate. See
+[independent review](pipeline/docs/independent-review.md) for correction limits,
+request budgets, and saved review history.
+
 Each paper contributes independent judgments for every topic it tests, including
 existing topics. The taxonomy is recomputed from all compatible stored evidence:
 connection counts distinct supported dependencies, and difficulty combines question
@@ -97,7 +103,35 @@ python pipeline.py ~/Exams/Statistics status                   # what the folder
 python pipeline.py ~/Exams/Statistics rebuild                  # redo the ranking, no LLM calls
 ```
 
+### Exit codes
+
+Every command returns one of these, so a script (or `$?`/`$LASTEXITCODE`) can tell a clean
+run from a partial one without parsing the log:
+
+| Code | Meaning |
+|---:|---|
+| 0 | Everything requested succeeded. A skip (already accepted/candidate) or a no-op rebuild still counts as success — they did what was asked. |
+| 1 | A setup or usage problem stopped the command before any work ran: a bad course folder, missing provider credentials, an unknown topic name, and the like. |
+| 2 | Reserved by argparse for its own usage errors (an unknown flag, an invalid choice) — unrelated to the codes below, but also "nothing ran". |
+| 3 | At least one requested paper failed to process on `add-exam`. Papers that *did* succeed keep their saved candidates — this is a partial result, not a crash. The failed files are named, along with what each one needs: fixing the input, a human review, or simply rerunning. |
+| 4 | `rebuild` (or the rebuild step inside `edit-topic`) could not write `Exam_ROI_Pipeline.xlsx`/`.json`. Parsed papers and taxonomy already on disk are unaffected; rerunning `rebuild` once the cause (e.g. the spreadsheet open elsewhere) is cleared is the whole fix. |
+
 ### What it can read
+
+With no input paths, `add-exam` combines `.txt` and `.pdf` files in the course
+root and its `exams/` subfolder. `--recursive` also searches deeper folders.
+The course's `candidates/` and `parsed/` directories are excluded, including
+resolved aliases. Recursive searches do not follow directory symlinks.
+Selected files are resolved to absolute paths and deduplicated, then listed
+before processing. Use `add-exam --dry-run` to inspect the list without model calls.
+
+Every matching TXT/PDF is treated as a paper, including notes or slides saved in
+those formats. To leave unrelated material out, name only the intended files or
+folders, for example `add-exam exams/2024.pdf exams/2025.pdf`. Explicit paths
+replace the default search. An existing relative path in the shell's working
+directory takes precedence over the same name inside the course folder. If it
+does not exist there, the course folder is tried. Use an absolute path to remove
+ambiguity. Inputs retain argument order, and each folder's matches are sorted.
 
 Papers go in as **UTF-8 `.txt`**, or as **`.pdf` with a text layer**. Nothing is rendered and
 no OCR is run, so a scanned paper has to be OCRed first (`ocrmypdf scan.pdf paper.pdf`) or
@@ -190,7 +224,7 @@ storage work.
 └── CONTEXT.md                  glossary — Course, Exam, Topic, Priority Score
 ```
 
-Architecture and implementation backlog: [ADR 0008 — proposed modular pipeline](docs/adr/0008-modular-pipeline-architecture.md) records the rationale, module responsibilities, and migration tradeoffs; the [ticket index](.scratch/reliable-exam-analysis/README.md) tracks the planned work. The repository map above describes the current implementation.
+Architecture and implementation backlog: [ADR 0008 — proposed modular pipeline](docs/adr/0008-modular-pipeline-architecture.md) records the rationale, module responsibilities, and migration tradeoffs; [Ticket status](.scratch/reliable-exam-analysis/TICKET_STATUS.md) shows the current queue and unresolved blockers. The repository map above describes the current implementation.
 
 ## Studying with the output
 
