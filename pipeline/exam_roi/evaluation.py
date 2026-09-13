@@ -519,6 +519,7 @@ def build_candidate_analysis(*, exam_id, year, year_label, total_marks, analysis
         "processed_at": processed_at,
         "source_provenance": deepcopy(source_provenance),
         "model_provenance": deepcopy(model_provenance),
+        "evaluation_context": {"canonical_topic_names": sorted(known_topics)},
         "questions": tagged_questions,
         "topic_judgments": judgments,
         "per_topic": clean_per_topic,

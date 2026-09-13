@@ -66,7 +66,7 @@ The refactoring tickets preserve current externally supported behavior except im
 
 ## Effect on the backlog
 
-[Ticket index](../../.scratch/reliable-exam-analysis/README.md) lists the work and derives execution order from each ticket's blockers.
+[Ticket status](../../.scratch/reliable-exam-analysis/TICKET_STATUS.md) lists the work, its current state, and its unresolved blockers.
 
 - Existing IDs 01–17 remain stable.
 - New tickets 18–20 cover bounded preparatory refactoring.

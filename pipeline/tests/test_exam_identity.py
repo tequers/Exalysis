@@ -224,11 +224,17 @@ class StateBoundaryTests(unittest.TestCase):
         untouched = self.write_record('candidates', 'another')
         accepted_bytes, untouched_bytes = accepted.read_bytes(), untouched.read_bytes()
         with patch.object(app, 'call_llm') as model:
-            self.assertFalse(app.process_exam_file(self.paper, exam_id=exam_id))
+            self.assertEqual(app.process_exam_file(self.paper, exam_id=exam_id),
+                             app.ExamOutcome.SKIPPED_ACCEPTED)
             model.assert_not_called()
         with self.fake_analysis():
-            self.assertTrue(app.process_exam_file(self.paper, exam_id=exam_id, force=True))
-        self.assertEqual(json.loads(candidate.read_text(encoding='utf-8')), {'sentinel': 'new candidate'})
+            self.assertEqual(app.process_exam_file(self.paper, exam_id=exam_id, force=True),
+                             app.ExamOutcome.SAVED)
+        saved = json.loads(candidate.read_text(encoding='utf-8'))
+        review = saved.pop('independent_review')
+        self.assertEqual(saved, {'sentinel': 'new candidate'})
+        self.assertFalse(review['enabled'])
+        self.assertEqual(review['disposition'], 'disabled')
         self.assertEqual(accepted.read_bytes(), accepted_bytes)
         self.assertEqual(untouched.read_bytes(), untouched_bytes)
         self.assertEqual(app.resolve_exam_id(self.paper, exam_id), exam_id)
@@ -240,7 +246,7 @@ class StateBoundaryTests(unittest.TestCase):
         self.write_record('candidates', f'course_{self.paper.stem}')
         self.assertEqual(app.resolve_exam_id(self.paper), f'course_{self.paper.stem}')
         with patch.object(app, 'call_llm') as model:
-            self.assertFalse(app.process_exam_file(self.paper))
+            self.assertEqual(app.process_exam_file(self.paper), app.ExamOutcome.SKIPPED_CANDIDATE)
             model.assert_not_called()
 
     def test_exhausted_automatic_ids_fail_instead_of_returning_an_unchecked_collision(self):
