@@ -1,6 +1,6 @@
 # Active-exam resolution: auto-detect when unambiguous, require explicit selection otherwise
 
-**Status:** accepted
+**Status:** superseded by [ADR 0006](./0006-course-folder-as-cli-argument.md) — the active folder is now named explicitly on every command, not resolved
 
 With `Courses/<Course>/<Exam>/` (see [ADR 0001](./0001-course-exam-hierarchy.md)) able to hold more than one Exam, both `pipeline.py` and the `/continue-study-session` skill need a rule for which Exam a given command or session applies to.
 

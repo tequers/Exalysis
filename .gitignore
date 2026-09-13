@@ -15,6 +15,7 @@ env/
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -45,6 +46,7 @@ Courses/**/lectures/
 Courses/**/exercises/
 Courses/**/exams/
 Courses/**/anki/
+Courses/**/candidates/
 Courses/**/parsed/
 
 # Real personal courses (kept locally for actual studying, not part of the portfolio repo —
@@ -52,6 +54,12 @@ Courses/**/parsed/
 Courses/Computer Vision/
 Courses/Introduction_to_quantum_computers/
 Courses/STUDY_PLAN_FINALS_AUG2026.md
+
+# Real personal exam material kept outside Courses/ (course-folder CLI usage — see
+# docs/adr/0006-course-folder-as-cli-argument.md), same copyrighted/personal reasoning
+# as above.
+/EXAMS_EVAU/
+/pipeline/EXAMS_EVAU/
 
 # Superseded systems and personal tooling, kept locally, not tracked here — see git history
 # (pre-split) for why: the deep-understanding tutor, exploratory design docs for an unbuilt
@@ -68,3 +76,12 @@ scripts/aicommit.sh
 
 # Dependencies
 node_modules/
+
+# Local agent settings, downloaded runtimes, and smoke-test output
+.claude/settings.local.json
+.scratch/runtime-deps/
+.scratch/glm-pipeline-smoke/
+
+# Personal exam inputs and results stored under pipeline/
+/pipeline/EXAMS_SO/
+/pipeline/HISTORIA_EVAU/

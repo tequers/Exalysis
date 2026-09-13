@@ -9,9 +9,10 @@ pipeline end-to-end:
 
 ```bash
 cd pipeline
-python pipeline.py add-folder "../Courses/Example_Course/final_01_01_2026/exams" --course "Example_Course" --exam final_01_01_2026
-python pipeline.py rebuild --course "Example_Course" --exam final_01_01_2026
+python pipeline.py "../Courses/Example_Course/final_01_01_2026" add-exam
+python pipeline.py "../Courses/Example_Course/final_01_01_2026" status
 ```
 
-Drop one or more past exam files (`.txt` or `.pdf`) into `exams/` first — synthetic ones are
-fine, that's the point of this folder.
+Drop one or more past exam files (`.txt` or `.pdf`) into this folder (or its `exams/` subfolder)
+first — synthetic ones are fine, that's the point of this folder. `add-exam` with no filename
+picks up everything it finds there.

@@ -1,6 +1,6 @@
 # Course/Exam hierarchy with per-Exam state independence
 
-**Status:** accepted
+**Status:** accepted — the state boundary stands; the folder layout below is now a convention only, since [ADR 0006](./0006-course-folder-as-cli-argument.md) made the CLI take its working folder as an argument
 
 Before this decision, the pipeline and tutor used flat, ungrouped paths (a single `taxonomy.json`, a single `progress.json`) implicitly scoped to one exam (Computer Vision) with no course dimension — adding a second course's exams would have silently merged its topics into CV's taxonomy and ROI sheet. Generalizing to other courses required deciding where the state boundary sits, especially once it became clear a single Course can have structurally different Exams (e.g. Operating Systems: a Practical exam and a Theory exam, with potentially different syllabi and formats).
 
