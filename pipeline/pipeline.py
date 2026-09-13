@@ -8,13 +8,16 @@ and produce a ranked Excel spreadsheet.
 Formula: Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)
   Freq    = fraction of exams where topic appeared  (0–1, computed)
   G_Marks = average mark fraction when present       (0–1, computed)
-  Conn    = connection / node value                  (1–3, AI-estimated once)
-  Diff    = difficulty bucket                        (1–6, AI-estimated once)
-  Fmt     = format depth                             (1=MCQ · 2=short answer · 3=write code)
+  Conn    = direct downstream usefulness             (1–3, qualitative estimate)
+  Diff    = conceptual / reasoning complexity        (1–6, qualitative estimate)
+  Fmt     = response-mode weight                     (1=MCQ · 2=short answer · 3=write code)
 
 Setup:
+  The pipeline loads a local .env file from the repository root. Values already
+  present in the process environment take precedence.
+
   Pick a provider with the LLM_PROVIDER env var (default: anthropic).
-  Supported out of the box: anthropic, deepseek, openai — the latter two
+  Supported out of the box: anthropic, deepseek, openai, openrouter and unorouter.
   share one OpenAI-compatible code path, so any other provider that speaks
   the same chat-completions API (Groq, local vLLM/Ollama, ...) works by
   adding one entry to the PROVIDERS dict below.
@@ -25,101 +28,190 @@ Setup:
                              export DEEPSEEK_API_KEY=sk-...
     LLM_PROVIDER=openai     pip install openai
                              export OPENAI_API_KEY=sk-...
+    LLM_PROVIDER=openrouter pip install openai
+                             export OPENROUTER_API_KEY=sk-or-...
+                             export LLM_MODEL_STAGE1=your-openrouter-model-id
+                             export LLM_MODEL_STAGE2=your-openrouter-model-id
+    LLM_PROVIDER=unorouter  pip install openai
+                             export UNOROUTER_API_KEY=your-key
+                             export LLM_MODEL_STAGE1=your-unorouter-model-id
+                             export LLM_MODEL_STAGE2=your-unorouter-model-id
 
   (Windows CMD: use `set VAR=value` instead of `export VAR=value`.)
   Optionally override the models: LLM_MODEL_STAGE1 / LLM_MODEL_STAGE2.
+  OpenRouter and UnoRouter require both model variables, using exact catalog IDs.
 
 Usage:
-  python pipeline.py add "Courses/Computer Vision/final_26_08_2026/exams/exam_2022.txt"
-  python pipeline.py add exam_2023.pdf --year 2023 --total-marks 120
-  python pipeline.py add exam_2024.txt --force        # reprocess existing
-  python pipeline.py add-folder "Courses/Computer Vision/final_26_08_2026/exams"
-  python pipeline.py add-folder Courses/ --recursive --force
-  python pipeline.py rebuild                          # rebuild spreadsheet only
-  python pipeline.py status                           # show current state
-  python pipeline.py edit-topic "Big-O Notation" --diff 2 --conn 3   # override scores
+  python pipeline.py COURSE_FOLDER COMMAND [data]
 
-  Pass --course/--exam when more than one Exam folder exists under Courses/:
-  python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
+  COURSE_FOLDER always comes first, and is the only place the pipeline reads or
+  writes state: it is created on first use and updated in place on every run
+  after that. One folder = one exam's worth of state; nothing is shared between
+  folders.
 
-File layout:
-  Courses/<Course>/<Exam>/          one self-contained unit per Exam
+  python pipeline.py Exams/Historia add-exam exam_2023.pdf
+  python pipeline.py Exams/Historia add-exam                 # every exam file in the folder
+  python pipeline.py Exams/Historia add-exam papers/ --recursive
+  python pipeline.py Exams/Historia add-exam exam_2023.pdf --year 2023 --total-marks 120
+  python pipeline.py Exams/Historia add-exam exam_2024.txt --force   # reprocess existing
+  python pipeline.py Exams/Historia rebuild                  # rebuild outputs only
+  python pipeline.py Exams/Historia status                   # show current state
+  python pipeline.py Exams/Historia edit-topic "Big-O Notation" --diff 2 --conn 3
+
+Exam files the pipeline can read:
+  .txt   plain text, encoded as UTF-8 (a byte-order mark is fine). Any other
+         encoding is reported and refused rather than patched over, because a
+         replaced character is a hole in the paper nobody sees.
+  .pdf   a PDF with a text layer. No page is rendered and no OCR is run, so a
+         scanned paper has to be OCRed first (e.g. `ocrmypdf in.pdf out.pdf`).
+
+  A paper is refused before any AI call when it holds no text, when it is not
+  valid UTF-8, or when any of its pages has no text layer — reading on would
+  silently drop those questions. The check only asks whether a page produced any
+  text: garbled, partial or out-of-order extraction still gets through, so skim
+  a converted paper before trusting its analysis.
+
+  The extracted text is sent to the configured provider (LLM_PROVIDER above) to
+  be analysed. Nothing else in the file is uploaded, and the file itself stays
+  on disk.
+
+File layout — everything lives in COURSE_FOLDER:
+    COURSE_FOLDER/
     taxonomy.json                    canonical topic list with Diff and Conn per topic
-    parsed/                          one JSON file per processed exam (audit trail)
+    parsed/                          one JSON file per accepted exam (audit trail)
+    candidates/                      validated analyses awaiting acceptance/review
     Exam_ROI_Pipeline.xlsx           ranked output, formatted (overwritten on each rebuild)
     Exam_ROI_Pipeline.json           same ranked output, flat JSON (overwritten on each rebuild) —
                                       the one to point an LLM or a script at
 
-  Every command resolves its active Exam folder before running: if exactly one
-  exists under Courses/, it's used automatically; the moment a second one
-  exists, --course/--exam must disambiguate (see resolve_exam_root()).
+  Exam files may sit in COURSE_FOLDER itself, in its exams/ subfolder, or anywhere
+  else add-exam is pointed at — see docs/adr/0006-course-folder-as-cli-argument.md.
+
+Several papers per year (models, sittings, resits) are the normal case: each gets its
+own record, its own columns, and a label made from whatever its filename does not share
+with the others ("2022 Lunes", "2022 Martes"). The year is read from the filename, else
+from the paper, else from Stage 1 — and an academic year like "2021-2022" means the
+paper was sat in 2022. See docs/adr/0007-one-record-per-paper-and-the-sitting-year.md.
 """
 
 import argparse
+import functools
+import hashlib
 import json
 import os
 import re
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
-sys.stdout.reconfigure(errors="replace")
-sys.stderr.reconfigure(errors="replace")
+from exam_roi.inputs import SUPPORTED_SUFFIXES, ExtractionError, extract_exam_text
+from exam_roi.taxonomy import aggregate_taxonomy
+from exam_roi.identity import ExamIdentityError, exam_record_path, validate_exam_id
+from exam_roi.llm import (
+    ModelClient, RequestLimits, RequestLimitError, TruncatedResponse,
+    estimate_tokens, run_batches,
+    text_from_anthropic as _text_from_anthropic,
+    text_from_openai as _text_from_openai,
+)
+from exam_roi.question_context import (
+    source_questions, related_source_units, retain_source_context, question_evidence,
+)
+from exam_roi.evaluation import (
+    CONTRACT_TEXT, LEGACY_VERSION, CandidateValidationError, build_candidate_analysis,
+    contract_metadata, difficulty_version, finalize_candidate_analysis,
+    project_extraction_questions,
+    tag_evidence, validate_extraction, validate_tags,
+    validate_topic_scores, validate_connection_review, CONTRACT_VERSION,
+)
+
+# Windows consoles default to a legacy codepage, which turns every arrow, tick and
+# em dash in the run log into "?". errors="replace" is the last-resort net for a
+# terminal that still cannot encode something.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+
+def load_dotenv(path: Path) -> None:
+    """Load simple KEY=VALUE entries without overriding the process environment."""
+    if not path.exists():
+        return
+
+    for line_number, raw_line in enumerate(
+        path.read_text(encoding="utf-8-sig").splitlines(), start=1
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            sys.exit(f"ERROR: Invalid .env entry on line {line_number}: expected KEY=VALUE")
+
+        key, value = (part.strip() for part in line.split("=", 1))
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            sys.exit(f"ERROR: Invalid .env variable name on line {line_number}")
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+DOTENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(DOTENV_FILE)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-SCRIPT_DIR   = Path(__file__).parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-
-# Resolved by resolve_exam_root() in main() before any command runs — see
-# docs/adr/0001-course-exam-hierarchy.md and docs/adr/0003-active-exam-resolution.md.
+# All set by setup_course_folder() in main() from the COURSE_FOLDER argument,
+# before any command runs — see docs/adr/0006-course-folder-as-cli-argument.md.
+COURSE_FOLDER = None
 TAXONOMY_FILE = None
 PARSED_DIR    = None
+CANDIDATES_DIR = None
 OUTPUT_XLSX   = None
 OUTPUT_JSON   = None
 
 
-def resolve_exam_root(course=None, exam=None) -> Path:
+def setup_course_folder(folder: Path):
     """
-    Find the active Exam folder under Courses/<Course>/<Exam>/.
+    Point every output path at COURSE_FOLDER, creating the folder if it is new.
 
-    Auto-detects when exactly one Exam folder exists anywhere under Courses/.
-    The moment more than one exists, --course/--exam must disambiguate — a
-    command never silently guesses which Exam it's acting on.
+    This is the pipeline's whole notion of "where am I working": one folder, named
+    explicitly on every command, holding one exam's taxonomy, parsed papers and
+    ranked output. An empty (or missing) folder gets those files created on the
+    first run; a folder that already has them gets them updated in place.
     """
-    courses_dir = PROJECT_ROOT / "Courses"
-    if not courses_dir.exists():
-        sys.exit(
-            f"ERROR: No 'Courses' folder found at {courses_dir}\n"
-            f"       Expected layout: Courses/<Course>/<Exam>/ "
-            f"(e.g. Courses/Computer Vision/final_26_08_2026/)"
-        )
+    global COURSE_FOLDER, TAXONOMY_FILE, PARSED_DIR, CANDIDATES_DIR, OUTPUT_XLSX, OUTPUT_JSON
 
-    candidates = sorted(p for p in courses_dir.glob("*/*") if p.is_dir())
-    if not candidates:
-        sys.exit(f"ERROR: No Exam folders found under {courses_dir}")
+    if folder.exists() and not folder.is_dir():
+        sys.exit(f"ERROR: COURSE_FOLDER is not a folder: {folder}")
+    if not folder.exists():
+        folder.mkdir(parents=True)
+        print(f"\n📂 Created course folder: {folder}")
+    else:
+        print(f"\n📂 Course folder: {folder}")
 
-    if course or exam:
-        def matches(p: Path) -> bool:
-            course_ok = course is None or p.parent.name.lower() == course.lower()
-            exam_ok   = exam   is None or p.name.lower()        == exam.lower()
-            return course_ok and exam_ok
-        matched = [p for p in candidates if matches(p)]
-        if not matched:
-            listing = "\n".join(f"     {p.parent.name} / {p.name}" for p in candidates)
-            sys.exit(
-                f"ERROR: No Exam folder matches --course={course!r} --exam={exam!r}\n"
-                f"       Found under {courses_dir}:\n{listing}"
-            )
-        candidates = matched
+    COURSE_FOLDER = folder
+    TAXONOMY_FILE = folder / "taxonomy.json"
+    PARSED_DIR    = folder / "parsed"
+    CANDIDATES_DIR = folder / "candidates"
+    OUTPUT_XLSX   = folder / "Exam_ROI_Pipeline.xlsx"
+    OUTPUT_JSON   = folder / "Exam_ROI_Pipeline.json"
 
-    if len(candidates) > 1:
-        listing = "\n".join(f"     --course \"{p.parent.name}\" --exam {p.name}" for p in candidates)
-        sys.exit(
-            f"ERROR: Multiple Exam folders found — pass --course/--exam to disambiguate:\n{listing}"
-        )
 
-    return candidates[0]
+def resolve_input_path(raw: str) -> Path:
+    """
+    Resolve a PATH argument, falling back to COURSE_FOLDER when it is not found
+    relative to the shell's working directory — so naming a paper that sits in the
+    course folder works from anywhere, without retyping the folder.
+    """
+    path = Path(raw)
+    if path.exists():
+        return path
+    inside = COURSE_FOLDER / raw
+    if inside.exists():
+        return inside
+    sys.exit(
+        f"ERROR: File or folder not found: {raw}\n"
+        f"       Looked in {Path.cwd()} and in {COURSE_FOLDER}"
+    )
 
 # ── LLM provider configuration ────────────────────────────────────────────────
 # The pipeline only needs two things from an LLM: a (system, user) prompt in,
@@ -131,6 +223,21 @@ def resolve_exam_root(course=None, exam=None) -> Path:
 # changes, just a new PROVIDERS entry (or none, for another OpenAI-compatible
 # host — see base_url).
 PROVIDERS = {
+    "unorouter": {
+        "sdk":             "openai",
+        "key_env":         "UNOROUTER_API_KEY",
+        "key_env_aliases": ("OPENROUTER_API_KEY",),
+        "base_url":        "https://api.unorouter.com/v1",
+        "default_stage1":  None,
+        "default_stage2":  None,
+    },
+    "openrouter": {
+        "sdk":             "openai",
+        "key_env":         "OPENROUTER_API_KEY",
+        "base_url":        "https://openrouter.ai/api/v1",
+        "default_stage1":  None,
+        "default_stage2":  None,
+    },
     "anthropic": {
         "sdk":             "anthropic",
         "key_env":         "ANTHROPIC_API_KEY",
@@ -166,12 +273,22 @@ MODEL_STAGE1 = os.environ.get("LLM_MODEL_STAGE1", _PROVIDER["default_stage1"])
 MODEL_STAGE2 = os.environ.get("LLM_MODEL_STAGE2", _PROVIDER["default_stage2"])
 MAX_RETRIES  = 3
 
-# Output-token budgets. Modern frontier models allow 32k+ output tokens; the
-# old 8k/16k defaults truncated mid-JSON on long exams.
-MAX_TOKENS_STAGE1 = 32000   # question extraction (scales with exam length)
-MAX_TOKENS_STAGE2 = 32000   # topic tagging / scoring
-# Stage 2 tags questions in batches so its output can never outgrow the budget.
-STAGE2_BATCH_SIZE = 40
+# Limits are configured per stage at the call boundary. They are deployment
+# settings, not assertions about any provider's current model catalog.
+def _stage_request(stage, client=None, limits=None):
+    if isinstance(client, ModelClient):
+        if limits is not None and limits != client.limits:
+            raise ValueError("Injected limits must match the ModelClient limits")
+        return client, client.limits
+    limits = limits or RequestLimits.from_env(os.environ, stage)
+    if client is not None:
+        return client, limits
+    model = MODEL_STAGE1 if stage == 1 else MODEL_STAGE2
+
+    def complete(system, user, max_tokens):
+        return call_llm(system, user, max_tokens=max_tokens, model=model, limits=limits)
+    return complete, limits
+
 
 # Format → integer score (MVP scale 1–3)
 FMT_SCORE = {
@@ -201,46 +318,74 @@ def load_all_exams() -> dict:
         for f in sorted(PARSED_DIR.glob("*.json"))
     }
 
-def read_exam_file(path: Path) -> str:
-    if path.suffix.lower() == ".pdf":
-        try:
-            import pypdf
-        except ImportError:
-            sys.exit("ERROR: Install pypdf to read PDFs:  pip install pypdf")
+EARLIEST_YEAR = 1990
 
-        reader = pypdf.PdfReader(str(path))
-        pages  = []
-        empty  = 0
-        for i, page in enumerate(reader.pages, 1):
-            try:
-                text = page.extract_text(extraction_mode="layout") or ""
-            except TypeError:
-                # pypdf < 4 does not support extraction_mode
-                text = page.extract_text() or ""
-            if not text.strip():
-                empty += 1
-            pages.append(f"[Page {i}]\n{text}")
 
-        if empty:
-            print(
-                f"   ⚠  {empty}/{len(reader.pages)} page(s) returned no text "
-                f"— PDF may contain scanned images. Those pages will be skipped."
-            )
+def _year_candidates(text: str) -> list:
+    """
+    Every plausible exam year in a string, in the order they appear.
 
-        return "\n\n".join(pages)
+    An academic year is written as a range ("2021-2022", "Curso 2021/22") and the
+    paper is sat in its later half, so a range resolves to the second year — taking
+    the first number would date every EVAU paper a year early. A pair of years that
+    are not one apart is not an academic year, so only the first is taken.
+    """
+    out = []
+    pattern = r"(?<!\d)(?P<a>(?:19|20)\d{2})(?!\d)(?:\s*[-/_–]\s*(?P<b>\d{2,4})(?!\d))?"
+    for m in re.finditer(pattern, text):
+        year = int(m.group("a"))
+        if m.group("b"):
+            second = int(m.group("b"))
+            if second < 100:                       # "21-22" → 2022
+                second += (year // 100) * 100
+            if second - year == 1:
+                year = second
+        if EARLIEST_YEAR <= year <= datetime.now().year + 1:
+            out.append((year, m.group(0).strip()))
+    return out
 
-    return path.read_text(encoding="utf-8", errors="replace")
+
+def infer_year(path: Path, exam_text: str = "") -> tuple:
+    """
+    Work out which year a paper was sat, returning (year, label_as_written, source).
+
+    The filename is asked first — it is what the person who filed the paper meant,
+    and is usually the only place the sitting is written unambiguously. Failing
+    that, the top of the paper itself is read, where the year is normally printed
+    in a header. Returns (None, None) rather than guessing: a wrong year silently
+    reorders the sheet and mislabels a column.
+    """
+    for source, text in (("filename", path.stem), ("paper", exam_text[:4000])):
+        found = _year_candidates(text)
+        if found:
+            year, raw = found[0]
+            return year, (raw if raw != str(year) else None), source
+    return None, None, None
 
 
 # ── LLM API helpers ────────────────────────────────────────────────────────────
 
+@functools.lru_cache(maxsize=1)
 def _client():
-    key = os.environ.get(_PROVIDER["key_env"])
-    if not key:
+    if LLM_PROVIDER in {"openrouter", "unorouter"} and (
+        not MODEL_STAGE1 or not MODEL_STAGE1.strip()
+        or not MODEL_STAGE2 or not MODEL_STAGE2.strip()
+    ):
         sys.exit(
-            f"ERROR: {_PROVIDER['key_env']} is not set (provider={LLM_PROVIDER}).\n"
-            f"       export {_PROVIDER['key_env']}=...   "
-            f"(Windows: set {_PROVIDER['key_env']}=...)"
+            "ERROR: Set LLM_MODEL_STAGE1 and LLM_MODEL_STAGE2 to exact "
+            f"{LLM_PROVIDER} model IDs before reading exams."
+        )
+    key_names = (_PROVIDER["key_env"], *_PROVIDER.get("key_env_aliases", ()))
+    key = next((os.environ.get(name) for name in key_names if os.environ.get(name)), None)
+    if not key:
+        # The one setup step that can only fail at runtime, so it explains itself in
+        # full here rather than relying on --help having been read first.
+        sys.exit(
+            f"ERROR: {_PROVIDER['key_env']} is not set, and reading exams needs AI calls.\n"
+            f"       set {_PROVIDER['key_env']}=...       (Windows)\n"
+            f"       export {_PROVIDER['key_env']}=...    (macOS/Linux)\n"
+            f"       Provider is '{LLM_PROVIDER}' — set LLM_PROVIDER to "
+            f"{' or '.join(k for k in PROVIDERS if k != LLM_PROVIDER)} to use another."
         )
     if _PROVIDER["sdk"] == "anthropic":
         try:
@@ -259,98 +404,46 @@ def _client():
         return openai.OpenAI(**kwargs)
 
 
-class TruncatedResponse(RuntimeError):
-    """Raised when the model stopped because it hit max_tokens — output is incomplete."""
-
-
-def _text_from_anthropic(msg) -> str:
-    """Concatenate the text blocks of an Anthropic response, skipping thinking/tool blocks."""
-    parts = [
-        b.text for b in msg.content
-        if getattr(b, "type", None) == "text" and getattr(b, "text", None)
-    ]
-    if not parts:
-        kinds = ", ".join(getattr(b, "type", "?") for b in msg.content) or "none"
-        raise ValueError(f"No text block in response (blocks: {kinds})")
-    if getattr(msg, "stop_reason", None) == "max_tokens":
-        used = getattr(getattr(msg, "usage", None), "output_tokens", "?")
-        raise TruncatedResponse(
-            f"Response hit max_tokens ({used} output tokens) — the JSON is incomplete. "
-            "Increase MAX_TOKENS_STAGE1/MAX_TOKENS_STAGE2 or lower STAGE2_BATCH_SIZE."
-        )
-    return "\n".join(parts)
-
-
-def _text_from_openai(resp) -> str:
-    """Extract text from an OpenAI-compatible chat-completions response."""
-    choice = resp.choices[0]
-    text   = choice.message.content or ""
-    if choice.finish_reason == "length":
-        raise TruncatedResponse(
-            "Response hit the token limit — the JSON is incomplete. "
-            "Increase MAX_TOKENS_STAGE1/MAX_TOKENS_STAGE2 or lower STAGE2_BATCH_SIZE."
-        )
-    if not text.strip():
-        raise ValueError(f"Empty response (finish_reason: {choice.finish_reason})")
-    return text
-
-
-def call_llm(system: str, user: str, max_tokens: int = MAX_TOKENS_STAGE2,
-             model: str = MODEL_STAGE2) -> str:
-    """
-    Provider-agnostic completion call — dispatches on _PROVIDER["sdk"].
-    Anthropic uses streaming because a non-streaming call at these token
-    budgets is rejected by that SDK for exceeding its 10-minute non-streaming
-    ceiling; the OpenAI-compatible family has no such restriction.
-    """
-    client = _client()
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            if _PROVIDER["sdk"] == "anthropic":
-                with client.messages.stream(
-                    model=model,
-                    max_tokens=max_tokens,
-                    system=system,
-                    messages=[{"role": "user", "content": user}],
-                ) as stream:
-                    msg = stream.get_final_message()
-                return _text_from_anthropic(msg)
-            else:
-                resp = client.chat.completions.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                )
-                return _text_from_openai(resp)
-        except TruncatedResponse:
-            raise                      # deterministic — retrying won't help
-        except Exception as exc:
-            if attempt == MAX_RETRIES:
-                raise
-            wait = 2 ** attempt
-            print(f"   ⚠  API error (attempt {attempt}/{MAX_RETRIES}): {exc}. Retrying in {wait}s…")
-            time.sleep(wait)
+def call_llm(system: str, user: str, max_tokens=None, model=None, *, limits=None) -> str:
+    """CLI adapter; reusable provider mechanics live in exam_roi.llm."""
+    model = model or MODEL_STAGE2
+    stage = 1 if model == MODEL_STAGE1 and model != MODEL_STAGE2 else 2
+    limits = limits or RequestLimits.from_env(os.environ, stage)
+    max_tokens = limits.output_tokens if max_tokens is None else max_tokens
+    # Check before constructing an SDK client or looking up credentials.
+    limits.check(system, user, max_tokens)
+    return ModelClient(_client(), _PROVIDER["sdk"], model, limits,
+                       attempts=MAX_RETRIES, provider=LLM_PROVIDER)(system, user, max_tokens=max_tokens)
 
 
 def parse_json_from(text: str):
     """Extract JSON from the model's response (handles ```json fences and bare JSON)."""
-    m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    m = re.fullmatch(r"\s*```(?:json)?\s*([\s\S]*?)\s*```\s*", text)
     if m:
         text = m.group(1)
     text = text.strip()
     start = next((i for i, ch in enumerate(text) if ch in "{["), None)
     if start is None:
-        raise ValueError(f"No JSON found in response:\n{text[:500]}")
+        raise CandidateValidationError("model JSON", f"no JSON found in response: {text[:500]}")
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise CandidateValidationError("model JSON", f"duplicate object key: {key}")
+            result[key] = value
+        return result
+
     try:
-        # raw_decode ignores any trailing prose after the JSON value
-        return json.JSONDecoder().raw_decode(text, start)[0]
+        value, end = json.JSONDecoder(object_pairs_hook=unique_object).raw_decode(text, start)
+        if text[:start].strip() or text[end:].strip():
+            raise CandidateValidationError(
+                "model JSON", "response must contain one JSON value and no surrounding prose")
+        return value
     except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"Malformed JSON from the model ({exc}). "
-            f"Response was {len(text)} chars; tail:\n…{text[-300:]}"
+        raise CandidateValidationError(
+            "model JSON",
+            f"malformed JSON ({exc}); response was {len(text)} chars; tail: …{text[-300:]}"
         ) from exc
 
 
@@ -358,36 +451,77 @@ def parse_json_from(text: str):
 
 _S1_SYSTEM = (
     "You are an exam parsing engine. Extract every distinct question and sub-question "
-    "from the provided exam text. Output a single JSON array only — no prose, no markdown fences."
-)
+    "from the provided exam text. Output a single JSON object only — no prose, no markdown fences."
+) + "\n\n" + CONTRACT_TEXT
 
-def stage1_extract(exam_text: str, total_marks) -> list:
+def _extraction_prompt(exam_text: str, total_marks) -> str:
+    """Build the extraction prompt without provider or request-sizing mechanics."""
     tm_str = str(total_marks) if total_marks else "unknown — sum from questions if possible"
     user = (
         f"Total exam marks: {tm_str}\n\n"
-        "Extract every distinct question and sub-question. For each output one JSON object:\n"
-        '  "q_id"   : unique label e.g. "Q1", "Q2a", "Q3b"\n'
-        '  "text"   : verbatim question text (enough to identify the concept)\n'
-        '  "marks"  : integer point value, or null if not stated\n'
-        '  "format" : exactly one of these strings:\n'
-        '               "mcq"                  — multiple choice / true-false / matching\n'
-        '               "short_answer"         — define / fill-in / short explanation\n'
-        '               "explain_derive"       — explain concept / trace code / derive formula\n'
-        '               "write_code_or_proof"  — write code, proof, or design from scratch\n\n'
-        "Output only a JSON array. No other text.\n\n"
+        "Output one JSON object with exactly these two keys:\n\n"
+        '  "exam_year" : the calendar year this paper was SAT, as an integer, or null if\n'
+        '                the paper does not say. An academic year written as a range\n'
+        '                ("2021-2022", "Curso 2021/22") is sat in the later year: 2022.\n\n'
+        '  "questions" : every distinct question and sub-question, each as an object:\n'
+        '      "q_id"   : unique label e.g. "Q1", "Q2a", "Q3b"\n'
+        '      "text"   : complete verbatim task text, including all choices and constraints\n'
+        '      "marks"  : integer point value, or null if not stated\n'
+        '      "format" : exactly one of these strings:\n'
+        '                   "mcq"                  — multiple choice / true-false / matching\n'
+        '                   "short_answer"         — define / fill-in / short explanation\n'
+        '                   "explain_derive"       — explain concept / trace code / derive formula\n'
+        '                   "write_code_or_proof"  — write code, proof, or design from scratch\n\n'
+        "Keep printed question numbers as Q1, Q2, etc.; preserve subpart suffixes "
+        "such as Q2a. Never restart numbering in a batch. Include parent instructions "
+        "and shared passages needed to answer each subquestion.\n"
+        "Output only that JSON object. No other text.\n\n"
         f"EXAM TEXT:\n{exam_text}"
     )
-    raw = call_llm(_S1_SYSTEM, user, max_tokens=MAX_TOKENS_STAGE1, model=MODEL_STAGE1)
-    return parse_json_from(raw)
+    return user
+
+
+def stage1_extract(exam_text: str, total_marks, *, client=None, limits=None) -> tuple:
+    """Extract complete source units, then validate identity and coverage on merge."""
+    client, limits = _stage_request(1, client, limits)
+    prefix, units = source_questions(exam_text)
+    questions, years = [], set()
+
+    def prompt(batch):
+        user = _extraction_prompt(prefix + "".join(unit.text for unit in batch), total_marks)
+        related = [unit for unit in related_source_units(batch, units) if unit not in batch]
+        if related:
+            user += ("\n\nSUPPORTING SOURCE CONTEXT ONLY, do not extract these questions. "
+                     "Extract only these target IDs and their subparts: "
+                     + ", ".join(unit.q_id for unit in batch) + "\n"
+                     + "".join(unit.text for unit in related))
+        return user
+
+    def consume(raw, batch):
+        extracted, year = validate_extraction(parse_json_from(raw), EARLIEST_YEAR,
+                                               datetime.now().year + 1)
+        retain_source_context(extracted, batch, prefix, units)
+        questions.extend(extracted)
+        if year is not None:
+            years.add(year)
+
+    run_batches(units, prompt, consume, system=_S1_SYSTEM, client=client, limits=limits,
+                output_estimate=lambda batch: estimate_tokens(prefix + "".join(u.text for u in batch))
+                                              + 256 * len(batch),
+                label="question extraction")
+    if len(years) > 1:
+        raise CandidateValidationError("question extraction", "Conflicting sitting years across batches")
+    return validate_extraction({"exam_year": next(iter(years), None), "questions": questions},
+                               EARLIEST_YEAR, datetime.now().year + 1)
 
 
 # ── Stage 2: Tag topics and score parameters ───────────────────────────────────
 
 _S2_SYSTEM = (
     "You are an academic curriculum analyst. You tag exam questions from any subject with "
-    "canonical topic labels and estimate study parameters for ROI scoring. Output valid JSON "
+    "canonical topic labels and estimate qualitative parameters for relative priority. Output valid JSON "
     "only — no markdown, no prose outside the JSON."
-)
+) + "\n\n" + CONTRACT_TEXT
 
 _S2A_TEMPLATE = """\
 CANONICAL TOPIC TAXONOMY
@@ -399,129 +533,240 @@ QUESTIONS (batch {batch_no} of {batch_count}):
 
 YOUR TASK
 Assign 1–2 canonical topic labels to every question.
+Read the complete text and source_context before judging. Focus on q_id's task;
+shared instructions and sibling subparts provide context. Quote either source field.
 Reuse existing taxonomy labels wherever possible.
 Merge near-synonyms (e.g. "pointers" and "pointer arithmetic" → one canonical label).
 Only invent a new label when the concept is genuinely absent from the taxonomy.
 
-Echo back the q_id only — do NOT repeat the question text.
+For each q_id, cite a short exact quote, explain why the labels fit, and list any
+uncertainties. Do not repeat the full question text.
 
 OUTPUT exactly this JSON structure (no extra keys, no prose):
 {{
-  "tags": {{ "Q1": ["Label A"], "Q2a": ["Label A", "Label B"] }},
+  "tags": {{
+    "Q1": {{
+      "topics": ["Label A"],
+      "quote": "short exact source excerpt",
+      "rationale": "Why this excerpt supports the label.",
+      "uncertainties": []
+    }}
+  }},
   "new_topic_names": ["New Label 1"]
 }}"""
 
 _S2B_TEMPLATE = """\
-EXISTING TAXONOMY (for prerequisite references only)
+EXISTING TAXONOMY (for canonical references only)
 {taxonomy_list}
 
-NEW TOPICS TO SCORE
+TOPICS TESTED IN THIS PAPER (score existing topics again as well as new ones)
 {new_topics}
 
-For each new topic estimate:
+INFER BACKGROUND KNOWLEDGE FROM THE EXAM
+No manual course prerequisites or syllabus are supplied. Infer only the background
+knowledge supported by the source questions, for each topic. Record it in
+assumed_prerequisites and support each assumption with prerequisite_evidence:
+prerequisite, q_id, exact quote, and a brief rationale. These are estimates, not
+source facts. Use empty lists when no additional background assumption is needed.
+Do not assume the reasoning being tested is already solved. Note uncertainty about
+course context; use null level only when it prevents a defensible difficulty judgment.
 
-  Diff              : difficulty, 1–6 bucket — time for a competent student to become exam-ready
-                      <30 min=1  30min–1h=2  1–3h=3  3–6h=4  6–15h=5  >15h=6
-                      "Exam-ready" = passing competency, not mastery.
-  Diff_hours        : matching range string, e.g. "1–3h"
-  Conn              : connection / node value, 1–3 integer
-                      1 = isolated (helps no other exam topic)
-                      2 = helps 1–2 other topics
-                      3 = foundational (many other topics depend on it)
-  prerequisites     : list of topic names this concept requires
-                      (use existing taxonomy labels or other new topic names only)
+COURSE BASELINE
+Apply the contract's exam-inferred background rule to the complete source evidence
+below. source_context contains original instructions and passages, including text
+across page boundaries. Focus on the task identified by q_id; sibling subparts
+are context, not additional tasks to score. Cite text or source_context verbatim.
+
+SOURCE QUESTIONS (full text and tags; cite q_id and a short verbatim quote)
+{questions_json}
+
+Apply the evaluation contract in the system message. For each listed topic judge
+every question tagged with it. Supply question levels; Python computes topic Diff.
+Do not infer difficulty from response mode or scoring instructions in the text.
+Conn must match the number of supported direct downstream labels in unlocks.
+For Conn=1 cite the assessed task and explain the absence of supported edges.
+Use only existing or new canonical labels for prerequisites and unlocks.
+For every dependency, supply connection_edges with prerequisite, dependent, q_id,
+quote, and rationale. Direction: prerequisite -> dependent. Cite the task that
+needs this dependency. Include links from known topics even if they are not directly
+tested here: a new topic can show that an older topic supports it. Repeated words or
+co-occurrence alone do not prove dependency. Report only this paper's evidence;
+Python combines evidence across papers and preserves human overrides.
+Record uncertainty explicitly; do not fabricate a resolved level under ambiguity.
 
 OUTPUT exactly this JSON structure (no extra keys, no prose):
 {{
   "Topic Name": {{
-    "Diff": 3,
-    "Diff_hours": "1–3h",
-    "Conn": 2,
-    "prerequisites": []
+    "question_difficulty": [{{
+      "q_id": "Q1", "level": 3, "quote": "verbatim source excerpt",
+      "rationale": "Reasoning required and why this level fits.", "uncertainties": []
+    }}],
+    "difficulty_rationale": "How the questions represent the topic.",
+    "assumed_prerequisites": [],
+    "prerequisite_evidence": [],
+    "Conn": 1,
+    "connection_rationale": "No direct downstream use supported in this paper.",
+    "connection_evidence": [{{"q_id": "Q1", "quote": "verbatim source excerpt"}}],
+    "connection_edges": [],
+    "unlocks": [], "prerequisites": [], "uncertainties": []
   }}
 }}"""
 
 
-def _compact_questions(questions: list) -> list:
-    """Strip questions down to what tagging actually needs, capping text length."""
-    out = []
-    for q in questions:
-        text = str(q.get("text", ""))
-        out.append({
-            "q_id":   q.get("q_id"),
-            "marks":  q.get("marks"),
-            "format": q.get("format"),
-            "text":   text if len(text) <= 500 else text[:500] + " …",
-        })
-    return out
-
-
-def _batched(seq: list, size: int):
-    for i in range(0, len(seq), size):
-        yield seq[i:i + size]
-
-
 def _fmt_taxonomy(topic_names: list) -> str:
+    """One label per line — a JSON array of bare strings pays for quotes, commas
+    and indentation on every label, in every batch prompt."""
     if not topic_names:
-        return '[]  ← taxonomy is empty; propose all new topic labels'
-    return json.dumps(sorted(topic_names), indent=2, ensure_ascii=False)
+        return "(empty — taxonomy has no labels yet; propose all new topic labels)"
+    return "\n".join(f"- {n}" for n in sorted(topic_names))
 
 
-def _stage2_tag(questions: list, topic_names: list) -> tuple:
-    """Ask the LLM for q_id → topics. Batched so the reply can never be truncated."""
-    compact  = _compact_questions(questions)
-    batches  = list(_batched(compact, STAGE2_BATCH_SIZE))
+def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None) -> tuple:
+    """Tag full evidence in size-aware batches, preserving exact ID coverage."""
+    client, limits = _stage_request(2, client, limits)
     tags, new_names = {}, []
 
-    for n, batch in enumerate(batches, 1):
-        if len(batches) > 1:
-            print(f"   · tagging batch {n}/{len(batches)} ({len(batch)} questions)…")
-        # Feed labels coined in earlier batches forward, so later batches reuse
-        # them instead of inventing near-duplicates.
-        user = _S2A_TEMPLATE.format(
+    def prompt(batch):
+        return _S2A_TEMPLATE.format(
             taxonomy_list=_fmt_taxonomy(list(topic_names) + new_names),
-            batch_no=n,
-            batch_count=len(batches),
-            questions_json=json.dumps(batch, indent=2, ensure_ascii=False),
-        )
-        data = parse_json_from(call_llm(_S2_SYSTEM, user, max_tokens=MAX_TOKENS_STAGE2))
-        tags.update(data.get("tags", {}))
-        for name in data.get("new_topic_names", []):
-            if name not in new_names:
-                new_names.append(name)
-    return tags, new_names
+            batch_no=1, batch_count=1,
+            questions_json=json.dumps(question_evidence(batch), ensure_ascii=False))
+
+    def consume(raw, batch):
+        batch_tags, names = validate_tags(parse_json_from(raw), batch, list(topic_names) + new_names)
+        if set(tags) & set(batch_tags):
+            raise CandidateValidationError("topic tagging", "Duplicate question IDs across batches")
+        tags.update(batch_tags)
+        new_names.extend(name for name in names if name not in new_names)
+
+    run_batches(questions, prompt, consume, system=_S2_SYSTEM, client=client, limits=limits,
+                output_estimate=lambda batch: 512 * len(batch), label="topic tagging")
+    return validate_tags({"tags": tags, "new_topic_names": new_names}, questions, topic_names)
 
 
-def _stage2_score_new(new_names: list, taxonomy_list: str) -> dict:
-    """Estimate Diff / Conn / prerequisites for genuinely new topics only."""
-    if not new_names:
+def _merge_topic_parts(parts):
+    """Combine evidence, then derive Conn from the union of supported edges."""
+    merged = {}
+    for part in parts:
+        for key, value in part.items():
+            if isinstance(value, list):
+                target = merged.setdefault(key, [])
+                for item in value:
+                    if item not in target:
+                        target.append(item)
+            elif key != "Conn":
+                previous = merged.get(key, "")
+                merged[key] = previous + ("\n" if previous else "") + value
+    merged["Conn"] = 1 if not merged["unlocks"] else 2 if len(merged["unlocks"]) <= 2 else 3
+    return merged
+
+
+def _stage2_score_topics(tested_topic_names: list, taxonomy_list: str, questions: list,
+                         allowed_topics: list, *, client=None, limits=None) -> dict:
+    """Batch topics and, when necessary, their questions without dropping evidence."""
+    if not tested_topic_names:
         return {}
-    user = _S2B_TEMPLATE.format(
-        taxonomy_list=taxonomy_list,
-        new_topics=json.dumps(new_names, indent=2, ensure_ascii=False),
+    client, limits = _stage_request(2, client, limits)
+    scores = {}
+
+    def prompt(names, evidence):
+        return _S2B_TEMPLATE.format(
+            taxonomy_list=_fmt_taxonomy(allowed_topics),
+            new_topics="\n".join(f"- {name}" for name in names),
+            questions_json=json.dumps(question_evidence(evidence), ensure_ascii=False))
+
+    def validate(raw, names, evidence):
+        data = parse_json_from(raw)
+        try:
+            validate_topic_scores(data, names, evidence, allowed_topics)
+        except CandidateValidationError:
+            raise
+        except ValueError as exc:
+            raise CandidateValidationError("topic scoring", str(exc)) from exc
+        return data
+
+    def score_group(names):
+        evidence = [q for q in questions if set(names).intersection(q["topics"])]
+        if len(names) == 1:
+            parts = []
+            run_batches(evidence, lambda batch: prompt(names, batch),
+                        lambda raw, batch: parts.append(validate(raw, names, batch)[names[0]]),
+                        system=_S2_SYSTEM, client=client, limits=limits,
+                        output_estimate=lambda batch: 1024 + 512 * len(batch), label="topic scoring")
+            scores[names[0]] = _merge_topic_parts(parts)
+            return
+        user = prompt(names, evidence)
+        try:
+            limits.check(_S2_SYSTEM, user, limits.output_tokens,
+                         client.count_tokens if isinstance(client, ModelClient) else estimate_tokens)
+            if 1024 * len(names) + 512 * sum(len(set(names).intersection(q["topics"])) for q in evidence) > limits.output_tokens:
+                raise RequestLimitError("Estimated topic output is too large")
+        except RequestLimitError:
+            pass
+        else:
+            try:
+                raw = client(_S2_SYSTEM, user, max_tokens=limits.output_tokens)
+            except TruncatedResponse:
+                pass
+            else:
+                scores.update(validate(raw, names, evidence))
+                return
+        middle = len(names) // 2
+        score_group(names[:middle])
+        score_group(names[middle:])
+
+    score_group(tested_topic_names)
+    try:
+        return validate_topic_scores(scores, tested_topic_names, questions, allowed_topics)
+    except CandidateValidationError:
+        raise
+    except ValueError as exc:
+        raise CandidateValidationError("topic scoring", str(exc)) from exc
+
+
+def refresh_connections(paper, topic_names):
+    """Revisit an earlier paper with the expanded vocabulary; keep original judgments."""
+    user = (
+        "REVIEW DEPENDENCIES IN THIS STORED PAPER\n"
+        "The taxonomy has grown. Reconsider all dependencies against these canonical labels:\n"
+        + _fmt_taxonomy(topic_names)
+        + "\nReturn JSON {\"edges\": [{\"prerequisite\": \"label\", \"dependent\": \"label\", "
+        "\"q_id\": \"Q1\", \"quote\": \"exact excerpt\", \"rationale\": \"why required\"}]}. "
+        "Use an empty edges list when none are supported. Include every supported direct edge, "
+        "including those previously known. Cite this paper's questions only. At least one endpoint "
+        "must be tested in the cited question. Co-occurrence alone is not a dependency. "
+        "Do not assign difficulty or modify original observations.\nSOURCE QUESTIONS:\n"
+        + json.dumps(question_evidence(paper["questions"]), ensure_ascii=False)
     )
-    return parse_json_from(call_llm(_S2_SYSTEM, user, max_tokens=MAX_TOKENS_STAGE2))
+    return validate_connection_review(parse_json_from(call_llm(_S2_SYSTEM, user)),
+                                      paper["questions"], topic_names)
 
 
-def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dict:
+def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, client=None, limits=None) -> dict:
     """
     Tag every question with topics and build the per-topic score table.
 
     The LLM is asked only for judgement calls (which topic, how hard, how connected).
     All arithmetic — marks_total, mark_fraction, format_distribution — is computed
-    locally, which is both exact and the reason the response can no longer overflow
-    max_tokens on a long exam.
+    locally. Model output is reserved for qualitative judgments and their evidence;
+    all model requests preserve source context and respect configured limits.
     """
+    questions, _ = validate_extraction(
+        {"exam_year": None, "questions": project_extraction_questions(questions)},
+        EARLIEST_YEAR, datetime.now().year + 1)
     topic_names   = sorted(taxonomy["topics"].keys())
     taxonomy_list = _fmt_taxonomy(topic_names)
 
-    tags, proposed_new = _stage2_tag(questions, topic_names)
+    dependencies = {"client": client, "limits": limits} if client is not None or limits is not None else {}
+    tags, proposed_new = _stage2_tag(questions, topic_names, **dependencies)
 
     # Attach topics back onto the full question objects
     tagged = []
     for q in questions:
         q = dict(q)
-        q["topics"] = tags.get(q.get("q_id"), [])
+        tag = tags[q["q_id"]]
+        q["topics"] = tag["topics"]
+        q["topic_tagging"] = tag_evidence(tag)
         tagged.append(q)
 
     # Any label absent from the taxonomy is new, whether or not the model flagged it
@@ -530,7 +775,8 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dic
     new_names  += [t for t in sorted(seen_topics)
                    if t not in taxonomy["topics"] and t not in new_names]
 
-    new_scores = _stage2_score_new(new_names, taxonomy_list)
+    paper_scores = _stage2_score_topics(sorted(seen_topics), taxonomy_list, tagged,
+                                  topic_names + new_names, **dependencies)
 
     # ── Local aggregation ──
     total_marks = float(total_marks) or 1.0
@@ -550,8 +796,7 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dic
 
     per_topic = {}
     for t, a in agg.items():
-        known = taxonomy["topics"].get(t, {})
-        est   = new_scores.get(t, {})
+        judgment = paper_scores[t]
         tot   = a["marks"]
         dist  = ({f: round(v / tot, 3) for f, v in a["by_fmt"].items()} if tot
                  else {f: round(1 / len(a["by_fmt"]), 3) for f in a["by_fmt"]})
@@ -560,18 +805,17 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dic
             "mark_fraction":       round(tot / total_marks, 4),
             "format_distribution": dist,
             "dominant_format":     max(dist, key=dist.get) if dist else "short_answer",
-            "Diff":                known.get("Diff")             or est.get("Diff", 3),
-            "Diff_hours":          known.get("Diff_hours")       or est.get("Diff_hours", "1–3h"),
-            "Conn":                known.get("Conn")             or est.get("Conn", 2),
-            "prerequisites":       known.get("prerequisites")    or est.get("prerequisites", []),
+            "Diff":                judgment.get("Diff"),
+            "Conn":                judgment.get("Conn"),
+            "prerequisites":       judgment.get("prerequisites", []),
+            "evaluation_contract_version": judgment.get("evaluation_contract_version", LEGACY_VERSION),
+            "difficulty_contract_version": difficulty_version(judgment),
             "is_new_topic":        t in new_names,
         }
+        per_topic[t].update(paper_scores[t])
 
-    untagged = [q.get("q_id") for q in tagged if not q["topics"]]
-    if untagged:
-        print(f"   ⚠  {len(untagged)} question(s) came back untagged: {', '.join(map(str, untagged[:10]))}")
-
-    return {"questions": tagged, "new_topic_names": new_names, "per_topic": per_topic}
+    return {"questions": tagged, "new_topic_names": new_names, "per_topic": per_topic,
+            "topic_judgments": paper_scores}
 
 
 # ── Aggregation helpers ────────────────────────────────────────────────────────
@@ -585,6 +829,60 @@ def weighted_fmt(fmt_dist: dict) -> float:
     return round(weighted / total, 3) if total else 2.0
 
 
+def _id_tokens(exam_id: str) -> list:
+    return [t for t in re.split(r"[_\-\s]+", exam_id) if t]
+
+
+def _is_year_token(token: str) -> bool:
+    return (token.isdigit() and len(token) == 4
+            and EARLIEST_YEAR <= int(token) <= datetime.now().year + 1)
+
+
+def exam_labels(exam_list: list) -> dict:
+    """
+    {exam_id: short column label}.
+
+    Several papers per year is the norm — models, sittings, resits, coincidencias —
+    so a year alone does not identify a column. Papers that share a year are told
+    apart by whatever their names do NOT have in common: the tokens every name in
+    the group shares, front and back, are dropped, and what survives is the label
+    ("2022 Lunes", "2022 Martes"). A year with a single paper keeps the bare year.
+    """
+    by_year = {}
+    for exam in exam_list:
+        by_year.setdefault(exam.get("year"), []).append(exam)
+
+    labels = {}
+    for year, group in by_year.items():
+        head = str(year) if year else "?"
+        if len(group) == 1:
+            labels[group[0]["exam_id"]] = head
+            continue
+
+        token_lists = [_id_tokens(e["exam_id"]) for e in group]
+        shortest    = min(len(t) for t in token_lists)
+
+        n_pre = 0
+        while (n_pre < shortest - 1
+               and len({t[n_pre].lower() for t in token_lists}) == 1):
+            n_pre += 1
+        n_suf = 0
+        while (n_pre + n_suf < shortest - 1
+               and len({t[-1 - n_suf].lower() for t in token_lists}) == 1):
+            n_suf += 1
+
+        for exam, tokens in zip(group, token_lists):
+            rest = tokens[n_pre:len(tokens) - n_suf] or tokens[-1:]
+            # The label already opens with the year; a "2023" left in the middle of
+            # the group's differing tokens would only repeat it ("2023 2023 Exam").
+            rest = [t for t in rest if not _is_year_token(t)] or rest
+            suffix = " ".join(rest)
+            if len(suffix) > 14:
+                suffix = suffix[:13] + "…"
+            labels[exam["exam_id"]] = f"{head} {suffix}"
+    return labels
+
+
 # ── JSON writer ────────────────────────────────────────────────────────────────
 
 def write_json(rows: list):
@@ -592,7 +890,7 @@ def write_json(rows: list):
     Write the ranked topic list as a flat JSON array — the machine-readable twin of the
     .xlsx. Same rows, same sort order (priority desc), no formatting concerns: this is what
     a script, or an LLM reading the exam folder directly, should parse instead of the sheet.
-    Each element: topic, Freq, G_Marks, Conn, Diff, Diff_hours, Fmt, priority, rank, tier, appearances,
+    Each element: topic, Freq, G_Marks, Conn, Diff, Fmt, priority, rank, tier, appearances,
     prerequisites, per_exam (per-exam presence/marks breakdown).
     """
     OUTPUT_JSON.write_text(
@@ -605,7 +903,7 @@ def write_json(rows: list):
 def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
     """
     rows      : list of topic dicts, sorted by priority desc, each containing:
-                topic, Freq, G_Marks, Conn, Diff, Diff_hours, Fmt, priority, rank, tier,
+                topic, Freq, G_Marks, Conn, Diff, Fmt, priority, rank, tier,
                 prerequisites, per_exam={exam_id: {present, mark_fraction, fmt_score}}
     exam_list : list of exam dicts sorted by year
     taxonomy  : full taxonomy dict (for Taxonomy sheet)
@@ -651,18 +949,19 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
         ("Fmt\n(avg)",     9,  "Fmt",      "scores"),
         ("Priority",  12,  "priority", "scores"),
     ]
+    labels    = exam_labels(exam_list)
     EXAM_COLS = []
     for eid in exam_ids:
-        exam = next(e for e in exam_list if e["exam_id"] == eid)
-        yr = str(exam.get("year", eid))
+        lb = labels.get(eid, eid)
         EXAM_COLS += [
-            (f"{yr}\n✓",      7,  (eid, "present"),       "audit"),
-            (f"{yr}\nmarks%", 10, (eid, "mark_fraction"),  "audit"),
-            (f"{yr}\nFmt",     8, (eid, "fmt_score"),      "audit"),
+            (f"{lb}\n✓",      8,  (eid, "present"),       "audit"),
+            (f"{lb}\nmarks%", 10, (eid, "mark_fraction"),  "audit"),
+            (f"{lb}\nFmt",     8, (eid, "fmt_score"),      "audit"),
         ]
     TAIL = [
-        ("Diff hours",    13, "Diff_hours",    "taxonomy"),
+        ("Diff contract", 22, "difficulty_contract_version", "taxonomy"),
         ("Prerequisites", 34, "prerequisites", "taxonomy"),
+        ("Review notes", 32, "review_notes", "taxonomy"),
     ]
 
     ALL = FIXED + EXAM_COLS + TAIL
@@ -814,13 +1113,13 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
     ws2.row_dimensions[1].height = 28
     ws2.merge_cells("A1:G1")
     c = ws2["A1"]
-    c.value     = "Topic Taxonomy  —  Diff and Conn scores  (yellow cells = editable overrides)"
+    c.value     = "Topic Taxonomy  —  correct scores with edit-topic or taxonomy.json, then rebuild"
     c.font      = fn(12, bold=True, color=P["white"])
     c.fill      = fl(P["dk_blue"])
     c.alignment = al("left", "center")
 
-    TAX_HDRS   = ["Topic", "Diff (1–6)", "Diff hours", "Conn (1–3)", "First seen", "Appearances", "Prerequisites"]
-    TAX_WIDTHS = [32, 9, 14, 9, 16, 14, 42]
+    TAX_HDRS   = ["Topic", "Diff (1–6)", "Diff contract", "Conn (1–3)", "First seen", "Appearances", "Prerequisites"]
+    TAX_WIDTHS = [32, 9, 22, 9, 16, 14, 42]
     for i, (h, w) in enumerate(zip(TAX_HDRS, TAX_WIDTHS)):
         ws2.column_dimensions[gcl(i+1)].width = w
         c = ws2[f"{gcl(i+1)}2"]
@@ -831,9 +1130,9 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
         c.border    = bd()
     ws2.row_dimensions[2].height = 22
 
-    all_exams = load_all_exams()
+    # exam_list is already every parsed exam (cmd_rebuild loaded them) — no re-read.
     appearances_map: dict[str, int] = {}
-    for exam in all_exams.values():
+    for exam in exam_list:
         for t in exam.get("per_topic", {}):
             appearances_map[t] = appearances_map.get(t, 0) + 1
 
@@ -846,7 +1145,7 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
         vals = [
             (tname,                                "left",   bg),
             (tdata.get("Diff", ""),                "center", YLW),
-            (tdata.get("Diff_hours", ""),          "center", bg),
+            (difficulty_version(tdata),             "center", bg),
             (tdata.get("Conn", ""),                "center", YLW),
             (tdata.get("first_seen", ""),          "center", bg),
             (appearances_map.get(tname, 0),        "center", bg),
@@ -868,15 +1167,16 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
     ws3.sheet_view.showGridLines = False
 
     ws3.row_dimensions[1].height = 28
-    ws3.merge_cells("A1:F1")
+    ws3.merge_cells("A1:H1")
     c = ws3["A1"]
     c.value     = "Exam Log  —  one row per processed exam"
     c.font      = fn(12, bold=True, color=P["white"])
     c.fill      = fl(P["dk_blue"])
     c.alignment = al("left", "center")
 
-    LOG_HDRS   = ["Exam ID", "Year", "Total Marks", "Topics Found", "Source File", "Processed At"]
-    LOG_WIDTHS = [24, 8, 13, 14, 32, 22]
+    LOG_HDRS   = ["Exam ID", "Year", "Sheet label", "Total Marks", "Topics Found",
+                  "Source File", "Processed At", "Analysis contract"]
+    LOG_WIDTHS = [28, 11, 16, 13, 14, 32, 22, 22]
     for i, (h, w) in enumerate(zip(LOG_HDRS, LOG_WIDTHS)):
         ws3.column_dimensions[gcl(i+1)].width = w
         c = ws3[f"{gcl(i+1)}2"]
@@ -894,12 +1194,14 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
         if processed:
             processed = processed[:10]
         for ci, (val, align) in enumerate([
-            (exam["exam_id"],                      "left"),
-            (exam.get("year", ""),                 "center"),
-            (exam.get("total_marks", ""),          "center"),
+            (exam["exam_id"],                              "left"),
+            (exam.get("year_label") or exam.get("year", ""), "center"),
+            (labels.get(exam["exam_id"], ""),              "center"),
+            (exam.get("total_marks", ""),                  "center"),
             (len(exam.get("per_topic", {})),       "center"),
             (exam.get("source_file", ""),          "left"),
             (processed,                            "center"),
+            (exam.get("evaluation_contract_version", LEGACY_VERSION), "center"),
         ]):
             c = ws3[f"{gcl(ci+1)}{r}"]
             c.value     = val
@@ -914,36 +1216,117 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
 
 # ── Commands ───────────────────────────────────────────────────────────────────
 
-def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, force=False) -> bool:
+def resolve_exam_id(path: Path, explicit_id=None) -> str:
     """
-    Parse a single exam file (Stage 1 + Stage 2), update the taxonomy, and save
-    parsed/<exam_id>.json. Returns True if the file was processed, False if it
-    was skipped (already parsed and not --force). Does NOT rebuild the spreadsheet
-    — callers are responsible for calling cmd_rebuild() once they're done.
+    The id under which this paper is filed in candidates/ or parsed/ — unique per
+    paper, not per filename.
+
+    Papers are often filed one folder per year, and the models within a year carry
+    the same names in each ("modelo_A.pdf" in 2022/ and in 2023/). Keyed on the
+    filename alone the second one would look like the first, already parsed, and be
+    skipped — losing an exam silently. So an id already taken by a paper at a
+    different path is qualified with the folder the paper came from.
+    """
+    if explicit_id is not None:
+        return validate_exam_id(explicit_id)
+    base = validate_exam_id(path.stem.replace(" ", "_"))
+    here = str(path.resolve())
+    candidates = [base]
+    for depth, parent in enumerate(path.resolve().parents):
+        folder = parent.name.replace(" ", "_")
+        candidate = f"{folder}_{base}" if folder else f"{base}_{depth + 2}"
+        if candidate not in candidates:
+            candidates.append(candidate)
+    for candidate in candidates:
+        existing = [exam_record_path(COURSE_FOLDER, state, candidate)
+                    for state in ("parsed", "candidates")]
+        existing = [record_path for record_path in existing if record_path.exists()]
+        if not existing:
+            return candidate
+        claimed_paths = []
+        for record_path in existing:
+            try:
+                record = json.loads(record_path.read_text(encoding="utf-8"))
+                claimed = (record.get("source_provenance", {}).get("resolved_path")
+                           or record.get("source_path"))
+            except (ValueError, OSError):
+                claimed = None
+            claimed_paths.append(claimed)
+        if all(claimed is None or claimed == here for claimed in claimed_paths):
+            return candidate          # same paper, or a legacy record without a source path
+    raise ExamIdentityError(
+        f"All automatic IDs for {path.name!r} are already used by other papers. "
+        "Choose a distinct --exam-id; --force does not bypass automatic collisions.")
+
+
+def _model_provenance(extraction_client, analysis_client):
+    def identity(client, default_model):
+        if client is None:
+            return LLM_PROVIDER, default_model
+        if isinstance(client, ModelClient):
+            return client.provider or f"{client.sdk}-compatible", client.model
+        return "injected-callable", "injected-callable"
+
+    extraction_provider, extraction_model = identity(extraction_client, MODEL_STAGE1)
+    analysis_provider, analysis_model = identity(analysis_client, MODEL_STAGE2)
+    record = {"provider": extraction_provider if extraction_provider == analysis_provider else "mixed",
+              "extraction_model": extraction_model, "analysis_model": analysis_model}
+    if extraction_provider != analysis_provider:
+        record.update(extraction_provider=extraction_provider, analysis_provider=analysis_provider)
+    return record
+
+
+def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, force=False, *,
+                      extraction_client=None, analysis_client=None,
+                      extraction_limits=None, analysis_limits=None) -> bool:
+    """
+    Parse one exam, validate it, and save a candidate without changing accepted
+    papers or taxonomy. Returns True when a candidate was saved and False when an
+    existing accepted paper/candidate was skipped.
     """
     if not path.exists():
         sys.exit(f"ERROR: File not found: {path}")
 
-    exam_id = (exam_id or path.stem).replace(" ", "_")
-    PARSED_DIR.mkdir(exist_ok=True)
-    out_file = PARSED_DIR / f"{exam_id}.json"
+    exam_id = resolve_exam_id(path, exam_id)
+    accepted_file = exam_record_path(COURSE_FOLDER, "parsed", exam_id)
+    candidate_file = exam_record_path(COURSE_FOLDER, "candidates", exam_id)
+    accepted_file.parent.mkdir(exist_ok=True)
+    candidate_file.parent.mkdir(exist_ok=True)
 
-    if out_file.exists() and not force:
-        print(f"   ⏭  Skipping {path.name} — parsed/{exam_id}.json already exists (use --force to reprocess)")
+    if (accepted_file.exists() or candidate_file.exists()) and not force:
+        location = "parsed" if accepted_file.exists() else "candidates"
+        print(f"   ⏭  Skipping {path.name} — {location}/{exam_id}.json already exists (use --force to reprocess)")
         return False
 
-    # Infer year from filename if not given
-    if not year:
-        m = re.search(r"20\d{2}", path.name)
-        year = int(m.group()) if m else datetime.now().year
+    print(f"\n📄 Exam : {path.name}")
+    source_bytes = path.read_bytes()
+    # Raises before Stage 1, so a paper the pipeline cannot fully read is never
+    # sent to the provider and never half-analysed — see ticket 04.
+    extraction = extract_exam_text(path, source_bytes)
+    exam_text = extraction.text
+    print(f"   → {extraction.summary()} — sent to {LLM_PROVIDER} for analysis")
 
-    print(f"\n📄 Exam : {path.name}  (year={year})")
-    exam_text = read_exam_file(path)
+    year_label, source = None, "--year"
+    if not year:
+        year, year_label, found_in = infer_year(path, exam_text)
+        source = f"from the {found_in}" if found_in else None
 
     # ── Stage 1 ──
     print("🤖 Stage 1 : Extracting questions…")
-    questions = stage1_extract(exam_text, total_marks)
+    extraction_dependencies = ({"client": extraction_client, "limits": extraction_limits}
+        if extraction_client is not None or extraction_limits is not None else {})
+    questions, year_from_model = stage1_extract(exam_text, total_marks, **extraction_dependencies)
     print(f"   → {len(questions)} questions extracted")
+
+    if not year and year_from_model:
+        year, source = year_from_model, "from the paper, via the model"
+    if year:
+        print(f"   → Year : {year_label or year}  ({source})")
+    else:
+        print(
+            f"   ⚠  No year found in the filename or the paper — filed without one. "
+            f"Re-run with --year <YYYY> to set it."
+        )
 
     if not total_marks:
         marks_vals  = [q["marks"] for q in questions if isinstance(q.get("marks"), (int, float))]
@@ -953,111 +1336,179 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     # ── Stage 2 ──
     taxonomy = load_taxonomy()
     print("🤖 Stage 2 : Tagging topics and scoring parameters…")
-    result    = stage2_tag_score(questions, taxonomy, total_marks)
+    analysis_dependencies = ({"client": analysis_client, "limits": analysis_limits}
+        if analysis_client is not None or analysis_limits is not None else {})
+    result = stage2_tag_score(questions, taxonomy, total_marks, **analysis_dependencies)
     per_topic = result.get("per_topic", {})
     new_names = result.get("new_topic_names", [])
     print(f"   → {len(per_topic)} topics tagged  ({len(new_names)} new)")
     if new_names:
         print(f"   ⚠  New topics : {', '.join(new_names)}")
-        print("      Check taxonomy.json afterwards — merge any near-duplicates by hand.")
+        print("      Review proposed_taxonomy_changes in the saved candidate.")
 
-    # ── Update taxonomy ──
-    for tname, tdata in per_topic.items():
-        if tname not in taxonomy["topics"]:
-            taxonomy["topics"][tname] = {
-                "Diff":          tdata.get("Diff"),
-                "Diff_hours":    tdata.get("Diff_hours"),
-                "Conn":          tdata.get("Conn"),
-                "prerequisites": tdata.get("prerequisites", []),
-                "first_seen":    exam_id,
-            }
-        else:
-            # Preserve existing Diff/Conn; add prerequisites if previously empty
-            ex = taxonomy["topics"][tname]
-            if tdata.get("prerequisites") and not ex.get("prerequisites"):
-                ex["prerequisites"] = tdata["prerequisites"]
-    save_taxonomy(taxonomy)
-
-    # ── Save parsed exam ──
-    parsed = {
-        "exam_id":      exam_id,
-        "year":         year,
-        "total_marks":  total_marks,
-        "source_file":  path.name,
-        "processed_at": datetime.now().isoformat(),
-        "questions":    result.get("questions", questions),
-        "per_topic":    per_topic,
-    }
-    out_file.write_text(json.dumps(parsed, indent=2, ensure_ascii=False), encoding='utf-8')
-    print(f"   ✓ Saved → parsed/{exam_id}.json")
+    # Build the candidate and its proposed taxonomy completely in memory. Invalid
+    # model output raises before accepted paper or taxonomy files are touched.
+    candidate = build_candidate_analysis(
+        exam_id=exam_id,
+        year=year,
+        year_label=year_label,      # academic year as written, e.g. "2021-2022"
+        total_marks=total_marks,
+        analysis=result,
+        known_topics=sorted(taxonomy["topics"]),
+        source_provenance={
+            "file_name": path.name,
+            "resolved_path": str(path.resolve()),
+            "sha256": hashlib.sha256(source_bytes).hexdigest(),
+            # Page and offset references for later evidence checks: where in the
+            # source each piece of the analysed text came from.
+            "extraction": extraction.provenance(),
+        },
+        model_provenance=_model_provenance(extraction_client, analysis_client),
+        processed_at=datetime.now().isoformat(),
+    )
+    # Model work can take minutes. Check both boundaries again before reading
+    # accepted records or saving a candidate, including forced reprocessing.
+    exam_record_path(COURSE_FOLDER, "parsed", exam_id, expected_path=accepted_file)
+    exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
+    accepted_exams = load_all_exams()
+    proposed_exams = dict(accepted_exams)
+    proposed_exams[exam_id] = candidate  # A forced reparse replaces this paper's contribution.
+    proposed_taxonomy = aggregate_taxonomy(taxonomy, proposed_exams)
+    candidate = finalize_candidate_analysis(
+        candidate, proposed_taxonomy, taxonomy.get("topics", {}))
+    candidate_file = exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
+    candidate_file.write_text(json.dumps(candidate, indent=2, ensure_ascii=False), encoding='utf-8')
+    print(f"   ✓ Saved candidate → candidates/{exam_id}.json")
+    print("     Accepted papers and taxonomy were not changed.")
     return True
 
 
-def cmd_add(args):
-    path = Path(args.file)
-    process_exam_file(
-        path,
-        year=args.year,
-        total_marks=args.total_marks,
-        exam_id=args.exam_id,
-        force=args.force,
-    )
-    cmd_rebuild(None)
+# One list of readable file types: discovery must not offer a paper the reader
+# would then refuse for its type alone.
+EXAM_EXTENSIONS = SUPPORTED_SUFFIXES
 
 
-EXAM_EXTENSIONS = (".txt", ".pdf")
-
-
-def cmd_add_folder(args):
-    folder = Path(args.folder)
-    if not folder.exists() or not folder.is_dir():
-        sys.exit(f"ERROR: Folder not found: {folder}")
-
-    pattern = "**/*" if args.recursive else "*"
-    files = sorted(
-        f for f in folder.glob(pattern)
-        if f.is_file() and f.suffix.lower() in EXAM_EXTENSIONS
+def _exam_files_in(folder: Path, recursive: bool) -> list:
+    """Every exam file in a folder, skipping the pipeline's own parsed/ output."""
+    pattern = "**/*" if recursive else "*"
+    return sorted(
+        p for p in folder.glob(pattern)
+        if p.is_file()
+        and p.suffix.lower() in EXAM_EXTENSIONS
+        and PARSED_DIR not in p.parents
     )
 
-    if not files:
-        sys.exit(f"ERROR: No .txt/.pdf files found in {folder}")
 
-    print(f"\n📁 Folder : {folder}  ({len(files)} file(s) found)")
+def collect_exam_files(raw_paths: list, recursive: bool) -> list:
+    """
+    Turn add-exam's PATH arguments into a concrete, de-duplicated file list.
 
-    processed = 0
-    skipped   = 0
-    failed    = []
-    for f in files:
+    A PATH is a file or a folder, and either kind can be given more than once. With
+    no PATH at all the course folder is scanned, then its exams/ subfolder — so
+    "analyse the papers I put in this folder" needs no argument beyond the folder
+    itself, whether the papers sit in it or one level down.
+    """
+    if not raw_paths:
+        files = _exam_files_in(COURSE_FOLDER, recursive)
+        if not files and (COURSE_FOLDER / "exams").is_dir():
+            files = _exam_files_in(COURSE_FOLDER / "exams", recursive)
+        if not files:
+            sys.exit(
+                f"ERROR: No .txt/.pdf exam files found in {COURSE_FOLDER}\n"
+                f"       Put the papers in that folder, or name one:\n"
+                f"       python pipeline.py {COURSE_FOLDER} add-exam <file>"
+            )
+        return files
+
+    files = []
+    for raw in raw_paths:
+        path = resolve_input_path(raw)
+        if path.is_dir():
+            found = _exam_files_in(path, recursive)
+            if not found:
+                hint = "" if recursive else "  (add --recursive to search subfolders)"
+                sys.exit(f"ERROR: No .txt/.pdf files found in {path}{hint}")
+            files += found
+        else:
+            files.append(path)
+
+    seen, unique = set(), []
+    for p in files:
+        key = p.resolve()
+        if key not in seen:
+            seen.add(key)
+            unique.append(p)
+    return unique
+
+
+def cmd_add_exam(args):
+    files = collect_exam_files(args.paths, args.recursive)
+
+    # --year and --exam-id describe one specific paper; silently applying either to
+    # a whole batch would stamp every exam with the same year, or overwrite one
+    # parsed file repeatedly under the same id.
+    if len(files) > 1 and (args.year or args.exam_id):
+        sys.exit(
+            f"ERROR: --year/--exam-id describe a single exam, but {len(files)} files matched.\n"
+            f"       Name one file, or drop the flag (each paper's year is read from its "
+            f"filename or its own text)."
+        )
+
+    if len(files) > 1:
+        print(f"\n📁 {len(files)} exam file(s) to process")
+
+    processed, skipped, failed = 0, 0, []
+    for path in files:
         try:
-            if process_exam_file(f, total_marks=args.total_marks, force=args.force):
+            if process_exam_file(
+                path,
+                year=args.year,
+                total_marks=args.total_marks,
+                exam_id=args.exam_id,
+                force=args.force,
+            ):
                 processed += 1
             else:
                 skipped += 1
+        except ExtractionError as exc:
+            # The input itself needs correcting, so the message says what is wrong
+            # and what to change rather than reporting a failed analysis.
+            print(f"   ✗ Not analysed — {exc.reason}")
+            print(f"      {exc.remedy}")
+            failed.append(path.name)
         except Exception as exc:
-            print(f"   ✗ Failed on {f.name}: {exc}")
-            failed.append(f.name)
+            print(f"   ✗ Failed on {path.name}: {exc}")
+            failed.append(path.name)
 
-    print(f"\n📦 Batch complete — {processed} processed · {skipped} skipped · {len(failed)} failed")
-    if failed:
-        print(f"   Failed files: {', '.join(failed)}")
+    if len(files) > 1 or failed:
+        print(f"\n📦 {processed} processed · {skipped} skipped · {len(failed)} failed")
+        if failed:
+            print(f"   Failed files: {', '.join(failed)}")
 
     if processed:
-        cmd_rebuild(None)
+        print(f"   {processed} candidate(s) await acceptance or review; accepted outputs are unchanged.")
     else:
-        print("   No new exams processed — spreadsheet not rebuilt.")
+        print("   Nothing new to add — outputs left unchanged (use --force to reprocess).")
 
 
 def cmd_rebuild(_args):
     print("\n📊 Rebuilding spreadsheet…")
     taxonomy  = load_taxonomy()
     all_exams = load_all_exams()
+    updated_taxonomy = aggregate_taxonomy(taxonomy, all_exams)
+    if updated_taxonomy != taxonomy:
+        save_taxonomy(updated_taxonomy)
+    taxonomy = updated_taxonomy
 
     if not all_exams:
-        print("   No parsed exams found.  Run:  python pipeline.py add <file>")
+        print("   No accepted exams found. Candidate analyses do not enter reports until accepted.")
         return
 
-    exam_list = sorted(all_exams.values(), key=lambda e: (e.get("year", 0), e["exam_id"]))
+    # A paper with no year sorts first, before every dated one, rather than crashing
+    # the comparison against None.
+    exam_list = sorted(all_exams.values(), key=lambda e: (e.get("year") or 0, e["exam_id"]))
     n_exams   = len(exam_list)
+    labels    = exam_labels(exam_list)
 
     # Collect every topic that has appeared in at least one exam
     all_topics: set[str] = set()
@@ -1073,8 +1524,14 @@ def cmd_rebuild(_args):
         for exam in exam_list:
             eid = exam["exam_id"]
             td  = exam["per_topic"].get(topic)
+            # year and label travel with every entry: exam ids alone do not tell a
+            # reader of the JSON which sitting a column belongs to, and one year can
+            # hold several.
+            common = {"year": exam.get("year"), "label": labels.get(eid, eid),
+                      "evaluation_contract_version": exam.get("evaluation_contract_version", LEGACY_VERSION)}
             if td:
                 per_exam[eid] = {
+                    **common,
                     "present":       1,
                     "mark_fraction": td.get("mark_fraction", 0),
                     "marks_total":   td.get("marks_total", 0),
@@ -1082,6 +1539,7 @@ def cmd_rebuild(_args):
                 }
             else:
                 per_exam[eid] = {
+                    **common,
                     "present": 0, "mark_fraction": 0,
                     "marks_total": 0, "fmt_score": 0,
                 }
@@ -1105,7 +1563,18 @@ def cmd_rebuild(_args):
             "G_Marks":       round(G_Marks, 3),
             "Conn":          Conn,
             "Diff":          Diff,
-            "Diff_hours":    tax.get("Diff_hours", ""),
+            "difficulty_contract_version": difficulty_version(tax),
+            "evaluation_contract_version": tax.get("evaluation_contract_version", LEGACY_VERSION),
+            "human_overrides": tax.get("human_overrides", {}),
+            "model_estimate": tax.get("model_estimate", {}),
+            "contributing_exam_ids": tax.get("contributing_exam_ids", []),
+            "connection_evidence": tax.get("connection_evidence", []),
+            "review_notes": "; ".join(label for flag, label in (
+                (tax.get("difficulty_review_required"), "Difficulty needs review"),
+                (tax.get("connection_review_required"), "Conflicting dependencies"),
+                (tax.get("excluded_legacy_exam_ids"), "Older evidence excluded"),
+                (tax.get("evaluation_contract_version") != CONTRACT_VERSION, "Older judgment basis"),
+            ) if flag),
             "Fmt":           round(Fmt, 2),
             "priority":      round(priority, 4),
             "appearances":   appearances,
@@ -1126,12 +1595,19 @@ def cmd_rebuild(_args):
 def cmd_status(_args):
     taxonomy  = load_taxonomy()
     all_exams = load_all_exams()
-    print(f"\n📚 Exam ROI Pipeline  —  {TAXONOMY_FILE.parent}")
+    print("\n📚 Exam ROI Pipeline")
     print(f"   Taxonomy    : {len(taxonomy['topics'])} topics")
-    print(f"   Parsed exams: {len(all_exams)}")
-    for eid, exam in sorted(all_exams.items(), key=lambda x: x[1].get("year", 0)):
+    exam_list = sorted(all_exams.values(), key=lambda e: (e.get("year") or 0, e["exam_id"]))
+    years     = {e.get("year") for e in exam_list if e.get("year")}
+    undated   = sum(1 for e in exam_list if not e.get("year"))
+    spread    = f" across {len(years)} year(s)" if years else ""
+    print(f"   Parsed exams: {len(exam_list)}{spread}"
+          f"{f' · {undated} with no year' if undated else ''}")
+    labels = exam_labels(exam_list)
+    for exam in exam_list:
         n = len(exam.get("per_topic", {}))
-        print(f"     {exam.get('year', '?')}  {eid}  ({n} topics · {exam.get('total_marks', '?')} marks)")
+        print(f"     {labels[exam['exam_id']]:<18} {exam['exam_id']}"
+              f"  ({n} topics · {exam.get('total_marks', '?')} marks)")
     print(f"   Spreadsheet : {'✓ exists' if OUTPUT_XLSX.exists() else 'not created yet'}")
     print(f"   Ranked JSON : {'✓ exists' if OUTPUT_JSON.exists() else 'not created yet'}")
     print()
@@ -1150,13 +1626,13 @@ def cmd_edit_topic(args):
     if args.diff is not None:
         if not 1 <= args.diff <= 6:
             sys.exit("Diff must be 1–6")
-        taxonomy["topics"][name]["Diff"] = args.diff
+        _record_override(taxonomy["topics"][name], "Diff", args.diff)
         print(f"   Set Diff={args.diff} for '{name}'")
         changed = True
     if args.conn is not None:
         if not 1 <= args.conn <= 3:
             sys.exit("Conn must be 1–3")
-        taxonomy["topics"][name]["Conn"] = args.conn
+        _record_override(taxonomy["topics"][name], "Conn", args.conn)
         print(f"   Set Conn={args.conn} for '{name}'")
         changed = True
     if not changed:
@@ -1166,72 +1642,155 @@ def cmd_edit_topic(args):
     cmd_rebuild(None)
 
 
+def _record_override(topic, field, value):
+    previous_version = (difficulty_version(topic) if field == "Diff" else
+                        topic.get("evaluation_contract_version", LEGACY_VERSION))
+    topic.setdefault("human_overrides", {})[field] = {
+        "value": value, "previous_value": topic.get(field),
+        "previous_contract_version": previous_version,
+        "source": "edit-topic", "updated_at": datetime.now().isoformat(),
+        **contract_metadata(),
+    }
+    topic[field] = value
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
+COMMANDS = ("add-exam", "rebuild", "status", "edit-topic")
+
+# Deliberately ASCII-only: this screen is the first thing a new user sees, and it has
+# to survive a terminal in any codepage.
+HELP = """\
+Exam ROI Pipeline - ranks a course's topics by relative study priority.
+
+USAGE
+  python pipeline.py COURSE_FOLDER COMMAND [data]
+
+  COURSE_FOLDER is one folder per exam, holding its past papers. Name it on every
+  command. It is created if new, and every file the pipeline writes goes in it.
+
+COMMANDS
+  add-exam [FILE|FOLDER ...]  Read past papers and save validated candidate analyses.
+                              No argument: reads every .txt/.pdf in COURSE_FOLDER.
+  status                      Show what the folder holds so far.
+  rebuild                     Redo the ranking from papers already read (no AI calls).
+  edit-topic TOPIC            Correct a topic's scores by hand, then rebuild.
+
+EXAMPLES
+  python pipeline.py Exams/History add-exam exam_2023.pdf
+  python pipeline.py Exams/History add-exam
+  python pipeline.py Exams/History status
+  python pipeline.py Exams/History edit-topic "Cold War" --diff 4 --conn 3
+
+EXAM FILES
+  .txt papers must be UTF-8; .pdf papers must have a text layer (nothing is
+  rendered and no OCR is run - OCR a scanned paper first, e.g. ocrmypdf).
+  A paper with no text, with a bad encoding, or with any page missing its text
+  layer is refused before any AI call, so nothing is analysed half-read. The
+  check only asks whether a page produced text: garbled or partial extraction
+  still gets through, so skim a converted paper before trusting it.
+  The text that is extracted is sent to the configured provider to be analysed.
+
+RESULTS, written into COURSE_FOLDER
+  Exam_ROI_Pipeline.xlsx   the ranked topics, formatted
+  Exam_ROI_Pipeline.json   the same ranking, for a script or an LLM to read
+  taxonomy.json            each topic's difficulty and connection - edit to correct
+  parsed/                  one JSON per accepted paper
+  candidates/              validated analyses and proposed taxonomy changes
+
+BEFORE THE FIRST RUN
+  pip install -r requirements.txt
+  set ANTHROPIC_API_KEY=sk-ant-...     (Windows;  export ANTHROPIC_API_KEY=... elsewhere)
+
+  Reading exams costs AI calls, so the pipeline needs a key. Another provider:
+  set LLM_PROVIDER to deepseek, openai, openrouter or unorouter and supply its key.
+  For OpenRouter (PowerShell):
+  $env:LLM_PROVIDER = "openrouter"
+  $env:OPENROUTER_API_KEY = "your-key"
+  $env:LLM_MODEL_STAGE1 = "your-openrouter-model-id"
+  $env:LLM_MODEL_STAGE2 = "your-openrouter-model-id"
+
+Every option of a command:  python pipeline.py COURSE_FOLDER add-exam --help
+"""
+
+
+class BriefHelpParser(argparse.ArgumentParser):
+    """
+    Prints HELP above instead of argparse's generated layout.
+
+    argparse leads with a bracketed usage line and an options table; what someone
+    running this for the first time needs is the command shape, the four commands,
+    and the two lines of setup without which the first run cannot work at all.
+    Per-command --help keeps the generated layout, where exhaustive is the point.
+    """
+
+    def format_help(self):
+        return HELP
+
+
+def _exam_id_argument(value):
+    try:
+        return validate_exam_id(value)
+    except ExamIdentityError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def main():
-    p = argparse.ArgumentParser(
+    p = BriefHelpParser(
         prog="pipeline.py",
-        description="Exam ROI Pipeline — rank study topics by exam value over effort.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-examples:
-  python pipeline.py add exam_2022.txt
-  python pipeline.py add exam_2023.pdf --year 2023 --total-marks 120
-  python pipeline.py add exam_2024.txt --force
-  python pipeline.py add-folder "Courses/Computer Vision/final_26_08_2026/exams"
-  python pipeline.py add-folder Courses/ --recursive --force
-  python pipeline.py rebuild
-  python pipeline.py status
-  python pipeline.py edit-topic "Big-O Notation" --diff 2 --conn 3
-
-  when Courses/ holds more than one Exam, add --course/--exam to any command:
-  python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
-        """,
+        usage="pipeline.py COURSE_FOLDER COMMAND [data]",
     )
-    sub = p.add_subparsers(dest="cmd")
+    p.add_argument(
+        "course_folder",
+        metavar="COURSE_FOLDER",
+        help="Folder holding this exam's papers and results (created if it does not exist)",
+    )
+    # parser_class: without it the subcommands inherit BriefHelpParser, and
+    # `add-exam --help` would reprint the top-level screen instead of its options.
+    sub = p.add_subparsers(dest="cmd", metavar="COMMAND",
+                           parser_class=argparse.ArgumentParser)
 
-    # Shared by every subcommand — selects the active Exam when Courses/ holds
-    # more than one (see resolve_exam_root()).
-    common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--course", help='Course name, e.g. "Computer Vision" — only needed when multiple Exam folders exist')
-    common.add_argument("--exam",   help='Exam folder name, e.g. "final_26_08_2026" — only needed when multiple Exam folders exist')
+    pa = sub.add_parser("add-exam", help="Validate exam papers and save candidate analyses")
+    pa.add_argument("paths", nargs="*", metavar="PATH",
+                    help="Exam file(s) or folder(s): UTF-8 .txt, or .pdf with a text layer "
+                         "(default: the exam files in COURSE_FOLDER, or in its exams/ subfolder)")
+    pa.add_argument("--year",        type=int,            help="Year this paper was sat (read from the filename or the paper itself if omitted)")
+    pa.add_argument("--total-marks", type=float,          help="Total marks (summed from questions if omitted)")
+    pa.add_argument("--exam-id", type=_exam_id_argument,
+                    help="Custom filename ID, not a path (defaults to the filename with spaces replaced by underscores)")
+    pa.add_argument("--force",       action="store_true", help="Reprocess papers with a candidate or accepted record")
+    pa.add_argument("--recursive",   action="store_true", help="Search subfolders of any folder given")
 
-    pa = sub.add_parser("add", parents=[common], help="Process a new exam file and update the spreadsheet")
-    pa.add_argument("file",                                    help="Exam file (.txt or .pdf)")
-    pa.add_argument("--year",         type=int,                help="Exam year (inferred from filename if omitted)")
-    pa.add_argument("--total-marks",  type=float,              help="Total marks (summed from questions if omitted)")
-    pa.add_argument("--exam-id",                               help="Custom ID (defaults to filename stem)")
-    pa.add_argument("--force",        action="store_true",     help="Reprocess even if already parsed")
+    sub.add_parser("rebuild", help="Rebuild the spreadsheet and JSON from the papers already parsed")
+    sub.add_parser("status",  help="Show what this course folder currently holds")
 
-    pf = sub.add_parser("add-folder", parents=[common], help="Process every .txt/.pdf exam in a folder and update the spreadsheet")
-    pf.add_argument("folder",                                  help="Folder containing exam files")
-    pf.add_argument("--total-marks",  type=float,              help="Total marks applied to every file (summed from questions if omitted)")
-    pf.add_argument("--force",        action="store_true",     help="Reprocess files even if already parsed")
-    pf.add_argument("--recursive",    action="store_true",     help="Also search subfolders")
-
-    sub.add_parser("rebuild", parents=[common], help="Rebuild spreadsheet from all stored exams")
-    sub.add_parser("status",  parents=[common], help="Show pipeline state")
-
-    pe = sub.add_parser("edit-topic", parents=[common], help="Override AI scores for a topic and rebuild")
-    pe.add_argument("name",          help="Exact topic name (case-sensitive)")
+    pe = sub.add_parser("edit-topic", help="Override the AI's scores for one topic and rebuild")
+    pe.add_argument("name",             metavar="TOPIC", help="Exact topic name (case-sensitive)")
     pe.add_argument("--diff", type=int, help="Override difficulty (Diff, 1–6)")
     pe.add_argument("--conn", type=int, help="Override connection (Conn, 1–3)")
+
+    # The course folder comes first, so a bare command in that slot would otherwise
+    # be read as a folder name and fail with a confusing "invalid choice" further on.
+    if len(sys.argv) > 1 and sys.argv[1] in COMMANDS:
+        sys.exit(
+            f"ERROR: the course folder comes first:\n"
+            f"       python pipeline.py COURSE_FOLDER {' '.join(sys.argv[1:])}\n"
+            f"       e.g. python pipeline.py Exams/History {' '.join(sys.argv[1:])}"
+        )
+    if len(sys.argv) == 1:
+        p.print_help()
+        return
 
     args = p.parse_args()
     if not args.cmd:
         p.print_help()
+        print(f"\nERROR: which command? Pick one of: {', '.join(COMMANDS)}")
         return
 
-    global TAXONOMY_FILE, PARSED_DIR, OUTPUT_XLSX, OUTPUT_JSON
-    exam_root     = resolve_exam_root(getattr(args, "course", None), getattr(args, "exam", None))
-    TAXONOMY_FILE = exam_root / "taxonomy.json"
-    PARSED_DIR    = exam_root / "parsed"
-    OUTPUT_XLSX   = exam_root / "Exam_ROI_Pipeline.xlsx"
-    OUTPUT_JSON   = exam_root / "Exam_ROI_Pipeline.json"
+    setup_course_folder(Path(args.course_folder))
 
     dispatch = {
-        "add":        cmd_add,
-        "add-folder": cmd_add_folder,
+        "add-exam":   cmd_add_exam,
         "rebuild":    cmd_rebuild,
         "status":     cmd_status,
         "edit-topic": cmd_edit_topic,

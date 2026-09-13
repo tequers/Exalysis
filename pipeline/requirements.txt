@@ -1,7 +1,8 @@
 # Core (always required)
 openpyxl>=3.1.0
 pypdf>=3.0.0      # optional — only needed for PDF exam files
+pdfplumber>=0.11.0 # text fallback for PDFs with malformed cross-reference pointers
 
-# LLM provider SDK — install only the one matching LLM_PROVIDER (default: anthropic)
+# LLM provider SDKs
 anthropic>=0.34.0   # LLM_PROVIDER=anthropic (default)
-# openai>=1.30.0    # LLM_PROVIDER=deepseek or LLM_PROVIDER=openai (uncomment / pip install as needed)
+openai>=1.30.0,<3.0 # LLM_PROVIDER=deepseek, openai, openrouter or unorouter

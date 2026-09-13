@@ -1,7 +1,6 @@
 # Exam ROI Pipeline
 
-A CLI that reads a course's past exam papers and ranks its topics by exam ROI — how many marks
-per hour of study each one is worth. This glossary covers the pipeline's own vocabulary only.
+A CLI that reads a course's past exam papers and ranks its topics by exam ROI — relative study priority from observed exam value and qualitative judgments. This glossary covers the pipeline's own vocabulary only.
 
 A companion project, [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt), reads
 this pipeline's output to drill recurring question patterns to fluency; it's a separate repo with
@@ -9,6 +8,9 @@ its own glossary (Archetype, Playbook, `exam_ready`, Trap) since it shares no co
 pipeline.
 
 ## Language
+
+**Course folder**:
+The folder named first on every `pipeline.py` command (`python pipeline.py COURSE_FOLDER COMMAND …`), holding one Exam's past papers, `taxonomy.json`, `parsed/` and ranked output. It *is* the Exam as far as the CLI is concerned — created on first use, updated in place after that, and never merged with another folder. Any path on disk works; this repo keeps its own under `Courses/<Course>/<Exam>/`.
 
 **Course**:
 A university subject (e.g. "Computer Vision", "Operating Systems"). Purely an organizational grouping in `Courses/<Course>/` — it owns no taxonomy, priority, or progress state of its own.
@@ -22,4 +24,28 @@ _Avoid_: conflating with Course; avoid "subject" or "module" for this term.
 A single examinable concept within an Exam's taxonomy (e.g. "Edge Detection"), scored on difficulty (Diff), connection value (Conn), and tagged with prerequisites. Lives in that Exam's `taxonomy.json` — not shared across Exams.
 
 **Priority Score (ROI)**:
-`100 × (Freq × G_Marks × Conn) / (Diff × Fmt)` — the ranking that answers "which topic gives the most exam marks per hour of study," computed per Exam from that Exam's own `Freq`/`G_Marks`/`Fmt` (from its past papers) and `Conn`/`Diff` (from its own taxonomy). The pipeline's final output.
+`100 × (Freq × G_Marks × Conn) / (Diff × Fmt)` — a relative ranking heuristic, computed per Exam from that Exam's own `Freq`/`G_Marks`/`Fmt` (from its past papers) and `Conn`/`Diff` (from its own taxonomy). The pipeline's final output.
+
+
+**Evaluation contract**:
+The versioned rules in [evaluation-v1.2.0.md](pipeline/exam_roi/contracts/evaluation-v1.2.0.md).
+Diff means conceptual and reasoning complexity under background assumptions inferred from exam evidence (1–6),
+independent of marks, frequency, response format, or study duration. Each new analysis
+records its contract version; old scores retain their original meaning, reported as
+`legacy-unversioned` when no version exists. Conn measures supported direct downstream
+usefulness (1–3); Fmt is a separate response-mode weight. Neither Priority nor Diff is
+a calibrated prediction. Human overrides are preserved per field.
+
+**Assumed prerequisites**:
+Background knowledge inferred from the exam questions for each new topic, with source
+quotes and reasons in `prerequisite_evidence`. No manual course prerequisite list is
+used. These assumptions describe what the paper appears to expect, not verified
+course entry requirements or the student's current knowledge.
+
+**Paper judgment and taxonomy summary**:
+Each paper stores independent model observations in `topic_judgments`. The taxonomy
+combines current-contract evidence after every parse and on rebuild. Dependency edges
+are counted once per distinct dependent topic, with citations from every supporting
+paper. New labels trigger connection reviews of earlier papers; their original
+judgments stay intact. Human overrides take precedence over `model_estimate`. Older
+contract records must be explicitly reprocessed before joining this summary.

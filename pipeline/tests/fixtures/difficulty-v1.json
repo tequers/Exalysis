@@ -1,0 +1,144 @@
+{
+  "evaluation_contract_version": "1.0.0",
+  "review": {
+    "status": "author-reviewed",
+    "reviewer": "implementation AI agent",
+    "human_reviewed": false,
+    "scope": "Anchor fit, adjacent distinctions, and format independence checked against contract 1.0.0; independent human calibration belongs to ticket 9."
+  },
+  "examples": [
+    {
+      "id": "recall",
+      "level": 1,
+      "anchor": "Direct recall",
+      "text": "State the definition of a prime number.",
+      "quote": "prime number",
+      "assumed_prerequisites": [
+        "integer arithmetic"
+      ],
+      "rationale": "Retrieve the taught definition; no application is required.",
+      "counterexample": "Applying the definition to classify a new number would be level 2."
+    },
+    {
+      "id": "one_rule",
+      "level": 2,
+      "anchor": "One-rule application",
+      "text": "Using F = 1.8C + 32, convert 20 degrees Celsius to Fahrenheit.",
+      "quote": "convert 20 degrees Celsius",
+      "assumed_prerequisites": [
+        "arithmetic substitution"
+      ],
+      "rationale": "Substitute one value into the supplied conversion rule.",
+      "counterexample": "Recalling the conversion rule alone is level 1; a standard multi-stage method is level 3."
+    },
+    {
+      "id": "routine_method",
+      "level": 3,
+      "anchor": "Standard multi-step methods",
+      "text": "Use the taught Gaussian elimination method to solve x+y=5 and 2x-y=1.",
+      "quote": "Gaussian elimination",
+      "assumed_prerequisites": [
+        "linear equations",
+        "Gaussian elimination"
+      ],
+      "rationale": "Carry out the prescribed elimination and substitution sequence.",
+      "counterexample": "Choosing among interacting models is absent; multiple steps alone do not justify level 4."
+    },
+    {
+      "id": "method_choice",
+      "level": 4,
+      "anchor": "Combining concepts with method selection",
+      "text": "For paired observations with non-normal differences, choose a taught comparison test, justify its assumptions, and interpret the result.",
+      "quote": "choose a taught comparison test",
+      "assumed_prerequisites": [
+        "paired study designs",
+        "parametric and nonparametric tests"
+      ],
+      "rationale": "Combine design and distribution assumptions to choose and interpret a familiar method.",
+      "counterexample": "A named test with all assumptions supplied is level 3; this familiar choice is not unfamiliar transfer at level 5."
+    },
+    {
+      "id": "transfer",
+      "level": 5,
+      "anchor": "Unfamiliar transfer with interacting constraints",
+      "text": "Adapt the taught single-machine scheduling method to an unfamiliar two-machine case with shared cooling capacity and precedence constraints that interact; explain where the original method fails.",
+      "quote": "shared cooling capacity and precedence constraints",
+      "assumed_prerequisites": [
+        "single-machine scheduling",
+        "precedence constraints"
+      ],
+      "rationale": "Transfer the known method and resolve the interaction of resource and ordering constraints.",
+      "counterexample": "A standard multi-resource template would be level 3 or 4; no general abstract theory is requested for level 6."
+    },
+    {
+      "id": "synthesis",
+      "level": 6,
+      "anchor": "Sustained abstraction or synthesis",
+      "text": "For an unfamiliar family of resource-sharing transition systems, invent an invariant, synthesize a general termination criterion, and justify it including exceptional cyclic cases.",
+      "quote": "invent an invariant",
+      "assumed_prerequisites": [
+        "invariants",
+        "transition systems",
+        "termination proofs"
+      ],
+      "rationale": "Construct an abstraction and sustain a general argument across a family and its exceptions.",
+      "counterexample": "Adapting one instance without the family-wide synthesis would be level 5; proof format alone is insufficient."
+    }
+  ],
+  "boundaries": [
+    {
+      "lower": "recall",
+      "upper": "one_rule",
+      "distinction": "Retrieving a rule versus applying it to a value."
+    },
+    {
+      "lower": "one_rule",
+      "upper": "routine_method",
+      "distinction": "One rule versus a taught sequence of dependent steps."
+    },
+    {
+      "lower": "routine_method",
+      "upper": "method_choice",
+      "distinction": "Executing a prescribed method versus selecting a method by combining concepts."
+    },
+    {
+      "lower": "method_choice",
+      "upper": "transfer",
+      "distinction": "Familiar method selection versus transfer affected by unfamiliar interacting constraints."
+    },
+    {
+      "lower": "transfer",
+      "upper": "synthesis",
+      "distinction": "Adapting an instance versus sustained abstraction and synthesis across a family."
+    }
+  ],
+  "format_pairs": [
+    {
+      "example": "one_rule",
+      "formats": [
+        "mcq",
+        "short_answer"
+      ],
+      "expected_level": 2,
+      "rationale": "Selecting or supplying the same converted value requires the same substitution."
+    },
+    {
+      "example": "routine_method",
+      "formats": [
+        "explain_derive",
+        "write_code_or_proof"
+      ],
+      "expected_level": 3,
+      "rationale": "A routine elimination argument is not promoted solely because it is requested as a proof."
+    },
+    {
+      "example": "transfer",
+      "formats": [
+        "mcq",
+        "explain_derive"
+      ],
+      "expected_level": 5,
+      "rationale": "Choosing the valid adaptation among carefully matched options still requires resolving the constraints."
+    }
+  ]
+}

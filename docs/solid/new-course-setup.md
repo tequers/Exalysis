@@ -33,43 +33,39 @@ project — [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt).
 
 ## Per-course workflow
 
-### 1. Create the Exam folder
+### 1. Pick the course folder
 
-Nothing auto-creates this — `pipeline.py` exits with an error if the folder doesn't exist yet.
-Make it yourself:
+The folder you name on the command line *is* the Exam: everything in it (past papers, taxonomy,
+ROI sheet) belongs to that Exam alone, even if the same subject has another exam elsewhere. It
+can be any path on disk, and `pipeline.py` creates it if it isn't there yet.
 
-```
-Courses/<Course Name>/<type>_<date>/exams/
-```
+This repo keeps its own under `Courses/<Course Name>/<type>_<date>/`, e.g.
+`Courses/Operating Systems/final_15_02_2027/` — a convention that keeps several courses tidy in
+one place, nothing the CLI requires.
 
-e.g. `Courses/Operating Systems/final_15_02_2027/exams/`.
-
-- `<Course Name>` — the subject, e.g. "Operating Systems".
-- `<type>_<date>` — the Exam folder name, e.g. `final_15_02_2027`, `theory_20_08_2026`. This is
-  the atomic state boundary: everything under it (taxonomy, past papers, ROI sheet) belongs to
-  this Exam alone, even if another Exam exists under the same Course.
-
-Drop the past-exam PDFs (or `.txt` files) into that `exams/` subfolder.
+Drop the past-exam PDFs (or `.txt` files) straight into that folder, or into an `exams/`
+subfolder — `add-exam` looks in both. Keep every paper of a year, not one per year: models,
+sittings and resits each count as a separate sample of what the examiner asks. Per-year
+subfolders are fine too, even when the filenames inside them repeat.
 
 ### 2. Run the pipeline
 
 From `pipeline/`:
 
+Every command reads `python pipeline.py COURSE_FOLDER COMMAND [data]`:
+
 ```bash
 cd pipeline
-python pipeline.py add-folder --total-marks <N> --course "Operating Systems" --exam final_15_02_2027
-python pipeline.py rebuild --course "Operating Systems" --exam final_15_02_2027
+python pipeline.py "../Courses/Operating Systems/final_15_02_2027" add-exam --total-marks <N>
+python pipeline.py "../Courses/Operating Systems/final_15_02_2027" status
 ```
 
-- Use `add-folder` to process every file in `exams/` at once (same total marks applied to each),
-  or `add <file.pdf> --total-marks <N>` one file at a time if totals differ per exam.
-- `--course`/`--exam` are only *required* once a second Exam folder exists anywhere under
-  `Courses/` — with a single Exam in the whole repo, plain `add-folder` / `rebuild` / `status`
-  auto-detect it. The moment a second one exists, every command needs them (never silently
-  guessed — see ADR 0003).
-- This produces/updates `taxonomy.json`, `parsed/*.json`, and the ranked output
-  (`Exam_ROI_Pipeline.xlsx` and `.json`) inside the Exam folder. That's the pipeline's whole job
-  — everything below this point is optional.
+- `add-exam` with no filename processes every paper in the folder (the same `--total-marks`
+  applied to each); name a file — `add-exam final_2024.pdf --total-marks <N>` — when the totals
+  differ per exam. Papers already processed are skipped unless you pass `--force`.
+- This writes validated analyses and proposed taxonomy changes to `candidates/*.json`.
+  Accepted `taxonomy.json`, `parsed/*.json`, and ranked outputs stay unchanged until a
+  candidate is accepted through the separate acceptance workflow.
 
 ### 3. Sanity-check the taxonomy
 
@@ -77,7 +73,7 @@ The pipeline auto-tags topics with an LLM and prints a reminder afterward: **che
 `taxonomy.json` for near-duplicate topics and merge them by hand.** Also use:
 
 ```bash
-python pipeline.py edit-topic --course "Operating Systems" --exam final_15_02_2027
+python pipeline.py "../Courses/Operating Systems/final_15_02_2027" edit-topic "Page Replacement" --diff 4 --conn 3
 ```
 
 to override any AI-assigned difficulty (D) or connection (C) score you disagree with, then it
@@ -101,9 +97,8 @@ use). Never at repo root, never shared across courses — each course gets its o
 ## Checklist
 
 - [ ] `pip install -r pipeline/requirements.txt`, API key set
-- [ ] `Courses/<Course>/<type>_<date>/exams/` created, past papers dropped in
-- [ ] `pipeline.py add-folder` (or `add`) run
-- [ ] `pipeline.py rebuild` run → `Exam_ROI_Pipeline.xlsx` and `.json` exist
+- [ ] course folder chosen, past papers dropped in
+- [ ] `pipeline.py <COURSE_FOLDER> add-exam` run → `Exam_ROI_Pipeline.xlsx` and `.json` exist
 - [ ] `taxonomy.json` reviewed for duplicate topics
 - [ ] *(optional)* `exam-prep-prompt`'s system prompt pasted into an LLM tool, pointed at the
       Exam folder, run once to confirm `study_state.json` gets created
@@ -113,7 +108,8 @@ use). Never at repo root, never shared across courses — each course gets its o
 ## Known gaps
 
 - File resolution in `exam-prep-prompt` is by content, not fixed paths — but the expected
-  filenames (`taxonomy.json`, `parsed/*.json`, `study_state.json`) should stay exact, since
+  filenames (`taxonomy.json`, `candidates/*.json`, `parsed/*.json`, `study_state.json`) should
+  stay exact, since
   nothing guesses them from scratch.
 - The repo ships one example `Course/Exam` (synthetic, currently an empty scaffold — see
   `Courses/Example_Course/`) rather than a real course, per
