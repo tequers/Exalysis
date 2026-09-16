@@ -34,7 +34,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "f123e95764569b6e068aff16e06d85e4426ae8d2",
+    "replacement": null,
+    "reviewed_by": "Codex automated verification",
+    "evidence": [
+      "Argparse boundary assertions passed; all 220 pipeline tests and all 35 ticket checks passed."
+    ]
+  }
 }
 ```
 
