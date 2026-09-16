@@ -31,7 +31,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "ef5e69c30b52ffe1ea60b090109b83ffafc1ba71",
+    "replacement": null,
+    "reviewed_by": "Codex automated verification",
+    "evidence": [
+      "The CLI prints both stages' effective non-secret settings; the GLM defaults cover the tested 20-page request; 224 pipeline tests and 35 ticket checks passed."
+    ]
+  }
 }
 ```
 
