@@ -1,10 +1,17 @@
 # Exam ROI Pipeline
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pipeline/requirements.txt)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pipeline/requirements.txt)
 
-A CLI that reads a course's past exam papers and ranks topics by
-relative study priority — for text-based exams across subjects.
+A Python CLI that reads past exam papers and ranks topics by relative study priority.
+It accepts text files and PDFs with a text layer, keeps each course's state in one
+folder, and writes the ranking as Excel and JSON.
+
+> [!IMPORTANT]
+> The current `add-exam` command saves validated analyses to `candidates/`. It does
+> not promote them into accepted `parsed/` records. The repository does not yet have
+> a CLI command for that promotion, so adding a new paper is not an end-to-end path
+> to a new ranking. `rebuild` only uses records already accepted into `parsed/`.
 
 ---
 
@@ -13,18 +20,18 @@ relative study priority — for text-based exams across subjects.
 Given a pile of past exams, topics differ in their observed exam value. Some topics appear on
 every paper and are worth many marks; others show up once, worth two. The pipeline scores every
 topic using observed frequency and marks, downstream usefulness, conceptual and reasoning
-complexity, and response mode — and ranks them by a single **Priority Score**:
+complexity, and response mode. It combines them into one **Priority Score**:
 
 ```
 Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)
   Freq    = fraction of past exams the topic appeared in     (0–1, computed)
   G_Marks = average mark share when it did appear             (0–1, computed)
-  Conn    = connection value — how much it unlocks downstream (1–3, qualitative estimate)
+  Conn    = connection value: how much it unlocks downstream (1–3, qualitative estimate)
   Diff    = conceptual and reasoning complexity               (1–6, qualitative estimate)
   Fmt     = response-mode weight: MCQ=1, answer/derive=2, code/proof=3
 ```
 
-The pipeline does not teach and does not evaluate understanding — it only answers "where should
+The pipeline does not teach or evaluate understanding. It only answers "where should
 I start?" See [`pipeline/docs/Topic_ROI_Exam_Analysis_System.md`](pipeline/docs/Topic_ROI_Exam_Analysis_System.md)
 for the supported methodology behind the formula. This is a relative ranking heuristic,
 not predicted marks or a study-duration estimate. Difficulty is independent of marks and
@@ -61,47 +68,76 @@ excluded older evidence and conflicting judgments.
 
 ## Example output
 
-Running `rebuild` on a course's past papers produces a ranked list like this — an illustrative
-excerpt (top 5 of a longer list; values satisfy the formula above) — see
-[Quickstart](#quickstart) to generate your own from `Courses/Example_Course/`):
+Running `rebuild` on accepted papers produces a ranked list like this. This is an
+illustrative excerpt; the empty `Courses/Example_Course/` folder does not contain
+accepted sample data.
 
 | Rank | Topic | Priority | Freq | G_Marks | Conn | Diff | Fmt | Tier |
 |---:|---|---:|---:|---:|---:|---:|---:|---|
-| 1 | Hypothesis Testing | 18.9 | 1.00 | 0.22 | 3 | 2 | 1.75 | ★ Tier 1 |
-| 2 | Confidence Intervals | 11.8 | 0.83 | 0.19 | 3 | 2 | 2.00 | ★ Tier 1 |
-| 3 | Regression Basics | 8.0 | 0.67 | 0.24 | 2 | 2 | 2.00 | ★ Tier 1 |
+| 1 | Hypothesis Testing | 18.9 | 1.00 | 0.22 | 3 | 2 | 1.75 | Tier 1 |
+| 2 | Confidence Intervals | 11.8 | 0.83 | 0.19 | 3 | 2 | 2.00 | Tier 1 |
+| 3 | Regression Basics | 8.0 | 0.67 | 0.24 | 2 | 2 | 2.00 | Tier 1 |
 | 4 | Bayes' Theorem | 3.0 | 0.50 | 0.12 | 3 | 3 | 2.00 | |
 | 5 | Sampling Distributions | 1.1 | 0.33 | 0.09 | 3 | 4 | 2.00 | |
 
-Every run also writes this same ranking as a flat JSON array
-(`Exam_ROI_Pipeline.json`, alongside the formatted `.xlsx`) — meant to be read directly by a
-script, or handed straight to an LLM, no spreadsheet library required.
+Each successful rebuild also writes this ranking as a flat JSON array
+(`Exam_ROI_Pipeline.json`) alongside the formatted `.xlsx`. A script or model can read
+the JSON without a spreadsheet library.
 
 ## Quickstart
 
-Every command has the same shape — **the course folder always comes first**:
+Run these commands from the repository root. On Windows PowerShell:
 
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r pipeline/requirements.txt
+
+Copy-Item .env.example .env
+# Edit .env and set the provider, exact Stage 1 and Stage 2 model IDs, and API key.
 ```
-python pipeline.py COURSE_FOLDER COMMAND [data]
+
+On macOS or Linux, activate the environment with `source .venv/bin/activate` and copy
+the environment template with `cp .env.example .env`.
+
+The checked-in `.env.example` is set up for UnoRouter and separate GLM models for the
+two analysis stages. You can instead use Anthropic, DeepSeek, OpenAI, or OpenRouter.
+The built-in default is Anthropic when `LLM_PROVIDER` is absent. Never commit `.env`.
+
+Every command has this shape. The course folder always comes first:
+
+```text
+python pipeline/pipeline.py COURSE_FOLDER COMMAND [options]
 ```
 
-That folder is where the pipeline both reads its state and writes its results. It is created on
-the first run and updated in place on every run after it, so you never point at output files,
-only at the folder that holds them. Run `python pipeline.py` with no arguments for the whole
-of it on one screen, or `python pipeline.py COURSE_FOLDER add-exam --help` for one command's
-options.
+`COURSE_FOLDER` holds the papers, saved state, and generated reports. The CLI creates
+it on first use.
 
-```bash
-cd pipeline
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...   # or DEEPSEEK_API_KEY / OPENAI_API_KEY — see below
+```powershell
+# Preview which files the command would read. This makes no API calls.
+python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" add-exam --dry-run
 
-# put your past exams (.txt or .pdf) in a folder — anywhere on disk
-python pipeline.py ~/Exams/Statistics add-exam exam_2023.pdf   # one paper
-python pipeline.py ~/Exams/Statistics add-exam                 # every paper in the folder
-python pipeline.py ~/Exams/Statistics status                   # what the folder holds now
-python pipeline.py ~/Exams/Statistics rebuild                  # redo the ranking, no LLM calls
+# Analyse one paper and save a candidate. Extracted text is sent to the configured provider.
+python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" add-exam "exam_2026.pdf"
+
+# Inspect the taxonomy, accepted papers, and whether report files exist.
+python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" status
+
+# Regenerate Excel and JSON from records already accepted in parsed/. No API calls.
+python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" rebuild
 ```
+
+Run `python pipeline/pipeline.py` for the short help screen, or append `--help` to a
+command for all of its options.
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `add-exam [FILE\|FOLDER ...]` | Validates selected papers, runs the two-stage model analysis, and saves candidate JSON. |
+| `status` | Shows taxonomy and accepted-paper counts, plus whether the Excel and JSON reports exist. |
+| `rebuild` | Recomputes the ranking and rewrites Excel and JSON from accepted records, without model calls. |
+| `edit-topic TOPIC` | Overrides a topic's difficulty or connection score, then rebuilds the reports. |
 
 ### Exit codes
 
@@ -110,11 +146,12 @@ run from a partial one without parsing the log:
 
 | Code | Meaning |
 |---:|---|
-| 0 | Everything requested succeeded. A skip (already accepted/candidate) or a no-op rebuild still counts as success — they did what was asked. |
-| 1 | A setup or usage problem stopped the command before any work ran: a bad course folder, missing provider credentials, an unknown topic name, and the like. |
-| 2 | Reserved by argparse for its own usage errors (an unknown flag, an invalid choice) — unrelated to the codes below, but also "nothing ran". |
-| 3 | At least one requested paper failed to process on `add-exam`. Papers that *did* succeed keep their saved candidates — this is a partial result, not a crash. The failed files are named, along with what each one needs: fixing the input, a human review, or simply rerunning. |
+| 0 | Everything requested succeeded. A skip for an existing record or a no-op rebuild still counts as success. |
+| 1 | A setup or usage problem stopped the command before any work ran, such as a bad course folder, missing credentials, or an unknown topic name. |
+| 2 | Reserved by argparse for usage errors such as an unknown flag or invalid choice. Nothing ran. |
+| 3 | At least one requested paper failed during `add-exam`. Successful papers keep their saved candidates. The error names each failed file and its recovery action. |
 | 4 | `rebuild` (or the rebuild step inside `edit-topic`) could not write `Exam_ROI_Pipeline.xlsx`/`.json`. Parsed papers and taxonomy already on disk are unaffected; rerunning `rebuild` once the cause (e.g. the spreadsheet open elsewhere) is cleared is the whole fix. |
+| 5 | Course state is locked, corrupt, incompatible, or needs transaction recovery. Follow the named lock or record diagnostic before retrying; `--force` cannot bypass a state failure. |
 
 ### What it can read
 
@@ -138,7 +175,7 @@ no OCR is run, so a scanned paper has to be OCRed first (`ocrmypdf scan.pdf pape
 retyped as text. The text that comes out is sent to the configured provider to be analysed;
 the file itself stays on your disk.
 
-A paper is refused *before any AI call* — and so costs nothing — when it holds no text, when a
+A paper is refused *before any AI call*, so it costs nothing, when it holds no text, when a
 `.txt` file is not valid UTF-8 (the bad byte is reported rather than quietly replaced with `�`),
 or when **any** page of a PDF has no text layer, since reading on would drop those questions
 without saying so. Each message names the file, the problem, and the fix.
@@ -151,10 +188,10 @@ paper are kept in its record under `source_provenance.extraction`.
 Each `add-exam` run writes a validated record to `candidates/`, including its evidence,
 provenance, uncertainty, and proposed taxonomy changes. It does not change `parsed/`,
 `taxonomy.json`, or the ranked outputs. Promotion into accepted course state is a separate
-workflow so malformed or unresolved model output cannot affect the study ranking. That
-acceptance workflow is intentionally outside ticket 02.
+step so malformed or unresolved model output cannot affect the study ranking. The current
+repository does not provide that step as a CLI command.
 
-Several papers in the same year — models, sittings, resits — are the normal case, so each paper
+Several papers in the same year, including models, sittings, and resits, are normal. Each paper
 is its own record and its own set of columns, labelled by whatever its filename doesn't share
 with the others (`2022 Lunes`, `2022 Martes`). The year comes from the filename, or from the
 paper itself when the filename is silent, and an academic year like `2021-2022` counts as the
@@ -162,11 +199,11 @@ year the paper was sat: 2022. Pass `--year` to overrule it. See
 [`docs/adr/0007-one-record-per-paper-and-the-sitting-year.md`](docs/adr/0007-one-record-per-paper-and-the-sitting-year.md).
 
 It picks a provider via the `LLM_PROVIDER` environment variable (`anthropic` by default;
-`openai`, `deepseek`, or any other OpenAI-compatible endpoint also work — see the docstring at
+`openai`, `deepseek`, or any other OpenAI-compatible endpoint also work). See the docstring at
 the top of [`pipeline/pipeline.py`](pipeline/pipeline.py) for full setup and every subcommand).
 
-One folder holds one exam's worth of state, and nothing is shared between folders — a second
-exam is simply a second folder, named on its own commands (see
+One folder holds one exam's worth of state, and nothing is shared between folders. A second
+exam uses a second folder, named on its own commands (see
 [`docs/adr/0006-course-folder-as-cli-argument.md`](docs/adr/0006-course-folder-as-cli-argument.md)).
 To set up a new course from scratch, see
 [`docs/solid/new-course-setup.md`](docs/solid/new-course-setup.md).
@@ -192,51 +229,75 @@ only its candidate is replaced after successful analysis. Accepted records remai
 unchanged.
 
 The pipeline checks that record paths stay inside the course's `parsed/` and
-`candidates/` directories, including immediately before saving. Redirected state
-directories, file symlinks, and hard-linked records are rejected. These checks do
-not provide writer locking or transactional recovery; those remain separate
-storage work.
+`candidates/` directories, including immediately before saving. It rejects redirected
+state directories, file symlinks, and hard-linked records. Each course has an
+operating-system lock, so two commands cannot update the same course at once. A
+transaction journal restores a complete old or new state after an interrupted write.
+See [course state and interruption recovery](docs/course-state-recovery.md) for the
+recovery rules and filesystem requirements.
 
 ## Repository map
 
 ```
 .
-├── pipeline/                   the CLI and its docs
-│   ├── pipeline.py             run this
+├── pipeline/
+│   ├── pipeline.py              main course CLI
+│   ├── staged_evaluation.py     model evaluation and replay CLI
 │   ├── requirements.txt
-│   ├── exam_roi/             versioned evaluation contract, input reading, pure rules
-│   ├── tests/                offline regression checks and synthetic rubric examples
-│   └── docs/                   the ROI methodology spec
+│   ├── exam_roi/                inputs, model clients, validation, storage, scoring, reports
+│   │   └── contracts/           versioned evaluation contracts
+│   ├── tests/                   offline regression tests and synthetic fixtures
+│   └── docs/                    methodology, request limits, and review behavior
 │
-├── Courses/                    a place to keep course folders (they can live anywhere)
-│   ├── Example_Course/                 the one example shipped in the repo (synthetic)
-│   └── <Course>/<type>_<date>/         a COURSE_FOLDER — one self-contained exam
-│       ├── <past papers>.pdf           source files, here or in an exams/ subfolder (gitignored)
-│       ├── candidates/                 validated analyses awaiting acceptance or review
-│       ├── parsed/                     accepted analyses: one JSON per past exam (gitignored)
-│       ├── taxonomy.json               pipeline output: per-topic Diff, Conn, prerequisites
-│       └── Exam_ROI_Pipeline.{xlsx,json}   pipeline output: the ranked study agenda
+├── Courses/                     optional home for local course folders
+│   ├── Example_Course/          empty synthetic scaffold
+│   └── <Course>/<type>_<date>/  one self-contained COURSE_FOLDER
+│       ├── <past papers>.pdf    source files, optionally under exams/
+│       ├── candidates/          validated analyses awaiting acceptance or review
+│       ├── parsed/              accepted analyses, one JSON file per paper
+│       ├── taxonomy.json        topic difficulty, connections, and prerequisites
+│       └── Exam_ROI_Pipeline.{xlsx,json}
 │
 ├── docs/
-│   ├── adr/                    architecture decisions — why, not what
-│   └── solid/                  usage guides (e.g. adding a new course)
+│   ├── adr/                     architecture decisions
+│   └── solid/                   setup and usage guides
 │
-└── CONTEXT.md                  glossary — Course, Exam, Topic, Priority Score
+├── scripts/                     ticket backlog validation and maintenance
+└── CONTEXT.md                   project glossary
 ```
 
-Architecture and implementation backlog: [ADR 0008 — proposed modular pipeline](docs/adr/0008-modular-pipeline-architecture.md) records the rationale, module responsibilities, and migration tradeoffs; [Ticket status](.scratch/reliable-exam-analysis/TICKET_STATUS.md) shows the current queue and unresolved blockers. The repository map above describes the current implementation.
+The production CLI now delegates input handling, model access, evaluation, storage,
+scoring, and report generation to `exam_roi` modules. [ADR 0008](docs/adr/0008-modular-pipeline-architecture.md)
+explains the intended module boundaries. The current backlog is in
+[Ticket status](.scratch/reliable-exam-analysis/TICKET_STATUS.md).
+
+The [ticket workflow](docs/ticket-workflow.md) explains how to check that a problem
+still exists before starting work and find older tickets affected by a change.
+Ticket folders and metadata are authoritative; the status table is generated.
+Run `python scripts/check_tickets.py` to validate the backlog and run its offline tests.
+
+## More documentation
+
+| Document | Use it for |
+|---|---|
+| [New course setup](docs/solid/new-course-setup.md) | Course folder conventions and the per-course workflow. |
+| [Evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md) | Required evidence, difficulty anchors, and ambiguity rules. |
+| [Independent review](pipeline/docs/independent-review.md) | Reviewer configuration, correction limits, and saved review history. |
+| [Model request limits](pipeline/docs/model-request-limits.md) | Context and output token budgets for both model stages. |
+| [Course state recovery](docs/course-state-recovery.md) | Locking, transaction recovery, and damaged-state handling. |
+| [Staged evaluation](docs/staged-evaluation.md) | Capture, audit, approve, and replay model evaluation fixtures. |
 
 ## Studying with the output
 
-This repo's scope ends at the ranked list above — it decides *what* to study, not how. A separate
+This repo's scope ends at the ranked list above. It decides *what* to study, not how. A separate
 project, [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt), reads this pipeline's
 output and turns it into an actual study session with whatever LLM you have open. It's optional
-and shares no code with this repo — the two are linked only by the files the pipeline produces.
+and shares no code with this repo. The generated files are the only link between the projects.
 
-## Conventions (so this stays scalable)
+## Course folder conventions
 
 - **One course folder is the atomic state boundary.** Each holds one exam's past-paper corpus,
-  taxonomy, and ROI sheet — nothing is shared across folders, even for the same subject. See
+  taxonomy, and ROI sheet. Nothing is shared across folders, even for the same subject. See
   [`CONTEXT.md`](CONTEXT.md) and
   [`docs/adr/0001-course-exam-hierarchy.md`](docs/adr/0001-course-exam-hierarchy.md).
 - **Exam folder names are `<type>_<date>`**, e.g. `final_26_08_2026`, `theory_20_08_2026`.
@@ -244,7 +305,7 @@ and shares no code with this repo — the two are linked only by the files the p
   takes whatever folder you hand it; this repo arranges its own under `Courses/`.
 - **Course materials are never committed.** Lecture slides, exam papers, exercise sheets, and
   the pipeline's verbatim text extractions (`candidates/*.json` and `parsed/*.json`) are
-  copyrighted or personal — see
+  copyrighted or personal. See
   `.gitignore`. The pipeline reads them locally; the repo only ships the code that processes
   them, plus one synthetic example.
 
