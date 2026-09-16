@@ -121,6 +121,7 @@ from exam_roi.question_context import (
     source_questions, related_source_units, retain_source_context, question_evidence,
 )
 from exam_roi.reports import exam_labels, weighted_fmt, write_json, write_xlsx
+from exam_roi.scoring import aggregate_paper_scores, build_ranked_report
 from exam_roi.evaluation import (
     CONTRACT_TEXT, LEGACY_VERSION, CandidateValidationError, build_candidate_analysis,
     contract_metadata, difficulty_version, finalize_candidate_analysis,
@@ -823,44 +824,14 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, cli
     paper_scores = _stage2_score_topics(sorted(seen_topics), taxonomy_list, tagged,
                                   topic_names + new_names, **dependencies)
 
-    # ── Local aggregation ──
-    total_marks = float(total_marks) or 1.0
-    agg = {}
-    for q in tagged:
-        topics = q["topics"]
-        if not topics:
-            continue
-        marks = q.get("marks")
-        marks = float(marks) if isinstance(marks, (int, float)) else 0.0
-        share = marks / len(topics)
-        fmt   = q.get("format") or "short_answer"
-        for t in topics:
-            a = agg.setdefault(t, {"marks": 0.0, "by_fmt": {}})
-            a["marks"] += share
-            a["by_fmt"][fmt] = a["by_fmt"].get(fmt, 0.0) + share
-
-    per_topic = {}
-    for t, a in agg.items():
-        judgment = paper_scores[t]
-        tot   = a["marks"]
-        dist  = ({f: round(v / tot, 3) for f, v in a["by_fmt"].items()} if tot
-                 else {f: round(1 / len(a["by_fmt"]), 3) for f in a["by_fmt"]})
-        per_topic[t] = {
-            "marks_total":         round(tot, 2),
-            "mark_fraction":       round(tot / total_marks, 4),
-            "format_distribution": dist,
-            "dominant_format":     max(dist, key=dist.get) if dist else "short_answer",
-            "Diff":                judgment.get("Diff"),
-            "Conn":                judgment.get("Conn"),
-            "prerequisites":       judgment.get("prerequisites", []),
-            "evaluation_contract_version": judgment.get("evaluation_contract_version", LEGACY_VERSION),
-            "difficulty_contract_version": difficulty_version(judgment),
-            "is_new_topic":        t in new_names,
-        }
-        per_topic[t].update(paper_scores[t])
-
-    return {"questions": tagged, "new_topic_names": new_names, "per_topic": per_topic,
-            "topic_judgments": paper_scores}
+    return aggregate_paper_scores(
+        questions=questions,
+        assignments=tags,
+        topic_scores=paper_scores,
+        total_marks=total_marks,
+        known_topic_names=topic_names,
+        proposed_new_topic_names=proposed_new,
+    )
 
 
 # ── Commands ───────────────────────────────────────────────────────────────────
@@ -1196,88 +1167,12 @@ def cmd_rebuild(_args, course: CoursePaths, *, _store=None):
         print("   No accepted exams found. Candidate analyses do not enter reports until accepted.")
         return EXIT_OK
 
-    # A paper with no year sorts first, before every dated one, rather than crashing
-    # the comparison against None.
-    exam_list = sorted(all_exams.values(), key=lambda e: (e.get("year") or 0, e["exam_id"]))
-    n_exams   = len(exam_list)
-    labels    = exam_labels(exam_list)
-
-    # Collect every topic that has appeared in at least one exam
-    all_topics: set[str] = set()
-    for exam in exam_list:
-        all_topics.update(exam["per_topic"].keys())
-
-    rows = []
-    for topic in sorted(all_topics):
-        tax = taxonomy["topics"].get(topic, {})
-
-        # Per-exam breakdown
-        per_exam: dict[str, dict] = {}
-        for exam in exam_list:
-            eid = exam["exam_id"]
-            td  = exam["per_topic"].get(topic)
-            # year and label travel with every entry: exam ids alone do not tell a
-            # reader of the JSON which sitting a column belongs to, and one year can
-            # hold several.
-            common = {"year": exam.get("year"), "label": labels.get(eid, eid),
-                      "evaluation_contract_version": exam.get("evaluation_contract_version", LEGACY_VERSION)}
-            if td:
-                per_exam[eid] = {
-                    **common,
-                    "present":       1,
-                    "mark_fraction": td.get("mark_fraction", 0),
-                    "marks_total":   td.get("marks_total", 0),
-                    "fmt_score":     weighted_fmt(td.get("format_distribution", {})),
-                }
-            else:
-                per_exam[eid] = {
-                    **common,
-                    "present": 0, "mark_fraction": 0,
-                    "marks_total": 0, "fmt_score": 0,
-                }
-
-        # Aggregate variables
-        appearances   = sum(1 for d in per_exam.values() if d["present"])
-        Freq          = appearances / n_exams
-        present_marks = [d["mark_fraction"] for d in per_exam.values() if d["present"]]
-        G_Marks       = sum(present_marks) / len(present_marks) if present_marks else 0
-        fmt_vals      = [d["fmt_score"]    for d in per_exam.values() if d["present"]]
-        Fmt           = sum(fmt_vals) / len(fmt_vals) if fmt_vals else 2.0
-        Conn          = tax.get("Conn") or 1
-        Diff          = tax.get("Diff") or 3
-
-        priority = (100 * Freq * G_Marks * Conn / (Diff * Fmt)) if (Diff * Fmt) > 0 else 0
-
-        rows.append({
-            "topic":         topic,
-            "per_exam":      per_exam,
-            "Freq":          round(Freq,    3),
-            "G_Marks":       round(G_Marks, 3),
-            "Conn":          Conn,
-            "Diff":          Diff,
-            "difficulty_contract_version": difficulty_version(tax),
-            "evaluation_contract_version": tax.get("evaluation_contract_version", LEGACY_VERSION),
-            "human_overrides": tax.get("human_overrides", {}),
-            "model_estimate": tax.get("model_estimate", {}),
-            "contributing_exam_ids": tax.get("contributing_exam_ids", []),
-            "connection_evidence": tax.get("connection_evidence", []),
-            "review_notes": "; ".join(label for flag, label in (
-                (tax.get("difficulty_review_required"), "Difficulty needs review"),
-                (tax.get("connection_review_required"), "Conflicting dependencies"),
-                (tax.get("excluded_legacy_exam_ids"), "Older evidence excluded"),
-                (tax.get("evaluation_contract_version") != CONTRACT_VERSION, "Older judgment basis"),
-            ) if flag),
-            "Fmt":           round(Fmt, 2),
-            "priority":      round(priority, 4),
-            "appearances":   appearances,
-            "prerequisites": ", ".join(tax.get("prerequisites", [])),
-        })
-
-    rows.sort(key=lambda r: r["priority"], reverse=True)
-    tier1_n = max(1, round(len(rows) * 0.2))
-    for i, row in enumerate(rows):
-        row["rank"] = i + 1
-        row["tier"] = "★ Tier 1" if i < tier1_n else ""
+    labels = exam_labels(list(all_exams.values()))
+    report = build_ranked_report(all_exams, taxonomy, exam_labels_by_id=labels)
+    rows = report.rows
+    exam_list = report.exam_list
+    n_exams = len(exam_list)
+    tier1_n = report.tier1_count
 
     # Parsed papers and taxonomy are already safely on disk at this point — only
     # the write below can still fail (a locked file, a full disk, a missing
