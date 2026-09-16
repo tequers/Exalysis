@@ -5,6 +5,13 @@ Exam ROI Pipeline
 Processes exam files through an LLM to extract topics, score ROI variables,
 and produce a ranked Excel spreadsheet.
 
+The MVP processing path has two model stages:
+  1. extract the questions and marks from the paper;
+  2. tag concepts and calculate the topic scores saved in the candidate.
+
+The independent reviewer remains implemented for later work, but the MVP CLI
+does not run it.
+
 Formula: Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)
   Freq    = fraction of exams where topic appeared  (0–1, computed)
   G_Marks = average mark fraction when present       (0–1, computed)
@@ -157,6 +164,10 @@ EXIT_SETUP_ERROR    = 1
 EXIT_PAPER_FAILURE  = 3
 EXIT_EXPORT_FAILURE = 4
 EXIT_STATE_FAILURE  = 5
+
+# Keep the independent-review implementation available for later work without
+# exposing a third model stage in the MVP command path.
+MVP_INDEPENDENT_REVIEW_ENABLED = False
 
 
 class ExamOutcome(Enum):
@@ -1382,9 +1393,9 @@ def main():
                     help="Custom filename ID, not a path (defaults to the filename with spaces replaced by underscores)")
     pa.add_argument("--force",       action="store_true", help="Reprocess papers with a candidate or accepted record")
     pa.add_argument("--review", action="store_true",
-                    help="Run an independent evidence review before saving the candidate")
+                    help="Unavailable in the MVP; independent review is retained for later work")
     pa.add_argument("--review-corrections", type=int, choices=range(MAX_CORRECTIONS + 1), default=0,
-                    help="Maximum analyzer correction attempts after review findings (default: 0)")
+                    help="Unavailable in the MVP; retained for the later independent-review stage")
     pa.add_argument("--recursive", action="store_true",
                     help="Search subfolders; excludes course candidates/ and parsed/ state")
     pa.add_argument("--dry-run", action="store_true",
@@ -1414,6 +1425,16 @@ def main():
     if not args.cmd:
         p.print_help()
         print(f"\nERROR: which command? Pick one of: {', '.join(COMMANDS)}")
+        return EXIT_SETUP_ERROR
+
+    if (args.cmd == "add-exam" and not MVP_INDEPENDENT_REVIEW_ENABLED
+            and (args.review or args.review_corrections)):
+        print(
+            "ERROR: Independent review is outside the MVP. "
+            "Run add-exam without --review or --review-corrections; "
+            "the command will stop after Stage 2 and save the candidate.",
+            file=sys.stderr,
+        )
         return EXIT_SETUP_ERROR
 
     dispatch = {

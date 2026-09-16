@@ -122,6 +122,15 @@ class CommandLevelExitCodeTests(unittest.TestCase):
         self.assertTrue(saved.exists(), "a successful paper must keep its saved candidate")
         self.assertEqual(json.loads(saved.read_text(encoding="utf-8"))["candidate_status"], "validated")
 
+    def test_independent_review_is_outside_the_mvp(self):
+        paper = self.paper("paper.txt")
+        result = run_pipeline(str(self.course), "add-exam", str(paper), "--review")
+
+        self.assertEqual(result.returncode, app.EXIT_SETUP_ERROR, result.stdout + result.stderr)
+        self.assertIn("Independent review is outside the MVP", result.stderr)
+        self.assertIn("stop after Stage 2", result.stderr)
+        self.assertFalse(self.course.exists(), "the rejected review request must stop before setup")
+
     def test_all_failure_batch_exits_nonzero_and_does_not_claim_success(self):
         # Empty text fails extraction before any model call — fully offline,
         # and it never reaches process_exam_file's save step.
