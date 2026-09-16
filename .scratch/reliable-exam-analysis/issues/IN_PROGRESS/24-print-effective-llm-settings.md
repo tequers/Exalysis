@@ -21,13 +21,13 @@
     "pipeline/tests/test_explicit_configuration.py"
   ],
   "verification": {
-    "commit": "b3b1b687947f646110ebaedff48e10f975bcf1f9",
-    "checked_at": "2026-09-16T19:56:54+00:00",
+    "commit": "ef5e69c30b52ffe1ea60b090109b83ffafc1ba71",
+    "checked_at": "2026-09-16T20:01:58+00:00",
     "criteria_digest": "e0c2d57c0ede5fe6f286e0a173252a494b87efe446251fd82ca4ad9657c20ef6",
     "checker": "Codex",
-    "result": "still_valid",
+    "result": "already_resolved",
     "evidence": [
-      "At commit b3b1b68, add-exam configures both ModelClient objects but prints no provider, model, or effective limits. RequestLimits still applies generic 128,000 context and 32,000 output defaults to the requested UnoRouter GLM 5.3 models unless environment overrides are supplied."
+      "At commit ef5e69c, live add-exam startup prints the effective provider, models, and per-stage limits without credentials. UnoRouter GLM 5.3 defaults use 1,000,000 context and 128,000 output tokens, explicit overrides remain effective, the 307,598-token synthetic 20-page request fits, and all 224 pipeline plus 35 ticket tests pass."
     ],
     "provisional": false
   },
