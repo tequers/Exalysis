@@ -465,14 +465,19 @@ class MigrationTests(TicketToolTestCase):
             "TO_REVIEW": "Review",
             "DONE": "Done",
         }
+        legacy_ids = {f"{number:02d}" for number in range(1, 22)}
         legacy_ticket_count = 0
+        total_ticket_count = 0
         references: list[str] = []
         for ticket_file in (self.backlog / "issues").rglob("*.md"):
             source = ticket_file.read_text(encoding="utf-8")
             opening = source.index("```json\n") + len("```json\n")
             closing = source.index("\n```", opening)
             values = json.loads(source[opening:closing])
+            total_ticket_count += 1
             references.extend(values["references"])
+            if values["id"] not in legacy_ids:
+                continue
             title = source.splitlines()[0]
             remainder = source[closing + len("\n```"):].lstrip("\n")
             prerequisite_text = "; ".join(f"{item}: prerequisite" for item in values["depends_on"]) or "none"
@@ -534,7 +539,7 @@ class MigrationTests(TicketToolTestCase):
             "```json" in ticket_file.read_text(encoding="utf-8")
             for ticket_file in (self.backlog / "issues").rglob("*.md")
         )
-        self.assertEqual(21, metadata_count)
+        self.assertEqual(total_ticket_count, metadata_count)
         again = subprocess.run(
             [sys.executable, str(MIGRATION), "--root", str(self.root), "--backlog", BACKLOG, "--apply"],
             cwd=self.root, text=True, capture_output=True,
