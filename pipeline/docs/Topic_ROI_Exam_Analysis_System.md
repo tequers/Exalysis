@@ -20,18 +20,18 @@ Everything below is the engineering of that ratio.
 
 | Symbol | Metric | Definition | Scale |
 |---|---|---|---|
-| $\hat{F}$ | **Frequency** | **Recency-weighted** fraction of analyzed exams in which the topic appeared (Section 1.5). A probability proxy for "will it appear next time," with newer exams counting more. | 0–1 |
-| $\hat{G}$ | **Grade Points** | **Recency-weighted** average marks the topic is worth *when it appears*, divided by total marks on the exam. Expresses weight as a fraction of one exam. | 0–1 |
-| $D$ | **Difficulty / Learning Time** | Estimated hours to reach mastery, *including prerequisite knowledge*. Use hours directly so the final score reads as "exam value per hour." | hours (>0) |
+| $\text{Freq}$ | **Frequency** | **Recency-weighted** fraction of analyzed exams in which the topic appeared (Section 1.5). A probability proxy for "will it appear next time," with newer exams counting more. | 0–1 |
+| $\text{G\_Marks}$ | **Grade Points** | **Recency-weighted** average marks the topic is worth *when it appears*, divided by total marks on the exam. Expresses weight as a fraction of one exam. | 0–1 |
+| $\text{Diff}$ | **Difficulty / Learning Time** | Estimated hours to reach mastery, *including prerequisite knowledge*. Use hours directly so the final score reads as "exam value per hour." | hours (>0) |
 | $N$ | **Interconnectedness (Node Value)** | How much *other* exam value this concept unlocks as a prerequisite. Computed from the prerequisite graph (Section 1.3), not guessed. | derived |
 
-Normalizing $\hat{F}$ and $\hat{G}$ to $[0,1]$ keeps the numerator interpretable as "fraction of an exam's marks" and prevents any single raw scale from dominating. Both are time-weighted so that a syllabus drifting over the years is tracked rather than averaged away (Section 1.5).
+Normalizing $\text{Freq}$ and $\text{G\_Marks}$ to $[0,1]$ keeps the numerator interpretable as "fraction of an exam's marks" and prevents any single raw scale from dominating. Both are time-weighted so that a syllabus drifting over the years is tracked rather than averaged away (Section 1.5).
 
 ### 1.2 The formula
 
 **Own value** (the points the topic earns directly) is the expected-value product of probability × payoff:
 
-$$OV_i = \hat{F}_i \times \hat{G}_i$$
+$$OV_i = \text{Freq}_i \times \text{G\_Marks}_i$$
 
 **Unlock value** (the node-value insight) is the exam value of every topic this concept is a prerequisite for, discounted by a decay factor $d$:
 
@@ -39,7 +39,7 @@ $$U_i = d \sum_{j \in \text{unlocked}(i)} OV_j \qquad (d \approx 0.5)$$
 
 **Total value** and the final **Study Priority Score (SPS)**:
 
-$$V_i = OV_i + U_i \qquad\qquad \boxed{\;SPS_i = \dfrac{V_i}{D_i \times M_{\text{format},i}}\;}$$
+$$V_i = OV_i + U_i \qquad\qquad \boxed{\;SPS_i = \dfrac{V_i}{\text{Diff}_i \times M_{\text{format},i}}\;}$$
 
 where $M_{\text{format}}$ is the format-depth multiplier from Section 3. Multiply the result by 100 for readable numbers. Higher score → study earlier.
 
@@ -56,7 +56,7 @@ Both feed the same $SPS$ formula; start with the practical version and upgrade o
 
 Five past exams, 100 marks each, decay $d=0.5$. "Downstream OV" is the summed own-value of topics each concept unlocks.
 
-| Topic | $\hat{F}$ | $\hat{G}$ | $OV$ | $U$ | $V$ | Effort $D{\times}M$ | **SPS** | SPS *without* N |
+| Topic | $\text{Freq}$ | $\text{G\_Marks}$ | $OV$ | $U$ | $V$ | Effort $\text{Diff}{\times}M$ | **SPS** | SPS *without* N |
 |---|---|---|---|---|---|---|---|---|
 | Big-O Notation (MCQ/short answer) | 1.0 | 0.08 | 0.080 | 0.100 | 0.180 | 4×1.2 = 4.8 | **3.75** | 1.67 |
 | Pointers / Memory (write C code) | 1.0 | 0.18 | 0.180 | 0.150 | 0.330 | 10×2.2 = 22.0 | **1.50** | 0.82 |
@@ -77,9 +77,9 @@ A 2019 exam and a 2025 exam should not count equally if the syllabus is drifting
 
 $$w_t = \lambda^{\,t}, \qquad \lambda \in (0,1]$$
 
-**Weighted metrics** (weights appear in both numerator and denominator, so $\hat{F}$ stays in $[0,1]$):
+**Weighted metrics** (weights appear in both numerator and denominator, so $\text{Freq}$ stays in $[0,1]$):
 
-$$\hat{F}_i = \frac{\sum_{t\,\in\,\text{present}(i)} w_t}{\sum_{t\,\in\,\text{all exams}} w_t} \qquad\qquad \hat{G}_i = \frac{\sum_{t\,\in\,\text{present}(i)} w_t \, g_{i,t}}{\sum_{t\,\in\,\text{present}(i)} w_t}$$
+$$\text{Freq}_i = \frac{\sum_{t\,\in\,\text{present}(i)} w_t}{\sum_{t\,\in\,\text{all exams}} w_t} \qquad\qquad \text{G\_Marks}_i = \frac{\sum_{t\,\in\,\text{present}(i)} w_t \, g_{i,t}}{\sum_{t\,\in\,\text{present}(i)} w_t}$$
 
 where $g_{i,t}$ is topic $i$'s mark-fraction on exam $t$. Setting $\lambda = 1$ recovers the original flat averages.
 
@@ -94,7 +94,7 @@ $$\lambda = 1 - k\,(1 - S), \qquad k \approx 0.5$$
 | 0.5 | 0.75 | ≈ 2.4 yrs | Old exams fade quickly |
 | 0.2 | 0.60 | ≈ 1.4 yrs | Effectively only the last few exams count |
 
-**What it buys you.** Two topics each appearing in 3 of 5 exams (2021–2025, $\lambda = 0.9$) get *identical* flat frequency (0.60) but separate once weighted: a **rising** topic in the three newest exams scores $\hat{F} = 0.66$, while a **fading** topic in the three oldest scores $\hat{F} = 0.54$. The weighting distinguishes a concept trending *into* the syllabus from one trending *out* — invisible to a flat count, and the core reason to track exam dates at all.
+**What it buys you.** Two topics each appearing in 3 of 5 exams (2021–2025, $\lambda = 0.9$) get *identical* flat frequency (0.60) but separate once weighted: a **rising** topic in the three newest exams scores $\text{Freq} = 0.66$, while a **fading** topic in the three oldest scores $\text{Freq} = 0.54$. The weighting distinguishes a concept trending *into* the syllabus from one trending *out* — invisible to a flat count, and the core reason to track exam dates at all.
 
 **Apply the same weights to the format multiplier.** Compute $M_{\text{format}}$ (Section 3) from a *recency-weighted* format distribution, so the current testing style dominates. If questions have shifted from short-answer toward writing raw code, your effort estimate tracks where the exam is heading. Low $S$ thus matters twice: it steepens the decay *and* signals the format mix itself is moving.
 
@@ -104,7 +104,7 @@ The defaults are deliberately conservative; expose these and calibrate against o
 
 - **Format consistency $S$** (sets $\lambda$): your single most important temporal lever. Estimate it by comparing the oldest and newest exams' structure; $S = 0.8$ is a sensible default for a stable course.
 - **Decay $d$** (0.3–0.7): higher rewards foundational topics more aggressively.
-- **Frequency vs. grade emphasis:** if you prefer a tunable weighted sum over the strict expected-value product, use $OV_i = \hat{F}_i^{\,a}\,\hat{G}_i^{\,b}$ and adjust exponents $a,b$.
+- **Frequency vs. grade emphasis:** if you prefer a tunable weighted sum over the strict expected-value product, use $OV_i = \text{Freq}_i^{\,a}\,\text{G\_Marks}_i^{\,b}$ and adjust exponents $a,b$.
 - **Difficulty units:** hours give an interpretable score; a 1–10 subjective scale works too but loses the "per hour" meaning.
 
 ---
@@ -115,7 +115,7 @@ This system is not invented from scratch — it recombines four established, rea
 
 **Value-over-effort scoring — RICE / Weighted Scoring (product management).** The RICE model ranks roadmap items by $(\text{Reach}\times\text{Impact}\times\text{Confidence})/\text{Effort}$ — value in the numerator, effort in the denominator. Our mapping is almost one-to-one: Frequency ≈ Reach, Grade Points ≈ Impact, Node Value ≈ a confidence/leverage multiplier, Difficulty×Format ≈ Effort. This validates the *ratio structure* and the practice of normalizing heterogeneous criteria before combining them ([RICE framework](https://www.tempo.io/guides/rice-score-prioritization-framework-product-management), [weighted scoring model](https://www.tempo.io/blog/weighted-scoring-model)).
 
-**Difficulty as a measurable parameter — Item Response Theory (IRT) / Rasch.** Psychometrics, used to calibrate the SAT and GRE, models each item with separate **difficulty** and **discrimination** parameters rather than treating all questions equally. This is the precedent for keeping $D$ (difficulty) distinct from $G$ (grade weight): a question can carry many marks yet be easy, or few marks yet hard. The 2-parameter logistic (2PL) model in particular justifies weighting items by more than their point value ([IRT / item analysis](https://www.speedexam.net/blog/item-analysis-improve-exam-question-quality/), [Rasch item weighting](https://www.teachingenglish.org.uk/sites/teacheng/files/a_study_on_teachers_item_weighting_and_the_rasch_model_v2_0.pdf)).
+**Difficulty as a measurable parameter — Item Response Theory (IRT) / Rasch.** Psychometrics, used to calibrate the SAT and GRE, models each item with separate **difficulty** and **discrimination** parameters rather than treating all questions equally. This is the precedent for keeping $\text{Diff}$ (difficulty) distinct from $\text{G\_Marks}$ (grade weight): a question can carry many marks yet be easy, or few marks yet hard. The 2-parameter logistic (2PL) model in particular justifies weighting items by more than their point value ([IRT / item analysis](https://www.speedexam.net/blog/item-analysis-improve-exam-question-quality/), [Rasch item weighting](https://www.teachingenglish.org.uk/sites/teacheng/files/a_study_on_teachers_item_weighting_and_the_rasch_model_v2_0.pdf)).
 
 **Interconnectedness — PageRank on Educational Knowledge Graphs.** This is the strongest validation of the node-value idea. Researchers build directed concept graphs with **prerequisite relations** and run **PageRank to rank which concepts are core** to a body of material — the exact operation in Section 1.3's rigorous variant. Prerequisite-aware graphs are an established tool for curriculum planning and learning-path design ([core-concept identification via knowledge graphs + PageRank](https://link.springer.com/article/10.1007/s42979-024-03341-y), [concept graph learning](https://www.cs.cmu.edu/~hanxiaol/publications/yang-wsdm15.pdf), [AI-assisted prerequisite knowledge graphs](https://jedm.educationaldatamining.org/index.php/JEDM/article/view/737)).
 
@@ -129,7 +129,7 @@ In short: the **ratio** comes from RICE, the **difficulty parameter** from IRT, 
 
 **The problem.** *How* a concept is tested changes the depth of mastery required, and therefore the true cost. Recognizing the correct definition of a linked list in a multiple-choice question is a fraction of the work of writing, compiling, and debugging linked-list code under time pressure. Two questions on the same topic worth the same marks are not the same investment.
 
-**The model.** Format is a **multiplier on effort**, $M_{\text{format}} \ge 1$, anchored to Bloom's taxonomy (recognition → recall → application → synthesis). It scales the difficulty $D$ in the denominator because the format dictates the *mastery threshold* — the minimum competence you must reach before the topic pays out.
+**The model.** Format is a **multiplier on effort**, $M_{\text{format}} \ge 1$, anchored to Bloom's taxonomy (recognition → recall → application → synthesis). It scales the difficulty $\text{Diff}$ in the denominator because the format dictates the *mastery threshold* — the minimum competence you must reach before the topic pays out.
 
 | Format (how it's tested) | Bloom level | Cognitive demand | $M_{\text{format}}$ |
 |---|---|---|---|
@@ -140,7 +140,7 @@ In short: the **ratio** comes from RICE, the **difficulty parameter** from IRT, 
 
 **How to apply it per topic.** A topic rarely has one format. For each topic, take the **format distribution** across past exams weighted by marks, and use the mark-weighted average multiplier. If Pointers is tested as 70% code-writing (2.2) and 30% short-answer (1.3), then $M = 0.7(2.2)+0.3(1.3) = 1.93$. This rewards topics that, despite appearing often, are only ever tested shallowly — they're cheap to "exam-proof" even if deep mastery would take longer.
 
-**Two refinements worth noting.** (1) Format can also raise $G$, since code/design questions are often worth more marks — let that flow through naturally from the data rather than double-counting it in $M$. (2) The same multiplier doubles as a **study-mode prescription**: a topic dominated by $M=2.2$ tells you to practice by *writing code*, not re-reading notes — the ranking and the method-of-study fall out of the same number.
+**Two refinements worth noting.** (1) Format can also raise $\text{G\_Marks}$, since code/design questions are often worth more marks — let that flow through naturally from the data rather than double-counting it in $M$. (2) The same multiplier doubles as a **study-mode prescription**: a topic dominated by $M=2.2$ tells you to practice by *writing code*, not re-reading notes — the ranking and the method-of-study fall out of the same number.
 
 ---
 
@@ -168,7 +168,7 @@ After each exam, append `new_topics` to `taxonomy.json` (a quick human glance he
 
 ### Stage 3 — Per-topic metric aggregation
 
-> **Prompt:** Across all tagged questions provided (all exams), aggregate by topic. Each exam carries an `exam_year`. For each topic output: `{ "topic", "exam_years_present": [...], "marks_per_exam": {year: mark_fraction}, "format_distribution": {format: mark_fraction}, "difficulty_hours": <estimate>, "difficulty_rationale": "<1 sentence>", "prerequisites": [topics this depends on] }`. Keep results indexed by year so recency weights can be applied in Stage 5 — do **not** collapse to flat averages here. Estimate `difficulty_hours` as time for a typical student to reach exam-ready mastery **including listed prerequisites**, using this rubric: trivial/recall 1–2h; standard procedure 3–6h; multi-step or abstract 7–12h; deep/compositional 13h+.
+> **Prompt:** Across all tagged questions provided (all exams), aggregate by topic. Each exam carries an `exam_year`. For each topic output: `{ "topic", "exam_years_present": [...], "marks_per_exam": {year: mark_fraction}, "format_distribution": {format: mark_fraction}, "Diff_hours": <estimate>, "difficulty_rationale": "<1 sentence>", "prerequisites": [topics this depends on] }`. Keep results indexed by year so recency weights can be applied in Stage 5 — do **not** collapse to flat averages here. Estimate `Diff_hours` as time for a typical student to reach exam-ready mastery **including listed prerequisites**, using this rubric: trivial/recall 1–2h; standard procedure 3–6h; multi-step or abstract 7–12h; deep/compositional 13h+.
 > **Tagged questions (all exams):** `<<concatenated Stage 2 outputs>>` · **Exam years + total marks per exam:** `<<from Stage 0>>`
 
 ### Stage 4 — Prerequisite graph + Node Value
@@ -179,7 +179,7 @@ This produces the `unlocked(i)` sets for the formula. (For the rigorous variant,
 
 ### Stage 5 — Scoring & ranking
 
-> **Prompt:** Compute the Study Priority Score for each topic. First set the recency parameters: format consistency `S` (default 0.8), per-year decay $\lambda = 1 - 0.5(1-S)$, and for each exam year an age (newest = 0) and weight $w_t = \lambda^{\text{age}}$. Steps: (1) $\hat{F} = \big(\sum_{\text{years present}} w_t\big) / \big(\sum_{\text{all years}} w_t\big)$; (2) $\hat{G} = \big(\sum_{\text{present}} w_t\,g_t\big)/\big(\sum_{\text{present}} w_t\big)$ where $g_t$ is the year's mark-fraction; (3) $OV=\hat F\hat G$; (4) $U = 0.5\times\sum OV$ over `unlocked_topics`; (5) $V=OV+U$; (6) $M$ = **recency-weighted** mark-weighted format multiplier using {mcq:1.0, short_answer:1.3, explain_derive:1.6, produce_code_proof_design:2.2} (weight each year's format mix by $w_t$); (7) $SPS = 100\times V/(\text{difficulty\_hours}\times M)$. Output a table sorted by $SPS$ descending with all intermediate columns shown (include $\hat F$ and its flat counterpart so recency effects are visible), then mark the cumulative top 20% of topics by $V$ as **Tier 1 (high-yield core)**.
+> **Prompt:** Compute the Study Priority Score for each topic. First set the recency parameters: format consistency `S` (default 0.8), per-year decay $\lambda = 1 - 0.5(1-S)$, and for each exam year an age (newest = 0) and weight $w_t = \lambda^{\text{age}}$. Steps: (1) $\text{Freq} = \big(\sum_{\text{years present}} w_t\big) / \big(\sum_{\text{all years}} w_t\big)$; (2) $\text{G\_Marks} = \big(\sum_{\text{present}} w_t\,g_t\big)/\big(\sum_{\text{present}} w_t\big)$ where $g_t$ is the year's mark-fraction; (3) $OV=\text{Freq}\,\text{G\_Marks}$; (4) $U = 0.5\times\sum OV$ over `unlocked_topics`; (5) $V=OV+U$; (6) $M$ = **recency-weighted** mark-weighted format multiplier using `{mcq:1.0, short_answer:1.3, explain_derive:1.6, produce_code_proof_design:2.2}` (weight each year's format mix by $w_t$); (7) $SPS = 100\times V/(\text{Diff\_hours}\times M)$. Output a table sorted by $SPS$ descending with all intermediate columns shown (include $\text{Freq}$ and its flat counterpart so recency effects are visible), then mark the cumulative top 20% of topics by $V$ as **Tier 1 (high-yield core)**.
 > **Data:** `<<Stage 3 + Stage 4 outputs>>` · **Format consistency $S$:** `<<your estimate, default 0.8>>`
 
 ### Stage 6 — Validation (do not skip)
