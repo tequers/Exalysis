@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "synthetic-equations-2026",
+  "source_name": "synthetic-equations-2026.txt",
+  "source_text": "Exam 2026. Answer both questions. Total: 10 marks.\nQ1. Define a linear equation. [4 marks]\nQ2. Use elimination to solve x + y = 5 and x - y = 1. Show your steps. [6 marks]\n",
+  "total_marks": 10,
+  "taxonomy": {"topics": {"Linear equations": {}}},
+  "frozen_stage1": {
+    "exam_year": 2026,
+    "questions": [
+      {
+        "q_id": "Q1",
+        "text": "Define a linear equation.",
+        "marks": 4,
+        "format": "short_answer",
+        "source_context": "Exam 2026. Answer both questions. Total: 10 marks.\nQ1. Define a linear equation. [4 marks]\n"
+      },
+      {
+        "q_id": "Q2",
+        "text": "Use elimination to solve x + y = 5 and x - y = 1. Show your steps.",
+        "marks": 6,
+        "format": "explain_derive",
+        "source_context": "Exam 2026. Answer both questions. Total: 10 marks.\nQ2. Use elimination to solve x + y = 5 and x - y = 1. Show your steps. [6 marks]\n"
+      }
+    ]
+  },
+  "expectations": {
+    "authorship": "Synthetic test case authored during implementation; these choices await human calibration before reference adoption.",
+    "local_values": {
+      "/total_marks": 10,
+      "/per_topic/Linear equations/marks_total": 10.0,
+      "/per_topic/Linear equations/mark_fraction": 1.0,
+      "/per_topic/Linear equations/Diff": 1,
+      "/per_topic/Linear equations/Conn": 1,
+      "/per_topic/Linear equations/format_distribution": {"short_answer": 0.4, "explain_derive": 0.6},
+      "/per_topic/Linear equations/dominant_format": "explain_derive"
+    },
+    "topics": {"Q1": [["Linear equations"]], "Q2": [["Linear equations"]]},
+    "difficulty_levels": {"Linear equations": {"Q1": [1], "Q2": [2, 3]}},
+    "new_topic_names": [[]]
+  }
+}
