@@ -193,6 +193,32 @@ class IndependentConfigurationTests(unittest.TestCase):
         factory.assert_called_once_with(api_key="alias-test-key", base_url="https://api.unorouter.com/v1",
                                         organization="", project="")
 
+    def test_glm_53_defaults_cover_a_twenty_page_exam_and_keep_env_overrides(self):
+        env = {
+            "LLM_PROVIDER": "unorouter",
+            "LLM_MODEL_STAGE1": "glm-5.3-flash",
+            "LLM_MODEL_STAGE2": "glm-5.3",
+        }
+        clients = app.configure_model_clients(env)
+        for client in clients.values():
+            self.assertEqual(client.limits, RequestLimits(1_000_000, 128_000, 1024))
+
+        paper = "\n\n".join(
+            f"[Page {page}]\n" + "Question text and choices. " * 300
+            for page in range(1, 21)
+        )
+        prompt = app._extraction_prompt(paper, None)
+        clients["extraction_client"].limits.check(
+            app._S1_SYSTEM, prompt, clients["extraction_client"].limits.output_tokens)
+
+        overridden = app.configure_model_clients({
+            **env,
+            "LLM_CONTEXT_TOKENS_STAGE1": "300000",
+            "LLM_MAX_OUTPUT_TOKENS_STAGE1": "64000",
+            "LLM_OVERHEAD_TOKENS_STAGE1": "2048",
+        })["extraction_client"]
+        self.assertEqual(overridden.limits, RequestLimits(300_000, 64_000, 2048))
+
     def test_course_construction_and_missing_analysis_client_have_no_implicit_setup(self):
         with tempfile.TemporaryDirectory() as temp:
             course = CoursePaths(Path(temp) / "absent")
@@ -202,6 +228,45 @@ class IndependentConfigurationTests(unittest.TestCase):
 
 
 class StartupTests(unittest.TestCase):
+    def test_add_exam_prints_effective_llm_settings_without_credentials(self):
+        env = {
+            "LLM_PROVIDER": "unorouter",
+            "UNOROUTER_API_KEY": "secret-test-key",
+            "LLM_MODEL_STAGE1": "glm-5.3-flash",
+            "LLM_MODEL_STAGE2": "glm-5.3",
+        }
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch.dict(os.environ, env, clear=True), \
+             patch.object(sys, "argv", ["pipeline.py", temp, "add-exam"]), \
+             patch.object(app, "load_dotenv"), \
+             patch.object(app, "cmd_add_exam", return_value=app.EXIT_OK), \
+             redirect_stdout(out):
+            self.assertEqual(app.main(), app.EXIT_OK)
+        self.assertIn("LLM settings", out.getvalue())
+        self.assertIn(
+            "Stage 1: provider=unorouter, model=glm-5.3-flash, "
+            "context=1,000,000, max_output=128,000, overhead=1,024 tokens",
+            out.getvalue(),
+        )
+        self.assertIn(
+            "Stage 2: provider=unorouter, model=glm-5.3, "
+            "context=1,000,000, max_output=128,000, overhead=1,024 tokens",
+            out.getvalue(),
+        )
+        self.assertNotIn("secret-test-key", out.getvalue())
+
+    def test_dry_run_does_not_configure_or_print_llm_settings(self):
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch.object(sys, "argv", ["pipeline.py", temp, "add-exam", "--dry-run"]), \
+             patch.object(app, "configure_model_clients",
+                          side_effect=AssertionError("dry run configured a model")), \
+             patch.object(app, "cmd_add_exam", return_value=app.EXIT_OK), \
+             redirect_stdout(out):
+            self.assertEqual(app.main(), app.EXIT_OK)
+        self.assertNotIn("LLM settings", out.getvalue())
+
     def test_explicit_dotenv_loading_preserves_environment_and_raises_defined_failures(self):
         with tempfile.TemporaryDirectory() as temp:
             dotenv = Path(temp) / "settings.env"

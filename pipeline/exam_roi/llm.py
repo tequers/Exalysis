@@ -40,12 +40,13 @@ class RequestLimits:
             raise ValueError("Context must leave room for input after output and framing")
 
     @classmethod
-    def from_env(cls, env, stage):
+    def from_env(cls, env, stage, defaults=None):
+        defaults = defaults or cls()
         return cls(**{field: int(env.get(f"LLM_{key}_STAGE{stage}", default))
                       for field, key, default in (
-                          ("context_tokens", "CONTEXT_TOKENS", 128000),
-                          ("output_tokens", "MAX_OUTPUT_TOKENS", 32000),
-                          ("overhead_tokens", "OVERHEAD_TOKENS", 1024))})
+                          ("context_tokens", "CONTEXT_TOKENS", defaults.context_tokens),
+                          ("output_tokens", "MAX_OUTPUT_TOKENS", defaults.output_tokens),
+                          ("overhead_tokens", "OVERHEAD_TOKENS", defaults.overhead_tokens))})
 
     def check(self, system, user, max_tokens, count_tokens=estimate_tokens):
         if type(max_tokens) is not int or not 0 < max_tokens <= self.output_tokens:
