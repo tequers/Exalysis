@@ -1,7 +1,11 @@
 """Request budgets and provider responses, independent of exam interpretation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import time
+
+
+class ModelConfigurationError(ValueError):
+    """A model request cannot run with the supplied configuration."""
 
 
 class RequestLimitError(ValueError):
@@ -92,6 +96,7 @@ class ModelClient:
     count_tokens: object = estimate_tokens
     attempts: int = 3
     provider: str = ""
+    client_factory: object = field(default=None, repr=False)
 
     def __post_init__(self):
         if self.sdk not in {"anthropic", "openai"}:
@@ -104,6 +109,10 @@ class ModelClient:
             raise ValueError("An injected ModelClient cannot switch models with different limits")
         max_tokens = self.limits.output_tokens if max_tokens is None else max_tokens
         self.limits.check(system, user, max_tokens, self.count_tokens)
+        if self.client is None:
+            if self.client_factory is None:
+                raise ModelConfigurationError("Supply a model client before analyzing an exam")
+            self.client = self.client_factory()
         for attempt in range(self.attempts):
             try:
                 if self.sdk == "anthropic":
@@ -166,24 +175,45 @@ def run_batches(items, make_prompt, consume, *, system, client, limits,
 
 
 def configured_model_client(provider, model, limits, *, providers, env, attempts=3):
-    """Construct an independent reviewer; setup failures are review failures."""
+    """Capture configuration now; open the SDK only when a request is needed.
+
+    The environment mapping is supplied by startup, never read from the process.
+    Credentials and provider routing are captured here so later environment changes
+    cannot replace them. Budget checks precede SDK and credential validation.
+    """
     if provider not in providers:
-        raise ValueError(f"Unknown reviewer provider: {provider}")
+        raise ModelConfigurationError(f"Unknown LLM provider: {provider}")
     if not model or not model.strip():
-        raise ValueError("Set LLM_REVIEW_MODEL to an exact reviewer model ID")
-    config = providers[provider]
+        raise ModelConfigurationError("Supply an exact model ID")
+    config = dict(providers[provider])
     key_names = (config["key_env"], *config.get("key_env_aliases", ()))
     key = next((env.get(name) for name in key_names if env.get(name)), None)
-    if not key:
-        raise ValueError(f"Reviewer credential {config['key_env']} is not set")
     if config["sdk"] == "anthropic":
-        import anthropic
-        sdk_client = anthropic.Anthropic(api_key=key)
+        base_url = config["base_url"] or env.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
     else:
-        import openai
-        kwargs = {"api_key": key}
-        if config["base_url"]:
-            kwargs["base_url"] = config["base_url"]
-        sdk_client = openai.OpenAI(**kwargs)
-    return ModelClient(sdk_client, config["sdk"], model, limits,
-                       attempts=attempts, provider=provider)
+        base_url = config["base_url"] or env.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    # None tells the SDK to consult the process environment at construction time.
+    # Empty strings explicitly preserve the absence of an organization/project.
+    organization = env.get("OPENAI_ORG_ID", "")
+    project = env.get("OPENAI_PROJECT_ID", "")
+
+    def create_sdk_client():
+        if not key:
+            raise ModelConfigurationError(
+                f"{config['key_env']} is not set, and reading exams needs AI calls.\n"
+                f"       set {config['key_env']}=...       (Windows)\n"
+                f"       export {config['key_env']}=...    (macOS/Linux)\n"
+                f"       Provider is '{provider}'. Set LLM_PROVIDER to use another.")
+        try:
+            if config["sdk"] == "anthropic":
+                import anthropic
+                return anthropic.Anthropic(api_key=key, base_url=base_url)
+            import openai
+        except ImportError as exc:
+            raise ModelConfigurationError(
+                f"Install the {config['sdk']} SDK: pip install {config['sdk']}") from exc
+        return openai.OpenAI(api_key=key, base_url=base_url,
+                             organization=organization, project=project)
+
+    return ModelClient(None, config["sdk"], model, limits,
+                       attempts=attempts, provider=provider, client_factory=create_sdk_client)

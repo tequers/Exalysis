@@ -16,6 +16,7 @@ PIPELINE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PIPELINE))
 
 from exam_roi.inputs import ExtractionError, extract_exam_text
+from exam_roi.evaluation import CandidateValidationError, _validate_extraction_provenance
 
 with patch.dict(os.environ, {"LLM_PROVIDER": "anthropic"}):
     app = importlib.import_module("pipeline")
@@ -36,7 +37,8 @@ def fake_pdf(*page_texts, fallback_texts=None):
         PdfReader=MagicMock(return_value=SimpleNamespace(pages=pages(page_texts)))
     )
     reader = MagicMock()
-    reader.__enter__.return_value = SimpleNamespace(pages=pages(fallback_texts or ()))
+    reader.__enter__.return_value = SimpleNamespace(
+        pages=pages(page_texts if fallback_texts is None else fallback_texts))
     reader.__exit__.return_value = False
     pdfplumber = SimpleNamespace(open=MagicMock(return_value=reader))
     return {"pypdf": pypdf, "pdfplumber": pdfplumber}
@@ -149,6 +151,20 @@ class PdfExtractionTests(unittest.TestCase):
         self.assertEqual(extracted.page_count, 2)
         self.assertEqual(extracted.kind, "pdf_text_layer_pdfminer_fallback")
 
+    def test_fallback_with_a_different_page_count_is_rejected(self):
+        for primary, fallback in [
+            (["Question 1", "", ""], ["Question 1", "Question 2"]),
+            (["Question 1", ""], ["Question 1", "Question 2", "Question 3"]),
+        ]:
+            with self.subTest(primary_pages=len(primary), fallback_pages=len(fallback)):
+                with self.assertRaises(ExtractionError) as raised:
+                    self.extract(fake_pdf(*primary, fallback_texts=fallback))
+                error = raised.exception
+                self.assertEqual(error.kind, "inconsistent_page_count")
+                self.assertIn(f"pypdf found {len(primary)}", error.reason)
+                self.assertIn(f"pdfplumber found {len(fallback)}", error.reason)
+                self.assertIn("page count", error.remedy)
+
     def test_primary_reader_stands_when_the_fallback_reads_no_more_pages(self):
         # One reader's pages are taken whole: text is never stitched together from
         # both, so a paper each reader reads half of is still sent back for fixing.
@@ -253,41 +269,58 @@ class RejectedInputMakesNoModelCallTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        app.setup_course_folder(Path(self.tmp.name))
+        self.context = app.setup_course_folder(Path(self.tmp.name))
 
     def process(self, name, data):
         path = Path(self.tmp.name) / name
         path.write_bytes(data)
         no_calls = MagicMock(side_effect=AssertionError("a model was called"))
         with patch.object(app, "call_llm", no_calls), \
-             patch.object(app, "_client", no_calls):
+             patch.object(app, "stage1_extract", side_effect=AssertionError("Stage 1 was called")) as stage1:
             with self.assertRaises(ExtractionError) as raised:
-                app.process_exam_file(path, force=True)
+                app.process_exam_file(path, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        stage1.assert_not_called()
         no_calls.assert_not_called()
+        self.assertEqual(list(self.context.candidates_dir.glob("*.json")), [])
+        self.assertEqual(list(self.context.parsed_dir.glob("*.json")), [])
         return raised.exception
 
     def test_empty_paper_is_rejected_before_stage_1_and_saves_nothing(self):
         error = self.process("empty_2026.txt", b"\n \n")
         self.assertEqual(error.kind, "empty_text")
-        self.assertEqual(list(app.CANDIDATES_DIR.glob("*.json")), [])
-        self.assertEqual(list(app.PARSED_DIR.glob("*.json")), [])
+        self.assertEqual(list(self.context.candidates_dir.glob("*.json")), [])
+        self.assertEqual(list(self.context.parsed_dir.glob("*.json")), [])
 
     def test_bad_encoding_is_rejected_before_stage_1(self):
         self.assertEqual(
             self.process("latin_2026.txt", b"Pregunta \xf3").kind, "invalid_encoding")
+
+    def test_fully_textless_pdf_is_rejected_before_stage_1_and_saves_nothing(self):
+        with patch.dict(sys.modules, fake_pdf("", "  \n")):
+            error = self.process("textless_2026.pdf", b"%PDF-test")
+        self.assertEqual(error.kind, "textless_pages")
+
+    def test_page_count_disagreement_is_rejected_before_stage_1_and_saves_nothing(self):
+        for primary, fallback in [
+            (["Question 1", "", ""], ["Question 1", "Question 2"]),
+            (["Question 1", ""], ["Question 1", "Question 2", "Question 3"]),
+        ]:
+            with self.subTest(primary_pages=len(primary), fallback_pages=len(fallback)), \
+                 patch.dict(sys.modules, fake_pdf(*primary, fallback_texts=fallback)):
+                error = self.process("disagreement_2026.pdf", b"%PDF-test")
+                self.assertEqual(error.kind, "inconsistent_page_count")
 
     def test_scanned_pdf_is_rejected_before_stage_1(self):
         path = Path(self.tmp.name) / "scan_2026.pdf"
         path.write_bytes(b"%PDF-test")
         no_calls = MagicMock(side_effect=AssertionError("a model was called"))
         with patch.dict(sys.modules, fake_pdf("Question 1", "")), \
-             patch.object(app, "call_llm", no_calls), \
-             patch.object(app, "_client", no_calls):
+             patch.object(app, "call_llm", no_calls):
             with self.assertRaises(ExtractionError) as raised:
-                app.process_exam_file(path, force=True)
+                app.process_exam_file(path, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(raised.exception.kind, "textless_pages")
         no_calls.assert_not_called()
-        self.assertEqual(list(app.CANDIDATES_DIR.glob("*.json")), [])
+        self.assertEqual(list(self.context.candidates_dir.glob("*.json")), [])
 
     def test_add_exam_reports_the_problem_and_the_fix_for_each_rejected_file(self):
         for name, data in [("empty_2026.txt", b" "), ("latin_2026.txt", b"\xf3")]:
@@ -296,9 +329,8 @@ class RejectedInputMakesNoModelCallTests(unittest.TestCase):
                                exam_id=None, force=True)
         no_calls = MagicMock(side_effect=AssertionError("a model was called"))
         with patch.object(app, "call_llm", no_calls), \
-             patch.object(app, "_client", no_calls), \
              patch("builtins.print") as printed:
-            app.cmd_add_exam(args)
+            app.cmd_add_exam(args, course=self.context)
         log = "\n".join(str(call.args[0]) for call in printed.call_args_list if call.args)
         no_calls.assert_not_called()
         self.assertIn("empty_2026.txt holds no text", log)
@@ -311,7 +343,7 @@ class AcceptedInputProvenanceTests(unittest.TestCase):
     def test_saved_candidate_keeps_the_page_references_and_the_check_limit(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        app.setup_course_folder(Path(tmp.name))
+        self.context = app.setup_course_folder(Path(tmp.name))
         paper = Path(tmp.name) / "paper_2026.txt"
         paper.write_text("Question 1\nSolve the two equations.\n", encoding="utf-8")
 
@@ -334,15 +366,137 @@ class AcceptedInputProvenanceTests(unittest.TestCase):
         with patch.object(app, "stage1_extract", return_value=([question], 2026)), \
              patch.object(app, "_stage2_tag", return_value=({"Q1": tag}, ["Equations"])), \
              patch.object(app, "call_llm", return_value=json.dumps(scores)):
-            app.process_exam_file(paper, force=True)
+            app.process_exam_file(paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
 
         candidate = json.loads(
-            (app.CANDIDATES_DIR / "paper_2026.json").read_text(encoding="utf-8"))
+            (self.context.candidates_dir / "paper_2026.json").read_text(encoding="utf-8"))
         extraction = candidate["source_provenance"]["extraction"]
         self.assertEqual(extraction["extraction_kind"], "utf8_text_file")
         self.assertEqual(extraction["text_encoding"], "utf-8")
         self.assertEqual(extraction["segments"][0]["line_start"], 1)
         self.assertIn("garbled", extraction["completeness_check_limit"])
+
+
+class AddExamHelpTests(unittest.TestCase):
+    def test_add_exam_help_explains_input_preparation_and_provider_transmission(self):
+        import io
+
+        with patch.object(sys, "argv", ["pipeline.py", "course", "add-exam", "--help"]), \
+             patch("sys.stdout", new_callable=io.StringIO) as out, \
+             self.assertRaises(SystemExit) as raised:
+            app.main()
+        self.assertEqual(raised.exception.code, 0)
+        help_text = " ".join(out.getvalue().split())
+        for phrase in (
+            "UTF-8 .txt",
+            "Scanned PDFs are unsupported in the MVP",
+            "OCR is not included",
+            "garbled, partial",
+            "configured provider",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, help_text)
+
+
+class ExtractionProvenanceValidationTests(unittest.TestCase):
+    def test_pdf_kinds_require_page_counts_and_reject_the_whole_file_bypass(self):
+        for kind in ("pdf_text_layer", "pdf_text_layer_pdfminer_fallback"):
+            for count in ("missing", None, 0, -1, True, 1.0, "1", 1, 2):
+                extraction = {
+                    "extraction_kind": kind,
+                    "character_count": 10,
+                    "segments": [{"label": "whole file", "page": None,
+                                  "char_start": 0, "char_end": 10,
+                                  "line_start": 1, "line_count": 1}],
+                }
+                if count != "missing":
+                    extraction["page_count"] = count
+                with self.subTest(kind=kind, page_count=count), \
+                     self.assertRaises(CandidateValidationError):
+                    _validate_extraction_provenance(extraction)
+
+    def test_pdf_kinds_require_a_count_even_with_valid_page_segments(self):
+        for kind in ("pdf_text_layer", "pdf_text_layer_pdfminer_fallback"):
+            for count in ("missing", None, 0, -1, True, 1.0, "1", 2):
+                extraction = {
+                    "extraction_kind": kind,
+                    "character_count": 10,
+                    "segments": [{"label": "Page 1", "page": 1,
+                                  "char_start": 0, "char_end": 10,
+                                  "line_start": 1, "line_count": 2}],
+                }
+                if count != "missing":
+                    extraction["page_count"] = count
+                with self.subTest(kind=kind, page_count=count), \
+                     self.assertRaisesRegex(CandidateValidationError, "page count|every PDF page"):
+                    _validate_extraction_provenance(extraction)
+
+    def test_text_kinds_accept_whole_file_references_and_reject_page_metadata(self):
+        for kind in ("utf8_text_file", "evaluation-source-text"):
+            extraction = {
+                "extraction_kind": kind,
+                "character_count": 10,
+                "segments": [{"label": "whole file", "page": None,
+                              "char_start": 0, "char_end": 10,
+                              "line_start": 1, "line_count": 1}],
+            }
+            with self.subTest(kind=kind):
+                _validate_extraction_provenance(extraction)
+            for count in (None, 1, 2):
+                with self.subTest(kind=kind, page_count=count), \
+                     self.assertRaisesRegex(CandidateValidationError, "must not include a page count"):
+                    _validate_extraction_provenance({**extraction, "page_count": count})
+            extraction["segments"][0].update(label="Page 1", page=1)
+            with self.subTest(kind=kind, shape="paged"), \
+                 self.assertRaises(CandidateValidationError):
+                _validate_extraction_provenance(extraction)
+            with self.subTest(kind=kind, shape="paged with count"), \
+                 self.assertRaises(CandidateValidationError):
+                _validate_extraction_provenance({**extraction, "page_count": 1})
+
+    def test_unknown_extraction_kind_is_rejected(self):
+        with self.assertRaisesRegex(CandidateValidationError, "kind is not supported"):
+            _validate_extraction_provenance({"extraction_kind": "unknown"})
+
+    def test_pdf_segments_require_complete_ordered_page_and_source_references(self):
+        text = "[Page 1]\nQuestion 1\n\n[Page 2]\nQuestion 2"
+        first = "[Page 1]\nQuestion 1"
+        second = "[Page 2]\nQuestion 2"
+        valid = {
+            "extraction_kind": "pdf_text_layer",
+            "character_count": len(text),
+            "page_count": 2,
+            "segments": [
+                {"label": "Page 1", "page": 1, "char_start": 0,
+                 "char_end": len(first), "line_start": 1, "line_count": 2},
+                {"label": "Page 2", "page": 2, "char_start": len(first) + 2,
+                 "char_end": len(text), "line_start": 4, "line_count": 2},
+            ],
+        }
+        for kind in ("pdf_text_layer", "pdf_text_layer_pdfminer_fallback"):
+            with self.subTest(kind=kind):
+                _validate_extraction_provenance({**valid, "extraction_kind": kind})
+
+        invalid = []
+        no_label = json.loads(json.dumps(valid))
+        del no_label["segments"][0]["label"]
+        invalid.append(no_label)
+        wrong_page = json.loads(json.dumps(valid))
+        wrong_page["segments"][1]["page"] = 3
+        invalid.append(wrong_page)
+        no_line_count = json.loads(json.dumps(valid))
+        no_line_count["segments"][0]["line_count"] = 0
+        invalid.append(no_line_count)
+        reversed_segments = json.loads(json.dumps(valid))
+        reversed_segments["segments"].reverse()
+        invalid.append(reversed_segments)
+        incomplete = json.loads(json.dumps(valid))
+        incomplete["character_count"] += 1
+        invalid.append(incomplete)
+
+        for extraction in invalid:
+            with self.subTest(extraction=extraction), self.assertRaises(CandidateValidationError):
+                _validate_extraction_provenance(extraction)
 
 
 if __name__ == "__main__":

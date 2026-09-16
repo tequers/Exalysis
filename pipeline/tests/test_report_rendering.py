@@ -251,8 +251,8 @@ class RebuildReportSemanticContentTests(unittest.TestCase):
         from io import StringIO
         from contextlib import redirect_stdout
         with redirect_stdout(StringIO()):
-            app.setup_course_folder(self.course)
-            self.exit_code = app.cmd_rebuild(None)
+            self.context = app.setup_course_folder(self.course)
+            self.exit_code = app.cmd_rebuild(None, course=self.context)
         self.ranked = json.loads((self.course / "Exam_ROI_Pipeline.json").read_text(encoding="utf-8"))
         self.sheets = dump_xlsx(self.course / "Exam_ROI_Pipeline.xlsx")
 

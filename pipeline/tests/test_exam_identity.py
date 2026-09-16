@@ -71,7 +71,7 @@ class StateBoundaryTests(unittest.TestCase):
         self.course.mkdir()
         self.outside = self.root / 'outside'
         self.outside.mkdir()
-        app.setup_course_folder(self.course)
+        self.context = app.setup_course_folder(self.course)
         self.paper = self.course / 'paper_2026.txt'
         self.paper.write_text('Use elimination.', encoding='utf-8')
 
@@ -85,7 +85,8 @@ class StateBoundaryTests(unittest.TestCase):
                 return [q], 2026
             extractor.side_effect = extract
         stack.enter_context(patch.object(app, 'stage2_tag_score', return_value={'per_topic': {}, 'new_topic_names': []}))
-        stack.enter_context(patch.object(app, 'build_candidate_analysis', return_value={'sentinel': 'new candidate'}))
+        stack.enter_context(patch.object(app, 'build_candidate_analysis', side_effect=lambda **kwargs: {
+            'exam_id': kwargs['exam_id'], 'per_topic': {}, 'sentinel': 'new candidate'}))
         stack.enter_context(patch.object(app, 'aggregate_taxonomy', return_value={'topics': {}}))
         stack.enter_context(patch.object(app, 'finalize_candidate_analysis', side_effect=lambda candidate, *args: candidate))
         return stack
@@ -93,7 +94,8 @@ class StateBoundaryTests(unittest.TestCase):
     def write_record(self, state, exam_id, source=None):
         folder = self.course / state
         folder.mkdir(exist_ok=True)
-        record = {'source_path': str(source or self.paper.resolve()), 'sentinel': 'original'}
+        record = {'exam_id': exam_id, 'per_topic': {},
+                  'source_path': str(source or self.paper.resolve()), 'sentinel': 'original'}
         path = folder / (exam_id + '.json')
         path.write_text(json.dumps(record), encoding='utf-8')
         return path
@@ -104,10 +106,10 @@ class StateBoundaryTests(unittest.TestCase):
             for force in [False, True]:
                 with self.subTest(value=repr(value), force=force), patch.object(app, 'call_llm', no_model):
                     with self.assertRaises(ExamIdentityError):
-                        app.process_exam_file(self.paper, exam_id=value, force=force)
+                        app.process_exam_file(self.paper, exam_id=value, force=force, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         no_model.assert_not_called()
-        self.assertFalse(app.PARSED_DIR.exists())
-        self.assertFalse(app.CANDIDATES_DIR.exists())
+        self.assertFalse(self.context.parsed_dir.exists())
+        self.assertFalse(self.context.candidates_dir.exists())
         self.assertEqual(list(self.outside.iterdir()), [])
 
     def test_plain_destination_is_resolved_inside_the_requested_state(self):
@@ -125,7 +127,7 @@ class StateBoundaryTests(unittest.TestCase):
                 try:
                     with patch.object(app, 'call_llm') as model:
                         with self.assertRaisesRegex(ExamIdentityError, 'Unsafe state directory'):
-                            app.process_exam_file(self.paper, exam_id='escape', force=True)
+                            app.process_exam_file(self.paper, exam_id='escape', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
                         model.assert_not_called()
                     self.assertEqual(list(self.outside.iterdir()), [])
                 finally:
@@ -145,7 +147,7 @@ class StateBoundaryTests(unittest.TestCase):
             try:
                 with self.subTest(state=state), patch.object(app, 'call_llm') as model:
                     with self.assertRaisesRegex(ExamIdentityError, 'hard-linked'):
-                        app.process_exam_file(self.paper, exam_id='linked', force=True)
+                        app.process_exam_file(self.paper, exam_id='linked', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
                     model.assert_not_called()
                 self.assertEqual(victim.read_text(encoding='utf-8'), 'outside data')
             finally:
@@ -165,7 +167,7 @@ class StateBoundaryTests(unittest.TestCase):
                 self.skipTest(f'File symlinks unavailable on this host: {exc}')
             try:
                 with self.subTest(exists=exists), self.assertRaisesRegex(ExamIdentityError, 'redirected'):
-                    app.process_exam_file(self.paper, exam_id='linked', force=True)
+                    app.process_exam_file(self.paper, exam_id='linked', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
                 self.assertEqual(victim.exists(), exists)
                 if exists:
                     self.assertEqual(victim.read_text(encoding='utf-8'), 'outside data')
@@ -176,15 +178,15 @@ class StateBoundaryTests(unittest.TestCase):
         folder = self.course / 'candidates' / 'paper.json'
         folder.mkdir(parents=True)
         with self.assertRaisesRegex(ExamIdentityError, 'directories'):
-            app.process_exam_file(self.paper, exam_id='paper', force=True)
+            app.process_exam_file(self.paper, exam_id='paper', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
 
     def test_containment_is_checked_again_after_analysis(self):
         def redirect():
-            app.CANDIDATES_DIR.rmdir()
-            directory_link(app.CANDIDATES_DIR, self.outside)
+            self.context.candidates_dir.rmdir()
+            directory_link(self.context.candidates_dir, self.outside)
         with self.fake_analysis(redirect):
             with self.assertRaisesRegex(ExamIdentityError, 'Unsafe state directory'):
-                app.process_exam_file(self.paper, exam_id='paper', force=True)
+                app.process_exam_file(self.paper, exam_id='paper', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(list(self.outside.iterdir()), [])
 
     def test_changed_course_root_cannot_redirect_the_final_write(self):
@@ -192,29 +194,35 @@ class StateBoundaryTests(unittest.TestCase):
             self.course.rename(self.root / 'original-course')
             directory_link(self.course, self.outside)
         with self.fake_analysis(redirect):
-            with self.assertRaisesRegex(ExamIdentityError, 'course destination changed'):
-                app.process_exam_file(self.paper, exam_id='paper', force=True)
+            with self.assertRaises((ExamIdentityError, PermissionError)) as raised:
+                app.process_exam_file(self.paper, exam_id='paper', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        if isinstance(raised.exception, PermissionError):
+            # Windows may prevent moving a directory with an open lock file.
+            self.assertEqual(os.name, 'nt')
+            self.assertTrue(self.course.is_dir())
+        else:
+            self.assertIn('course destination changed', str(raised.exception))
         self.assertEqual(list(self.outside.iterdir()), [])
 
     def test_file_link_inserted_during_analysis_is_rejected(self):
         victim = self.outside / 'victim.json'
         victim.write_text('outside data', encoding='utf-8')
         def redirect():
-            os.link(victim, app.CANDIDATES_DIR / 'paper.json')
+            os.link(victim, self.context.candidates_dir / 'paper.json')
         with self.fake_analysis(redirect):
             with self.assertRaisesRegex(ExamIdentityError, 'hard-linked'):
-                app.process_exam_file(self.paper, exam_id='paper', force=True)
+                app.process_exam_file(self.paper, exam_id='paper', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(victim.read_text(encoding='utf-8'), 'outside data')
 
     def test_final_save_rechecks_a_destination_changed_after_validation(self):
         victim = self.outside / 'victim.json'
         victim.write_text('outside data', encoding='utf-8')
         def finalize(candidate, *args):
-            os.link(victim, app.CANDIDATES_DIR / 'paper.json')
+            os.link(victim, self.context.candidates_dir / 'paper.json')
             return candidate
         with self.fake_analysis(), patch.object(app, 'finalize_candidate_analysis', side_effect=finalize):
             with self.assertRaisesRegex(ExamIdentityError, 'hard-linked'):
-                app.process_exam_file(self.paper, exam_id='paper', force=True)
+                app.process_exam_file(self.paper, exam_id='paper', force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(victim.read_text(encoding='utf-8'), 'outside data')
 
     def test_valid_custom_id_and_force_replace_only_the_named_candidate(self):
@@ -224,29 +232,29 @@ class StateBoundaryTests(unittest.TestCase):
         untouched = self.write_record('candidates', 'another')
         accepted_bytes, untouched_bytes = accepted.read_bytes(), untouched.read_bytes()
         with patch.object(app, 'call_llm') as model:
-            self.assertEqual(app.process_exam_file(self.paper, exam_id=exam_id),
+            self.assertEqual(app.process_exam_file(self.paper, exam_id=exam_id, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm),
                              app.ExamOutcome.SKIPPED_ACCEPTED)
             model.assert_not_called()
         with self.fake_analysis():
-            self.assertEqual(app.process_exam_file(self.paper, exam_id=exam_id, force=True),
+            self.assertEqual(app.process_exam_file(self.paper, exam_id=exam_id, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm),
                              app.ExamOutcome.SAVED)
         saved = json.loads(candidate.read_text(encoding='utf-8'))
         review = saved.pop('independent_review')
-        self.assertEqual(saved, {'sentinel': 'new candidate'})
+        self.assertEqual(saved, {'exam_id': exam_id, 'per_topic': {}, 'sentinel': 'new candidate'})
         self.assertFalse(review['enabled'])
         self.assertEqual(review['disposition'], 'disabled')
         self.assertEqual(accepted.read_bytes(), accepted_bytes)
         self.assertEqual(untouched.read_bytes(), untouched_bytes)
-        self.assertEqual(app.resolve_exam_id(self.paper, exam_id), exam_id)
+        self.assertEqual(app.resolve_exam_id(self.paper, exam_id, course=self.context), exam_id)
 
     def test_automatic_id_collision_uses_source_folder_and_rechecks_it(self):
         first = self.root / '2025' / self.paper.name
         self.write_record('parsed', self.paper.stem, source=first)
-        self.assertEqual(app.resolve_exam_id(self.paper), f'course_{self.paper.stem}')
+        self.assertEqual(app.resolve_exam_id(self.paper, course=self.context), f'course_{self.paper.stem}')
         self.write_record('candidates', f'course_{self.paper.stem}')
-        self.assertEqual(app.resolve_exam_id(self.paper), f'course_{self.paper.stem}')
+        self.assertEqual(app.resolve_exam_id(self.paper, course=self.context), f'course_{self.paper.stem}')
         with patch.object(app, 'call_llm') as model:
-            self.assertEqual(app.process_exam_file(self.paper), app.ExamOutcome.SKIPPED_CANDIDATE)
+            self.assertEqual(app.process_exam_file(self.paper, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm), app.ExamOutcome.SKIPPED_CANDIDATE)
             model.assert_not_called()
 
     def test_exhausted_automatic_ids_fail_instead_of_returning_an_unchecked_collision(self):
@@ -259,11 +267,11 @@ class StateBoundaryTests(unittest.TestCase):
             self.write_record('candidates', name, source=self.outside / 'other.txt')
         with patch.object(app, 'call_llm') as model:
             with self.assertRaisesRegex(ExamIdentityError, 'All automatic IDs'):
-                app.process_exam_file(self.paper, force=True)
+                app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
             model.assert_not_called()
 
     def test_automatic_ids_keep_existing_space_normalization(self):
-        self.assertEqual(app.resolve_exam_id(self.course / 'My exam.txt'), 'My_exam')
+        self.assertEqual(app.resolve_exam_id(self.course / 'My exam.txt', course=self.context), 'My_exam')
 
     def test_cli_rejects_invalid_explicit_id_before_creating_course(self):
         for value in ['../outside', '', 'NUL', 'C:\\escape']:

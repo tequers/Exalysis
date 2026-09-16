@@ -95,7 +95,6 @@ paper was sat in 2022. See docs/adr/0007-one-record-per-paper-and-the-sitting-ye
 """
 
 import argparse
-import functools
 import hashlib
 import json
 import os
@@ -108,11 +107,12 @@ from pathlib import Path
 from exam_roi.inputs import (
     ExtractionError, InputSelectionError, collect_exam_files, extract_exam_text,
 )
+from exam_roi.storage import CoursePaths, CourseStore, StorageError
 from exam_roi.taxonomy import aggregate_taxonomy
 from exam_roi.identity import ExamIdentityError, exam_record_path, validate_exam_id
 from exam_roi.review import review_candidate, MAX_CORRECTIONS
 from exam_roi.llm import (
-    ModelClient, RequestLimits, RequestLimitError, TruncatedResponse, configured_model_client,
+    ModelClient, ModelConfigurationError, RequestLimits, RequestLimitError, TruncatedResponse, configured_model_client,
     estimate_tokens, run_batches,
     text_from_anthropic as _text_from_anthropic,
     text_from_openai as _text_from_openai,
@@ -128,13 +128,6 @@ from exam_roi.evaluation import (
     tag_evidence, validate_extraction, validate_tags,
     validate_topic_scores, validate_connection_review, CONTRACT_VERSION,
 )
-
-# Windows consoles default to a legacy codepage, which turns every arrow, tick and
-# em dash in the run log into "?". errors="replace" is the last-resort net for a
-# terminal that still cannot encode something.
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
 
 # ── CLI outcomes and exit codes ─────────────────────────────────────────────────
 # Per ADR 0008, outcome rendering and exit-code selection live only here in the CLI
@@ -155,10 +148,14 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 #   4  the ranked outputs (.xlsx/.json) could not be written. Parsed papers and
 #      taxonomy already on disk are unaffected; rerunning rebuild once the cause
 #      (e.g. the spreadsheet is open elsewhere) is cleared is the whole fix.
+#   5  course state is locked, corrupt, incompatible, or needs commit recovery.
+#      Follow the named record/lock diagnostic before retrying; this is separate
+#      from an export failure and --force never bypasses it.
 EXIT_OK             = 0
 EXIT_SETUP_ERROR    = 1
 EXIT_PAPER_FAILURE  = 3
 EXIT_EXPORT_FAILURE = 4
+EXIT_STATE_FAILURE  = 5
 
 
 class ExamOutcome(Enum):
@@ -179,7 +176,9 @@ class RecoveryKind(Enum):
     NONE             = "none"               # already in a final, acceptable state
     INPUT_CORRECTION = "input_correction"   # the source file itself needs fixing, then a rerun
     REVIEW           = "review"             # a person needs to read the saved candidate
-    REPROCESSING     = "reprocessing"       # rerun add-exam (typically with --force)
+    REPROCESSING     = "reprocessing"       # rerun add-exam after a transient processing failure
+    EXAM_ID          = "exam_id"            # automatic filename IDs collided
+    MODEL_CONFIGURATION = "model_configuration"  # model or request budget must change
     REBUILD          = "rebuild"            # papers are fine; rerun rebuild once possible
 
     @property
@@ -188,7 +187,9 @@ class RecoveryKind(Enum):
             RecoveryKind.NONE:             "nothing to do",
             RecoveryKind.INPUT_CORRECTION: "fix the input file, then rerun add-exam",
             RecoveryKind.REVIEW:           "read the saved candidate — a person needs to review it before it can be accepted",
-            RecoveryKind.REPROCESSING:     "rerun add-exam (--force to reprocess)",
+            RecoveryKind.REPROCESSING:     "rerun add-exam after resolving the problem",
+            RecoveryKind.EXAM_ID:          "choose a distinct --exam-id, then rerun add-exam",
+            RecoveryKind.MODEL_CONFIGURATION: "adjust the model or LLM request-limit configuration, then rerun add-exam",
             RecoveryKind.REBUILD:          "rerun rebuild once the cause above is fixed",
         }[self]
 
@@ -212,9 +213,9 @@ def _classify_paper_failure(path, exc) -> PaperFailure:
     """Turn one processing exception into a PaperFailure with a matching recovery kind.
 
     ExtractionError and CandidateValidationError already carry the information a
-    reusable module is expected to raise (see ADR 0008); everything else (a model
-    or network problem, a limits/identity error, ...) gets the same reprocessing
-    guidance a transient failure needs.
+    reusable module is expected to raise (see ADR 0008). Explicit identity and
+    request-budget failures need their own remedy; other processing failures can
+    be retried normally without suggesting --force.
     """
     if isinstance(exc, ExtractionError):
         return PaperFailure(path, RecoveryKind.INPUT_CORRECTION, f"{exc.reason} {exc.remedy}")
@@ -226,6 +227,11 @@ def _classify_paper_failure(path, exc) -> PaperFailure:
                     else RecoveryKind.REPROCESSING)
         return PaperFailure(path, recovery,
                             f"analysis rejected ({exc.disposition.replace('_', ' ')}): {exc.reason}")
+    if isinstance(exc, ExamIdentityError) and "All automatic IDs" in str(exc):
+        return PaperFailure(path, RecoveryKind.EXAM_ID, f"{type(exc).__name__}: {exc}")
+    if isinstance(exc, (ModelConfigurationError, RequestLimitError, TruncatedResponse)):
+        return PaperFailure(path, RecoveryKind.MODEL_CONFIGURATION,
+                            f"{type(exc).__name__}: {exc}")
     return PaperFailure(path, RecoveryKind.REPROCESSING, f"{type(exc).__name__}: {exc}")
 
 
@@ -243,55 +249,28 @@ def load_dotenv(path: Path) -> None:
         if line.startswith("export "):
             line = line[7:].lstrip()
         if "=" not in line:
-            sys.exit(f"ERROR: Invalid .env entry on line {line_number}: expected KEY=VALUE")
+            raise ValueError(f"Invalid .env entry on line {line_number}: expected KEY=VALUE")
 
         key, value = (part.strip() for part in line.split("=", 1))
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
-            sys.exit(f"ERROR: Invalid .env variable name on line {line_number}")
+            raise ValueError(f"Invalid .env variable name on line {line_number}")
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
         os.environ.setdefault(key, value)
 
 
 DOTENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(DOTENV_FILE)
-
-# ── Configuration ──────────────────────────────────────────────────────────────
-# All set by setup_course_folder() in main() from the COURSE_FOLDER argument,
-# before any command runs — see docs/adr/0006-course-folder-as-cli-argument.md.
-COURSE_FOLDER = None
-TAXONOMY_FILE = None
-PARSED_DIR    = None
-CANDIDATES_DIR = None
-OUTPUT_XLSX   = None
-OUTPUT_JSON   = None
-
-
-def setup_course_folder(folder: Path):
-    """
-    Point every output path at COURSE_FOLDER, creating the folder if it is new.
-
-    This is the pipeline's whole notion of "where am I working": one folder, named
-    explicitly on every command, holding one exam's taxonomy, parsed papers and
-    ranked output. An empty (or missing) folder gets those files created on the
-    first run; a folder that already has them gets them updated in place.
-    """
-    global COURSE_FOLDER, TAXONOMY_FILE, PARSED_DIR, CANDIDATES_DIR, OUTPUT_XLSX, OUTPUT_JSON
-
-    if folder.exists() and not folder.is_dir():
-        sys.exit(f"ERROR: COURSE_FOLDER is not a folder: {folder}")
-    if not folder.exists():
-        folder.mkdir(parents=True)
+def setup_course_folder(folder: Path) -> CoursePaths:
+    """Prepare and return this course's destinations without selecting global state."""
+    course = CoursePaths(folder)
+    if course.folder.exists() and not course.folder.is_dir():
+        raise ValueError(f"COURSE_FOLDER is not a folder: {folder}")
+    if not course.folder.exists():
+        course.folder.mkdir(parents=True)
         print(f"\n📂 Created course folder: {folder}")
     else:
         print(f"\n📂 Course folder: {folder}")
-
-    COURSE_FOLDER = folder
-    TAXONOMY_FILE = folder / "taxonomy.json"
-    PARSED_DIR    = folder / "parsed"
-    CANDIDATES_DIR = folder / "candidates"
-    OUTPUT_XLSX   = folder / "Exam_ROI_Pipeline.xlsx"
-    OUTPUT_JSON   = folder / "Exam_ROI_Pipeline.json"
+    return course
 
 
 # ── LLM provider configuration ────────────────────────────────────────────────
@@ -342,53 +321,76 @@ PROVIDERS = {
     },
 }
 
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic").lower()
-if LLM_PROVIDER not in PROVIDERS:
-    sys.exit(
-        f"ERROR: Unknown LLM_PROVIDER '{LLM_PROVIDER}'. "
-        f"Choose from: {', '.join(PROVIDERS)}"
-    )
-_PROVIDER = PROVIDERS[LLM_PROVIDER]
+def configure_model_clients(env, *, review=False):
+    """Build each command's clients from its startup environment snapshot."""
+    provider = env.get("LLM_PROVIDER", "anthropic").lower()
+    if provider not in PROVIDERS:
+        raise ModelConfigurationError(
+            f"Unknown LLM_PROVIDER '{provider}'. Choose from: {', '.join(PROVIDERS)}")
+    models = [env.get(f"LLM_MODEL_STAGE{stage}", PROVIDERS[provider][f"default_stage{stage}"])
+              for stage in (1, 2)]
+    if any(not model or not model.strip() for model in models):
+        raise ModelConfigurationError(
+            f"Set LLM_MODEL_STAGE1 and LLM_MODEL_STAGE2 to exact {provider} model IDs before reading exams.")
+    try:
+        result = {
+            name: configured_model_client(provider, model, RequestLimits.from_env(env, stage),
+                                          providers=PROVIDERS, env=env)
+            for name, model, stage in zip(("extraction_client", "analysis_client"), models, (1, 2))
+        }
+    except ModelConfigurationError:
+        raise
+    except ValueError as exc:
+        raise ModelConfigurationError(f"Invalid LLM request-limit configuration: {exc}") from exc
+    if review:
+        result.update(configure_reviewer(env, provider))
+    return result
 
-MODEL_STAGE1 = os.environ.get("LLM_MODEL_STAGE1", _PROVIDER["default_stage1"])
-MODEL_STAGE2 = os.environ.get("LLM_MODEL_STAGE2", _PROVIDER["default_stage2"])
-MAX_RETRIES  = 3
 
-# Limits are configured per stage at the call boundary. They are deployment
-# settings, not assertions about any provider's current model catalog.
+def configure_reviewer(env, analyzer_provider):
+    """Keep reviewer setup failures in the existing saved-review failure path."""
+    provider = env.get("LLM_REVIEW_PROVIDER", analyzer_provider).lower()
+    model = env.get("LLM_REVIEW_MODEL")
+    try:
+        limits = RequestLimits(
+            context_tokens=int(env.get("LLM_REVIEW_CONTEXT_TOKENS", 128000)),
+            output_tokens=int(env.get("LLM_REVIEW_MAX_OUTPUT_TOKENS", 32000)),
+            overhead_tokens=int(env.get("LLM_REVIEW_OVERHEAD_TOKENS", 1024)))
+        if not model or not model.strip():
+            raise ModelConfigurationError("Set LLM_REVIEW_MODEL to an exact reviewer model ID")
+        client = configured_model_client(provider, model, limits, providers=PROVIDERS, env=env)
+    except ValueError as exc:
+        limits = None
+        def client(system, user, max_tokens, error=exc):
+            raise error
+    return {"reviewer_client": client, "reviewer_limits": limits,
+            "reviewer_provider": provider, "reviewer_model": model}
+
+
 def _stage_request(stage, client=None, limits=None):
     if isinstance(client, ModelClient):
         if limits is not None and limits != client.limits:
             raise ValueError("Injected limits must match the ModelClient limits")
         return client, client.limits
-    limits = limits or RequestLimits.from_env(os.environ, stage)
-    if client is not None:
-        return client, limits
-    model = MODEL_STAGE1 if stage == 1 else MODEL_STAGE2
-
-    def complete(system, user, max_tokens):
-        return call_llm(system, user, max_tokens=max_tokens, model=model, limits=limits)
-    return complete, limits
+    if client is None:
+        raise ModelConfigurationError(f"Supply a client for analysis stage {stage}")
+    return client, limits or RequestLimits()
 
 
 # ── File helpers ───────────────────────────────────────────────────────────────
 
-def load_taxonomy() -> dict:
-    if TAXONOMY_FILE.exists():
-        return json.loads(TAXONOMY_FILE.read_text(encoding="utf-8-sig"))
-    return {"topics": {}}
+def load_taxonomy(course: CoursePaths) -> dict:
+    with CourseStore(course) as store:
+        return store.load().taxonomy
 
-def save_taxonomy(tax: dict):
-    TAXONOMY_FILE.write_text(json.dumps(tax, indent=2, ensure_ascii=False), encoding='utf-8')
+def save_taxonomy(tax: dict, course: CoursePaths):
+    with CourseStore(course) as store:
+        store.commit(taxonomy=tax)
 
-def load_all_exams() -> dict:
+def load_all_exams(course: CoursePaths) -> dict:
     """Return {exam_id: exam_dict} for every file in parsed/."""
-    if not PARSED_DIR.exists():
-        return {}
-    return {
-        f.stem: json.loads(f.read_text(encoding="utf-8"))
-        for f in sorted(PARSED_DIR.glob("*.json"))
-    }
+    with CourseStore(course) as store:
+        return store.load().papers
 
 EARLIEST_YEAR = 1990
 
@@ -437,55 +439,13 @@ def infer_year(path: Path, exam_text: str = "") -> tuple:
 
 # ── LLM API helpers ────────────────────────────────────────────────────────────
 
-@functools.lru_cache(maxsize=1)
-def _client():
-    if LLM_PROVIDER in {"openrouter", "unorouter"} and (
-        not MODEL_STAGE1 or not MODEL_STAGE1.strip()
-        or not MODEL_STAGE2 or not MODEL_STAGE2.strip()
-    ):
-        sys.exit(
-            "ERROR: Set LLM_MODEL_STAGE1 and LLM_MODEL_STAGE2 to exact "
-            f"{LLM_PROVIDER} model IDs before reading exams."
-        )
-    key_names = (_PROVIDER["key_env"], *_PROVIDER.get("key_env_aliases", ()))
-    key = next((os.environ.get(name) for name in key_names if os.environ.get(name)), None)
-    if not key:
-        # The one setup step that can only fail at runtime, so it explains itself in
-        # full here rather than relying on --help having been read first.
-        sys.exit(
-            f"ERROR: {_PROVIDER['key_env']} is not set, and reading exams needs AI calls.\n"
-            f"       set {_PROVIDER['key_env']}=...       (Windows)\n"
-            f"       export {_PROVIDER['key_env']}=...    (macOS/Linux)\n"
-            f"       Provider is '{LLM_PROVIDER}' — set LLM_PROVIDER to "
-            f"{' or '.join(k for k in PROVIDERS if k != LLM_PROVIDER)} to use another."
-        )
-    if _PROVIDER["sdk"] == "anthropic":
-        try:
-            import anthropic
-        except ImportError:
-            sys.exit("ERROR: Install the Anthropic SDK:  pip install anthropic")
-        return anthropic.Anthropic(api_key=key)
-    else:  # "openai" SDK family — covers any OpenAI-compatible endpoint
-        try:
-            import openai
-        except ImportError:
-            sys.exit("ERROR: Install the OpenAI SDK:  pip install openai")
-        kwargs = {"api_key": key}
-        if _PROVIDER["base_url"]:
-            kwargs["base_url"] = _PROVIDER["base_url"]
-        return openai.OpenAI(**kwargs)
-
-
-def call_llm(system: str, user: str, max_tokens=None, model=None, *, limits=None) -> str:
-    """CLI adapter; reusable provider mechanics live in exam_roi.llm."""
-    model = model or MODEL_STAGE2
-    stage = 1 if model == MODEL_STAGE1 and model != MODEL_STAGE2 else 2
-    limits = limits or RequestLimits.from_env(os.environ, stage)
+def call_llm(system: str, user: str, max_tokens=None, *, client, limits=None) -> str:
+    """Call an explicit client after checking its request budget."""
+    client, limits = _stage_request(2, client, limits)
     max_tokens = limits.output_tokens if max_tokens is None else max_tokens
-    # Check before constructing an SDK client or looking up credentials.
-    limits.check(system, user, max_tokens)
-    return ModelClient(_client(), _PROVIDER["sdk"], model, limits,
-                       attempts=MAX_RETRIES, provider=LLM_PROVIDER)(system, user, max_tokens=max_tokens)
+    limits.check(system, user, max_tokens,
+                 client.count_tokens if isinstance(client, ModelClient) else estimate_tokens)
+    return client(system, user, max_tokens=max_tokens)
 
 
 def _with_review_feedback(stage, client, limits, feedback):
@@ -812,7 +772,7 @@ def _stage2_score_topics(tested_topic_names: list, taxonomy_list: str, questions
         raise CandidateValidationError("topic scoring", str(exc)) from exc
 
 
-def refresh_connections(paper, topic_names):
+def refresh_connections(paper, topic_names, *, client, limits=None):
     """Revisit an earlier paper with the expanded vocabulary; keep original judgments."""
     user = (
         "REVIEW DEPENDENCIES IN THIS STORED PAPER\n"
@@ -826,7 +786,7 @@ def refresh_connections(paper, topic_names):
         "Do not assign difficulty or modify original observations.\nSOURCE QUESTIONS:\n"
         + json.dumps(question_evidence(paper["questions"]), ensure_ascii=False)
     )
-    return validate_connection_review(parse_json_from(call_llm(_S2_SYSTEM, user)),
+    return validate_connection_review(parse_json_from(call_llm(_S2_SYSTEM, user, client=client, limits=limits)),
                                       paper["questions"], topic_names)
 
 
@@ -848,14 +808,11 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, cli
     dependencies = {"client": client, "limits": limits} if client is not None or limits is not None else {}
     tags, proposed_new = _stage2_tag(questions, topic_names, **dependencies)
 
-    # Attach topics back onto the full question objects
-    tagged = []
-    for q in questions:
-        q = dict(q)
-        tag = tags[q["q_id"]]
-        q["topics"] = tag["topics"]
-        q["topic_tagging"] = tag_evidence(tag)
-        tagged.append(q)
+    tagged = [
+        {**q, "topics": tags[q["q_id"]]["topics"],
+         "topic_tagging": tag_evidence(tags[q["q_id"]])}
+        for q in questions
+    ]
 
     # Any label absent from the taxonomy is new, whether or not the model flagged it
     seen_topics = {t for q in tagged for t in q["topics"]}
@@ -908,7 +865,7 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, cli
 
 # ── Commands ───────────────────────────────────────────────────────────────────
 
-def resolve_exam_id(path: Path, explicit_id=None) -> str:
+def resolve_exam_id(path: Path, explicit_id=None, *, course: CoursePaths, _store=None) -> str:
     """
     The id under which this paper is filed in candidates/ or parsed/ — unique per
     paper, not per filename.
@@ -921,6 +878,9 @@ def resolve_exam_id(path: Path, explicit_id=None) -> str:
     """
     if explicit_id is not None:
         return validate_exam_id(explicit_id)
+    if _store is None:
+        with CourseStore(course) as store:
+            return resolve_exam_id(path, course=course, _store=store)
     base = validate_exam_id(path.stem.replace(" ", "_"))
     here = str(path.resolve())
     candidates = [base]
@@ -930,19 +890,16 @@ def resolve_exam_id(path: Path, explicit_id=None) -> str:
         if candidate not in candidates:
             candidates.append(candidate)
     for candidate in candidates:
-        existing = [exam_record_path(COURSE_FOLDER, state, candidate)
+        existing = [exam_record_path(course.folder, state, candidate)
                     for state in ("parsed", "candidates")]
         existing = [record_path for record_path in existing if record_path.exists()]
         if not existing:
             return candidate
         claimed_paths = []
         for record_path in existing:
-            try:
-                record = json.loads(record_path.read_text(encoding="utf-8"))
-                claimed = (record.get("source_provenance", {}).get("resolved_path")
-                           or record.get("source_path"))
-            except (ValueError, OSError):
-                claimed = None
+            record = _store.load_record(record_path.parent.name, candidate)
+            claimed = (record.get("source_provenance", {}).get("resolved_path")
+                       or record.get("source_path"))
             claimed_paths.append(claimed)
         if all(claimed is None or claimed == here for claimed in claimed_paths):
             return candidate          # same paper, or a legacy record without a source path
@@ -952,15 +909,15 @@ def resolve_exam_id(path: Path, explicit_id=None) -> str:
 
 
 def _model_provenance(extraction_client, analysis_client):
-    def identity(client, default_model):
+    def identity(client):
         if client is None:
-            return LLM_PROVIDER, default_model
+            return None, None
         if isinstance(client, ModelClient):
             return client.provider or f"{client.sdk}-compatible", client.model
         return "injected-callable", "injected-callable"
 
-    extraction_provider, extraction_model = identity(extraction_client, MODEL_STAGE1)
-    analysis_provider, analysis_model = identity(analysis_client, MODEL_STAGE2)
+    extraction_provider, extraction_model = identity(extraction_client)
+    analysis_provider, analysis_model = identity(analysis_client)
     record = {"provider": extraction_provider if extraction_provider == analysis_provider else "mixed",
               "extraction_model": extraction_model, "analysis_model": analysis_model}
     if extraction_provider != analysis_provider:
@@ -969,10 +926,11 @@ def _model_provenance(extraction_client, analysis_client):
 
 
 def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, force=False, *,
-                      extraction_client=None, analysis_client=None,
+                      course: CoursePaths, extraction_client=None, analysis_client=None,
                       extraction_limits=None, analysis_limits=None,
                       review_enabled=False, reviewer_client=None, reviewer_limits=None,
-                      max_corrections=0) -> ExamOutcome:
+                      max_corrections=0, reviewer_provider=None, reviewer_model=None,
+                      _store=None) -> ExamOutcome:
     """
     Parse one exam, validate it, and save a candidate without changing accepted
     papers or taxonomy.
@@ -984,6 +942,15 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     CandidateValidationError, ExamIdentityError or another defined failure, and
     the CLI (cmd_add_exam) turns that into the batch's reported outcome.
     """
+    if _store is None:
+        with CourseStore(course) as store:
+            return process_exam_file(
+                path, year, total_marks, exam_id, force, course=course,
+                extraction_client=extraction_client, analysis_client=analysis_client,
+                extraction_limits=extraction_limits, analysis_limits=analysis_limits,
+                review_enabled=review_enabled, reviewer_client=reviewer_client,
+                reviewer_limits=reviewer_limits, max_corrections=max_corrections,
+                reviewer_provider=reviewer_provider, reviewer_model=reviewer_model, _store=store)
     if not path.exists():
         # Vanished between selection and processing (or a caller-supplied path
         # that never existed) — an input problem, not a model or export one.
@@ -992,9 +959,10 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
             "Check the path and rerun add-exam, or remove it from the request.",
         )
 
-    exam_id = resolve_exam_id(path, exam_id)
-    accepted_file = exam_record_path(COURSE_FOLDER, "parsed", exam_id)
-    candidate_file = exam_record_path(COURSE_FOLDER, "candidates", exam_id)
+    exam_id = resolve_exam_id(path, exam_id, course=course, _store=_store)
+    accepted_file = exam_record_path(course.folder, "parsed", exam_id)
+    candidate_file = exam_record_path(course.folder, "candidates", exam_id)
+    snapshot = _store.load()
     accepted_file.parent.mkdir(exist_ok=True)
     candidate_file.parent.mkdir(exist_ok=True)
 
@@ -1011,7 +979,8 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     # sent to the provider and never half-analysed — see ticket 04.
     extraction = extract_exam_text(path, source_bytes)
     exam_text = extraction.text
-    print(f"   → {extraction.summary()} — sent to {LLM_PROVIDER} for analysis")
+    provider = _model_provenance(extraction_client, analysis_client)["provider"]
+    print(f"   → {extraction.summary()} — sent to {provider or 'the supplied client'} for analysis")
 
     requested_year, requested_marks = year, total_marks
 
@@ -1048,7 +1017,7 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
             print(f"   → Total marks : {total_marks} (summed from questions)")
 
         # ── Stage 2 ──
-        taxonomy = load_taxonomy()
+        taxonomy = snapshot.taxonomy
         print("🤖 Stage 2 : Tagging topics and scoring parameters…")
         analysis_dependencies = ({"client": analysis_client, "limits": analysis_limits}
             if analysis_client is not None or analysis_limits is not None else {})
@@ -1085,9 +1054,9 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
         )
         # Model work can take minutes. Check both boundaries again before reading
         # accepted records or saving a candidate, including forced reprocessing.
-        exam_record_path(COURSE_FOLDER, "parsed", exam_id, expected_path=accepted_file)
-        exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
-        accepted_exams = load_all_exams()
+        exam_record_path(course.folder, "parsed", exam_id, expected_path=accepted_file)
+        exam_record_path(course.folder, "candidates", exam_id, expected_path=candidate_file)
+        accepted_exams = _store.load().papers
         proposed_exams = dict(accepted_exams)
         proposed_exams[exam_id] = candidate  # A forced reparse replaces this paper's contribution.
         proposed_taxonomy = aggregate_taxonomy(taxonomy, proposed_exams)
@@ -1096,39 +1065,18 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
         return candidate
 
     candidate = make_candidate()
-    provider, model = None, None
-    if review_enabled and reviewer_client is None:
-        provider = os.environ.get("LLM_REVIEW_PROVIDER", LLM_PROVIDER).lower()
-        model = os.environ.get("LLM_REVIEW_MODEL")
-        try:
-            reviewer_limits = reviewer_limits or RequestLimits(
-                context_tokens=int(os.environ.get("LLM_REVIEW_CONTEXT_TOKENS", 128000)),
-                output_tokens=int(os.environ.get("LLM_REVIEW_MAX_OUTPUT_TOKENS", 32000)),
-                overhead_tokens=int(os.environ.get("LLM_REVIEW_OVERHEAD_TOKENS", 1024)))
-        except ValueError as exc:
-            def failed_reviewer(system, user, max_tokens, error=exc):
-                raise error
-            reviewer_client = failed_reviewer
-        else:
-            # Delay SDK/credential setup until after the complete request fits.
-            def configured_reviewer(system, user, max_tokens):
-                return configured_model_client(
-                    provider, model, reviewer_limits, providers=PROVIDERS, env=os.environ,
-                    attempts=MAX_RETRIES)(
-                    system, user, max_tokens=max_tokens)
-            reviewer_client = configured_reviewer
     candidate, review = review_candidate(
         candidate, exam_text, enabled=review_enabled, client=reviewer_client,
-        limits=reviewer_limits, provider=provider,
-        model=model, correct=make_candidate, max_corrections=max_corrections)
+        limits=reviewer_limits, provider=reviewer_provider,
+        model=reviewer_model, correct=make_candidate, max_corrections=max_corrections)
     candidate["independent_review"] = review
     if review["disposition"] == "needs_review":
         candidate["candidate_status"] = "needs-review"
     if review_enabled:
         print(f"   Independent review: {review['disposition']}"
               f" ({review.get('reason', 'evidence checks completed')})")
-    candidate_file = exam_record_path(COURSE_FOLDER, "candidates", exam_id, expected_path=candidate_file)
-    candidate_file.write_text(json.dumps(candidate, indent=2, ensure_ascii=False), encoding='utf-8')
+    candidate_file = exam_record_path(course.folder, "candidates", exam_id, expected_path=candidate_file)
+    _store.commit(candidates={exam_id: candidate})
     print(f"   ✓ Saved candidate → candidates/{exam_id}.json")
     print("     Accepted papers and taxonomy were not changed.")
     if candidate.get("candidate_status") == "needs-review":
@@ -1137,20 +1085,23 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     return ExamOutcome.SAVED
 
 
-def cmd_add_exam(args):
+def cmd_add_exam(args, course: CoursePaths, *, _store=None, **clients):
+    if _store is None and not getattr(args, "dry_run", False):
+        with CourseStore(course) as store:
+            return cmd_add_exam(args, course, _store=store, **clients)
     if getattr(args, "review_corrections", 0) and not getattr(args, "review", False):
         raise ValueError("--review-corrections requires --review")
     try:
-        files = collect_exam_files(COURSE_FOLDER, args.paths, args.recursive)
+        files = collect_exam_files(course.folder, args.paths, args.recursive)
     except InputSelectionError as exc:
-        sys.exit(f"ERROR: {exc}")
+        raise ValueError(str(exc)) from exc
 
     # --year and --exam-id describe one specific paper; silently applying either to
     # a whole batch would stamp every exam with the same year, or overwrite one
     # parsed file repeatedly under the same id.
     if len(files) > 1 and (args.year or args.exam_id):
-        sys.exit(
-            f"ERROR: --year/--exam-id describe a single exam, but {len(files)} files matched.\n"
+        raise ValueError(
+            f"--year/--exam-id describe a single exam, but {len(files)} files matched.\n"
             f"       Name one file, or drop the flag (each paper's year is read from its "
             f"filename or its own text)."
         )
@@ -1171,6 +1122,9 @@ def cmd_add_exam(args):
         try:
             outcome = process_exam_file(
                 path,
+                course=course,
+                _store=_store,
+                **clients,
                 year=args.year,
                 total_marks=args.total_marks,
                 exam_id=args.exam_id,
@@ -1179,6 +1133,8 @@ def cmd_add_exam(args):
                 max_corrections=getattr(args, "review_corrections", 0),
             )
             counts[outcome] += 1
+        except (ModelConfigurationError, StorageError):
+            raise
         except Exception as exc:
             failure = _classify_paper_failure(path, exc)
             print(f"   ✗ Not saved — {failure.reason}")
@@ -1204,12 +1160,16 @@ def cmd_add_exam(args):
     # The summary sentence is what "did this run work?" boils down to for a
     # person or a script skimming the last line, so it must never claim success
     # (or silently omit) a batch where every requested paper failed — ticket 15.
-    if failures and not processed:
-        print(f"   All {len(failures)} requested paper(s) failed — nothing was added; "
-              "outputs left unchanged. See the recovery notes above.")
-    elif failures:
+    if failures and processed:
         print(f"   {processed} candidate(s) saved despite {len(failures)} failure(s) — "
               "accepted outputs are unchanged. See the recovery notes above for what to fix.")
+    elif failures and skipped:
+        print(f"   {skipped} requested paper(s) were skipped because they already have records; "
+              f"{len(failures)} failure(s) need attention. No new candidates were saved. "
+              "See the recovery notes above.")
+    elif failures:
+        print(f"   All {len(failures)} requested paper(s) failed — nothing was added; "
+              "outputs left unchanged. See the recovery notes above.")
     elif processed:
         review_note = f" ({pending_review} pending review)" if pending_review else ""
         print(f"   {processed} candidate(s) await acceptance or review{review_note}; "
@@ -1220,13 +1180,16 @@ def cmd_add_exam(args):
     return EXIT_PAPER_FAILURE if failures else EXIT_OK
 
 
-def cmd_rebuild(_args):
+def cmd_rebuild(_args, course: CoursePaths, *, _store=None):
+    if _store is None:
+        with CourseStore(course) as store:
+            return cmd_rebuild(_args, course, _store=store)
     print("\n📊 Rebuilding spreadsheet…")
-    taxonomy  = load_taxonomy()
-    all_exams = load_all_exams()
+    snapshot = _store.load()
+    taxonomy, all_exams = snapshot.taxonomy, snapshot.papers
     updated_taxonomy = aggregate_taxonomy(taxonomy, all_exams)
     if updated_taxonomy != taxonomy:
-        save_taxonomy(updated_taxonomy)
+        _store.commit(taxonomy=updated_taxonomy)
     taxonomy = updated_taxonomy
 
     if not all_exams:
@@ -1321,21 +1284,22 @@ def cmd_rebuild(_args):
     # openpyxl install), so it gets its own outcome rather than an uncaught
     # traceback standing in for "rebuild failed".
     try:
-        write_xlsx(rows, exam_list, taxonomy, OUTPUT_XLSX)
-        write_json(rows, OUTPUT_JSON)
+        write_xlsx(rows, exam_list, taxonomy, course.output_xlsx)
+        write_json(rows, course.output_json)
     except Exception as exc:
         print(f"   ✗ Export failed — {type(exc).__name__}: {exc}")
         print("     Parsed papers and taxonomy on disk are unchanged. "
               f"Recovery: {RecoveryKind.REBUILD.instruction}.")
         return EXIT_EXPORT_FAILURE
 
-    print(f"   ✓ {OUTPUT_XLSX.name}, {OUTPUT_JSON.name}  ({len(rows)} topics · {n_exams} exams · {tier1_n} Tier 1)")
+    print(f"   ✓ {course.output_xlsx.name}, {course.output_json.name}  ({len(rows)} topics · {n_exams} exams · {tier1_n} Tier 1)")
     return EXIT_OK
 
 
-def cmd_status(_args):
-    taxonomy  = load_taxonomy()
-    all_exams = load_all_exams()
+def cmd_status(_args, course: CoursePaths):
+    with CourseStore(course) as store:
+        snapshot = store.load()
+    taxonomy, all_exams = snapshot.taxonomy, snapshot.papers
     print("\n📚 Exam ROI Pipeline")
     print(f"   Taxonomy    : {len(taxonomy['topics'])} topics")
     exam_list = sorted(all_exams.values(), key=lambda e: (e.get("year") or 0, e["exam_id"]))
@@ -1349,41 +1313,46 @@ def cmd_status(_args):
         n = len(exam.get("per_topic", {}))
         print(f"     {labels[exam['exam_id']]:<18} {exam['exam_id']}"
               f"  ({n} topics · {exam.get('total_marks', '?')} marks)")
-    print(f"   Spreadsheet : {'✓ exists' if OUTPUT_XLSX.exists() else 'not created yet'}")
-    print(f"   Ranked JSON : {'✓ exists' if OUTPUT_JSON.exists() else 'not created yet'}")
+    print(f"   Spreadsheet : {'✓ exists' if course.output_xlsx.exists() else 'not created yet'}")
+    print(f"   Ranked JSON : {'✓ exists' if course.output_json.exists() else 'not created yet'}")
     print()
     return EXIT_OK
 
 
-def cmd_edit_topic(args):
-    taxonomy = load_taxonomy()
+def cmd_edit_topic(args, course: CoursePaths, *, _store=None):
+    if _store is None:
+        with CourseStore(course) as store:
+            return cmd_edit_topic(args, course, _store=store)
+    taxonomy = _store.load().taxonomy
     name     = args.name
     if name not in taxonomy["topics"]:
         known = sorted(taxonomy["topics"].keys())
-        sys.exit(
+        raise ValueError(
             f"Topic not found: '{name}'\n"
             f"Known topics: {', '.join(known) if known else '(none yet)'}"
         )
     changed = False
     if args.diff is not None:
         if not 1 <= args.diff <= 6:
-            sys.exit("Diff must be 1–6")
+            raise ValueError("Diff must be 1–6")
         _record_override(taxonomy["topics"][name], "Diff", args.diff)
-        print(f"   Set Diff={args.diff} for '{name}'")
         changed = True
     if args.conn is not None:
         if not 1 <= args.conn <= 3:
-            sys.exit("Conn must be 1–3")
+            raise ValueError("Conn must be 1–3")
         _record_override(taxonomy["topics"][name], "Conn", args.conn)
-        print(f"   Set Conn={args.conn} for '{name}'")
         changed = True
     if not changed:
         print("Nothing changed — pass --diff or --conn (or both).")
         return EXIT_OK
-    save_taxonomy(taxonomy)
+    _store.commit(taxonomy=taxonomy)
+    if args.diff is not None:
+        print(f"   Set Diff={args.diff} for '{name}'")
+    if args.conn is not None:
+        print(f"   Set Conn={args.conn} for '{name}'")
     # edit-topic's own exit status has to reflect a failed rebuild too — an
     # override that saved correctly but could not be exported is not a success.
-    return cmd_rebuild(None)
+    return cmd_rebuild(None, course, _store=_store)
 
 
 def _record_override(topic, field, value):
@@ -1481,6 +1450,9 @@ def _exam_id_argument(value):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     p = BriefHelpParser(
         prog="pipeline.py",
         usage="pipeline.py COURSE_FOLDER COMMAND [data]",
@@ -1495,7 +1467,16 @@ def main():
     sub = p.add_subparsers(dest="cmd", metavar="COMMAND",
                            parser_class=argparse.ArgumentParser)
 
-    pa = sub.add_parser("add-exam", help="Validate exam papers and save candidate analyses")
+    pa = sub.add_parser(
+        "add-exam",
+        help="Validate exam papers and save candidate analyses",
+        description=(
+            "Supported input: UTF-8 .txt (a UTF-8 byte-order mark is accepted), or .pdf "
+            "with a text layer. Scanned PDFs are unsupported in the MVP; OCR is not included. "
+            "Every PDF page must yield some text; this does not detect garbled, partial, or "
+            "out-of-order extraction. Extracted text is sent to the configured provider for analysis."
+        ),
+    )
     pa.add_argument("paths", nargs="*", metavar="PATH",
                     help="Exam file(s) or folder(s): UTF-8 .txt, or .pdf with a text layer "
                          "(default: papers in both COURSE_FOLDER and its exams/ subfolder; "
@@ -1540,8 +1521,6 @@ def main():
         print(f"\nERROR: which command? Pick one of: {', '.join(COMMANDS)}")
         return EXIT_SETUP_ERROR
 
-    setup_course_folder(Path(args.course_folder))
-
     dispatch = {
         "add-exam":   cmd_add_exam,
         "rebuild":    cmd_rebuild,
@@ -1550,7 +1529,23 @@ def main():
     }
     # Every dispatched command returns one of the EXIT_* codes above; this is the
     # one place that turns that into the process's actual exit status.
-    return dispatch[args.cmd](args)
+    try:
+        clients = {}
+        if args.cmd == "add-exam" and not args.dry_run:
+            load_dotenv(DOTENV_FILE)
+            clients = configure_model_clients(dict(os.environ), review=args.review)
+        course = setup_course_folder(Path(args.course_folder))
+        return dispatch[args.cmd](args, course, **clients)
+    except StorageError as exc:
+        print(f"ERROR: Course state unavailable: {exc}", file=sys.stderr)
+        return EXIT_STATE_FAILURE
+    except ModelConfigurationError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        print(f"Recovery: {RecoveryKind.MODEL_CONFIGURATION.instruction}.", file=sys.stderr)
+        return EXIT_SETUP_ERROR
+    except (ValueError, OSError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return EXIT_SETUP_ERROR
 
 
 if __name__ == "__main__":

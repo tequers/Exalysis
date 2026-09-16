@@ -134,6 +134,7 @@ class CommandLevelExitCodeTests(unittest.TestCase):
         # add" (which implies nothing was wrong) or as a success of any kind.
         self.assertNotIn("Nothing new to add", result.stdout)
         self.assertIn("failed", result.stdout.lower())
+        self.assertIn("fix the input file", result.stdout)
         self.assertIn("empty_one.txt", result.stdout)
         self.assertIn("empty_two.txt", result.stdout)
         self.assertFalse((self.course / "candidates").exists() and
@@ -187,6 +188,8 @@ class CommandLevelExitCodeTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, app.EXIT_EXPORT_FAILURE, result.stdout + result.stderr)
         self.assertIn("Export failed", result.stdout)
+        self.assertIn("Recovery: rerun rebuild", result.stdout)
+        self.assertNotIn("rerun add-exam", result.stdout)
         self.assertTrue((parsed / "old.json").exists())
         self.assertEqual((self.course / "taxonomy.json").read_text(encoding="utf-8"), taxonomy_before)
 
@@ -199,7 +202,11 @@ class RecoveryClassificationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        app.setup_course_folder(Path(self.tmp.name))
+        # setup_course_folder prints a folder emoji, normally made safe by
+        # main(). These in-process tests call it directly, so capture setup
+        # output too and keep the documented Windows CP1252 command portable.
+        with redirect_stdout(StringIO()):
+            self.context = app.setup_course_folder(Path(self.tmp.name))
 
     def args(self, *paths):
         return SimpleNamespace(paths=[str(p) for p in paths], recursive=False, year=None,
@@ -217,10 +224,11 @@ class RecoveryClassificationTests(unittest.TestCase):
         self.assertEqual(error.disposition, "correction_required")
         out = StringIO()
         with patch.object(app, "process_exam_file", side_effect=error), redirect_stdout(out):
-            code = app.cmd_add_exam(self.args(paper))
+            code = app.cmd_add_exam(self.args(paper), course=self.context)
         self.assertEqual(code, app.EXIT_PAPER_FAILURE)
         self.assertIn("rejected", out.getvalue())
         self.assertIn("rerun add-exam", out.getvalue())
+        self.assertNotIn("--force", out.getvalue())
 
     def test_needs_review_rejection_recommends_a_human_review(self):
         paper = self.paper()
@@ -228,7 +236,7 @@ class RecoveryClassificationTests(unittest.TestCase):
                                          disposition="needs_review")
         out = StringIO()
         with patch.object(app, "process_exam_file", side_effect=error), redirect_stdout(out):
-            code = app.cmd_add_exam(self.args(paper))
+            code = app.cmd_add_exam(self.args(paper), course=self.context)
         self.assertEqual(code, app.EXIT_PAPER_FAILURE)
         self.assertIn("rejected", out.getvalue())
         self.assertIn("review", out.getvalue().lower())
@@ -239,7 +247,7 @@ class RecoveryClassificationTests(unittest.TestCase):
         with patch.object(app, "process_exam_file",
                           return_value=app.ExamOutcome.SAVED_PENDING_REVIEW) as mock, \
              redirect_stdout(out):
-            code = app.cmd_add_exam(self.args(paper))
+            code = app.cmd_add_exam(self.args(paper), course=self.context)
         mock.assert_called_once()
         self.assertEqual(code, app.EXIT_OK)
         self.assertIn("pending review", out.getvalue())
@@ -251,10 +259,53 @@ class RecoveryClassificationTests(unittest.TestCase):
         out = StringIO()
         with patch.object(app, "process_exam_file", side_effect=lambda *a, **k: next(outcomes)), \
              redirect_stdout(out):
-            code = app.cmd_add_exam(self.args(accepted_paper, candidate_paper))
+            code = app.cmd_add_exam(self.args(accepted_paper, candidate_paper), course=self.context)
         self.assertEqual(code, app.EXIT_OK)
         self.assertIn("already accepted", out.getvalue())
         self.assertIn("already a candidate", out.getvalue())
+
+    def test_skipped_paper_plus_failure_is_not_described_as_all_failed(self):
+        skipped_paper = self.paper("already_saved.txt")
+        failed_paper = self.paper("broken.txt")
+        outcomes = iter([
+            app.ExamOutcome.SKIPPED_CANDIDATE,
+            app.ExtractionError("empty_text", "paper has no text", "Use a readable input file."),
+        ])
+        out = StringIO()
+        def process(*_args, **_kwargs):
+            result = next(outcomes)
+            if isinstance(result, Exception):
+                raise result
+            return result
+        with patch.object(app, "process_exam_file", side_effect=process), redirect_stdout(out):
+            code = app.cmd_add_exam(self.args(skipped_paper, failed_paper), course=self.context)
+        self.assertEqual(code, app.EXIT_PAPER_FAILURE)
+        message = out.getvalue()
+        self.assertIn("1 requested paper(s) were skipped", message)
+        self.assertIn("1 failure(s) need attention", message)
+        self.assertNotIn("All 1 requested paper(s) failed", message)
+
+    def test_automatic_id_collision_recommends_a_distinct_exam_id(self):
+        paper = self.paper()
+        error = app.ExamIdentityError(
+            "All automatic IDs for 'paper.txt' are already used by other papers. "
+            "Choose a distinct --exam-id; --force does not bypass automatic collisions.")
+        out = StringIO()
+        with patch.object(app, "process_exam_file", side_effect=error), redirect_stdout(out):
+            code = app.cmd_add_exam(self.args(paper), course=self.context)
+        self.assertEqual(code, app.EXIT_PAPER_FAILURE)
+        self.assertIn("choose a distinct --exam-id", out.getvalue())
+        self.assertNotIn("rerun add-exam after resolving", out.getvalue())
+
+    def test_request_limit_failure_recommends_model_or_limit_configuration(self):
+        paper = self.paper()
+        error = app.RequestLimitError("Request needs more tokens than the configured context limit")
+        out = StringIO()
+        with patch.object(app, "process_exam_file", side_effect=error), redirect_stdout(out):
+            code = app.cmd_add_exam(self.args(paper), course=self.context)
+        self.assertEqual(code, app.EXIT_PAPER_FAILURE)
+        self.assertIn("adjust the model or LLM request-limit configuration", out.getvalue())
+        self.assertNotIn("--force", out.getvalue())
 
 
 if __name__ == "__main__":

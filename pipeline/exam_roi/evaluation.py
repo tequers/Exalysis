@@ -395,18 +395,70 @@ def _validate_extraction_provenance(extraction):
     stage = "candidate analysis"
     if not isinstance(extraction, dict):
         _reject(stage, "source extraction record must be an object")
+    extraction_kind = extraction.get("extraction_kind")
     try:
-        _text(extraction.get("extraction_kind"), "extraction kind")
+        _text(extraction_kind, "extraction kind")
     except ValueError as exc:
         _reject(stage, str(exc))
+    if extraction_kind in {"pdf_text_layer", "pdf_text_layer_pdfminer_fallback"}:
+        paged = True
+    elif extraction_kind in {"utf8_text_file", "evaluation-source-text"}:
+        paged = False
+    else:
+        _reject(stage, "source extraction kind is not supported")
+    character_count = extraction.get("character_count")
+    if type(character_count) is not int or character_count <= 0:
+        _reject(stage, "source extraction character count must be a positive integer")
     segments = extraction.get("segments")
     if not isinstance(segments, list) or not segments:
         _reject(stage, "source extraction requires a nonempty segments list")
+
+    page_count = extraction.get("page_count")
+    if paged and (type(page_count) is not int or page_count <= 0):
+        _reject(stage, "PDF source extraction page count must be a positive integer")
+    if not paged and "page_count" in extraction:
+        _reject(stage, "a text source must not include a page count")
+    if paged and len(segments) != page_count:
+        _reject(stage, "source extraction segments must cover every PDF page")
+    if not paged and len(segments) != 1:
+        _reject(stage, "a source without pages must have one whole-file extraction segment")
+
+    previous = None
     for index, segment in enumerate(segments, 1):
-        if not isinstance(segment, dict) or not {
-                "char_start", "char_end", "line_start"} <= set(segment):
-            _reject(stage, f"extraction segment {index} needs char_start, char_end, "
-                           "and line_start")
+        required = {"label", "page", "char_start", "char_end", "line_start", "line_count"}
+        if not isinstance(segment, dict) or not required <= set(segment):
+            _reject(stage, f"extraction segment {index} needs a label, page reference, "
+                           "starting and ending character positions, starting line, and line count")
+        try:
+            _text(segment["label"], f"extraction segment {index} label")
+        except ValueError as exc:
+            _reject(stage, str(exc))
+        char_start, char_end = segment["char_start"], segment["char_end"]
+        line_start, line_count = segment["line_start"], segment["line_count"]
+        if (type(char_start) is not int or type(char_end) is not int
+                or not 0 <= char_start < char_end <= character_count):
+            _reject(stage, f"extraction segment {index} has an invalid character range")
+        if type(line_start) is not int or type(line_count) is not int or line_start <= 0 or line_count <= 0:
+            _reject(stage, f"extraction segment {index} has an invalid line range")
+
+        if paged:
+            if type(segment["page"]) is not int or segment["page"] != index:
+                _reject(stage, f"extraction segment {index} must identify PDF page {index}")
+            if segment["label"] != f"Page {index}":
+                _reject(stage, f"extraction segment {index} label must be Page {index!s}")
+        elif segment["page"] is not None or segment["label"] != "whole file":
+            _reject(stage, "a source without pages must use the whole file label and no page number")
+
+        if previous is None:
+            if char_start != 0 or line_start != 1:
+                _reject(stage, "the first extraction segment must start at character 0 and line 1")
+        elif (char_start != previous["char_end"] + 2
+              or line_start != previous["line_start"] + previous["line_count"] + 1):
+            _reject(stage, f"extraction segment {index} is out of source order or leaves uncovered text")
+        previous = segment
+
+    if previous["char_end"] != character_count:
+        _reject(stage, "extraction segments must cover the complete extracted text")
 
 
 def _validate_provenance(source, model):
