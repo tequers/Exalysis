@@ -279,7 +279,16 @@ def _extract_pdf(path, source_bytes):
     # fallback stays text-only: no rendering or OCR is involved here.
     if pages and not all(text.strip() for _, text in pages):
         fallback = _pdfplumber_pages(source_bytes)
-        if _readable(fallback) > _readable(pages):
+        if fallback is not None and len(fallback) != len(pages):
+            raise ExtractionError(
+                "inconsistent_page_count",
+                f"PDF readers disagree about the total pages in {path.name}: "
+                f"pypdf found {len(pages)}, while pdfplumber found {len(fallback)}. "
+                "The paper cannot be checked for complete page coverage.",
+                "Export the complete paper again, or OCR it into a new PDF and verify its "
+                "page count before running add-exam. You can also supply a UTF-8 .txt file.",
+            )
+        if fallback is not None and _readable(fallback) > _readable(pages):
             pages, kind = fallback, "pdf_text_layer_pdfminer_fallback"
 
     if not pages:
@@ -369,12 +378,12 @@ def _pdfplumber_pages(source_bytes):
     try:
         import pdfplumber
     except ImportError:
-        return []
+        return None
     try:
         with pdfplumber.open(BytesIO(source_bytes)) as reader:
             return _read_pdf_pages(reader.pages, layout=False)
     except Exception:                            # the primary reader's outcome stands
-        return []
+        return None
 
 
 def _assemble(blocks):

@@ -182,27 +182,31 @@ class ReviewPersistenceTests(unittest.TestCase):
         self.redirect.__enter__()
         self.addCleanup(self.redirect.__exit__, None, None, None)
         self.folder = Path(self.temp.name)
-        app.setup_course_folder(self.folder)
+        self.context = app.setup_course_folder(self.folder)
         self.paper = self.folder / "paper.txt"
         self.paper.write_text(SOURCE, encoding="utf-8")
-        app.save_taxonomy({"topics": {}})
-        self.taxonomy_before = app.TAXONOMY_FILE.read_bytes()
-        app.PARSED_DIR.mkdir()
-        self.accepted = app.PARSED_DIR / "paper.json"
+        app.save_taxonomy({"topics": {}}, course=self.context)
+        self.taxonomy_before = self.context.taxonomy_file.read_bytes()
+        self.context.parsed_dir.mkdir()
+        self.accepted = self.context.parsed_dir / "paper.json"
         self.accepted.write_text(json.dumps({"exam_id": "paper", "per_topic": {}}), encoding="utf-8")
         self.accepted_before = self.accepted.read_bytes()
 
     def run_candidate(self, reviewer=None, score_responses=None, **kwargs):
         q = question()
         q.pop("topics")
+        if reviewer is None:
+            configured = app.configure_reviewer(dict(app.os.environ), "anthropic")
+            reviewer = configured.pop("reviewer_client")
+            kwargs.update(configured)
         with patch.object(app, "stage1_extract", return_value=([q], 2026)), \
              patch.object(app, "_stage2_tag", return_value=({"Q1": tag(["Equations"])}, ["Equations"])), \
              patch.object(app, "call_llm", return_value=json.dumps(scores()), side_effect=score_responses):
             app.process_exam_file(self.paper, force=True, review_enabled=True,
-                                  reviewer_client=reviewer, **kwargs)
-        self.assertEqual(app.TAXONOMY_FILE.read_bytes(), self.taxonomy_before)
+                                  reviewer_client=reviewer, **kwargs, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        self.assertEqual(self.context.taxonomy_file.read_bytes(), self.taxonomy_before)
         self.assertEqual(self.accepted.read_bytes(), self.accepted_before)
-        return json.loads((app.CANDIDATES_DIR / "paper.json").read_text(encoding="utf-8"))
+        return json.loads((self.context.candidates_dir / "paper.json").read_text(encoding="utf-8"))
 
     def test_review_failure_is_saved_and_visible(self):
         saved = self.run_candidate(Mock(side_effect=RuntimeError("offline")))

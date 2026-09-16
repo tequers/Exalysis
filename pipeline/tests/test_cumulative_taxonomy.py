@@ -116,17 +116,17 @@ class CumulativeTests(unittest.TestCase):
 
     def test_process_keeps_candidate_separate_from_accepted_taxonomy(self):
         with tempfile.TemporaryDirectory() as folder:
-            app.setup_course_folder(Path(folder))
+            self.context = app.setup_course_folder(Path(folder))
             observed = paper("A")
             path = Path(folder) / "one.txt"
             path.write_text(observed["questions"][0]["text"], encoding="utf-8")
             with patch.object(app, "stage1_extract", return_value=(observed["questions"], 2026)), \
                  patch.object(app, "_stage2_tag", return_value=(tagging("A", observed["questions"][0]["text"]), ["A"])), \
                  patch.object(app, "call_llm", return_value=json.dumps(observed["topic_judgments"])):
-                app.process_exam_file(path)
-            self.assertEqual(app.load_taxonomy(), {"topics": {}})
-            self.assertEqual(app.load_all_exams(), {})
-            candidate = json.loads((app.CANDIDATES_DIR / "one.json").read_text(encoding="utf-8"))
+                app.process_exam_file(path, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+            self.assertEqual(app.load_taxonomy(course=self.context), {"topics": {}})
+            self.assertEqual(app.load_all_exams(course=self.context), {})
+            candidate = json.loads((self.context.candidates_dir / "one.json").read_text(encoding="utf-8"))
             self.assertEqual(candidate["topic_judgments"]["A"]["Conn"], 1)
             self.assertIn("A", candidate["proposed_taxonomy_changes"]["topics"])
 
@@ -137,6 +137,6 @@ class CumulativeTests(unittest.TestCase):
         answer = {"edges": [dict(prerequisite="A", dependent="B", q_id="Q1",
                                   quote="Use A to solve B.", rationale="B requires A in this task")]}
         with patch.object(app, "call_llm", return_value=json.dumps(answer)):
-            review = app.refresh_connections(early, ["A", "B"])
+            review = app.refresh_connections(early, ["A", "B"], client=app.call_llm)
         self.assertEqual(early["topic_judgments"], original_judgments)
         self.assertEqual(review["edges"][0]["prerequisite"], "A")

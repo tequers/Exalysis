@@ -113,7 +113,7 @@ class ContractTests(unittest.TestCase):
             for fmt, marks in zip(pair["formats"], [1, 100]):
                 with patch.object(app, "call_llm", return_value=json.dumps(score(example))) as call:
                     out = app._stage2_score_topics(["Topic"], "", [question(example, fmt, marks)],
-                                               ["Topic"])
+                                               ["Topic"], client=app.call_llm)
                 prompt = call.call_args.args[1]
                 self.assertIn(example["text"], prompt)
                 self.assertNotIn('"format":', prompt)
@@ -169,7 +169,7 @@ class ContractTests(unittest.TestCase):
             before = copy.deepcopy(taxonomy)
             with patch.object(app, "_stage2_tag", return_value=(tagging("Topic", example["quote"]), ["Topic"])), \
                  patch.object(app, "call_llm", return_value=json.dumps(score(example))) as call:
-                outputs.append(app.stage2_tag_score([question(example)], taxonomy, 10))
+                outputs.append(app.stage2_tag_score([question(example)], taxonomy, 10, client=app.call_llm))
                 prompts.append(call.call_args.args[1])
             self.assertEqual(taxonomy, before)
         self.assertEqual(outputs[0], outputs[1])
@@ -189,31 +189,31 @@ class WorkflowTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.folder = Path(self.tmp.name)
-        app.setup_course_folder(self.folder)
-        app.PARSED_DIR.mkdir()
+        self.context = app.setup_course_folder(self.folder)
+        self.context.parsed_dir.mkdir()
         self.example = FIXTURES["examples"][2]
         self.taxonomy = {"topics": {"Legacy": {"Diff": 4, "Conn": 2,
                          "Diff_hours": "3–6h", "difficulty_hours": 6,
                          "prerequisites": [], "first_seen": "old"}}}
-        app.save_taxonomy(self.taxonomy)
+        app.save_taxonomy(self.taxonomy, course=self.context)
         self.old = {"exam_id": "old", "year": 2024, "total_marks": 100,
                     "source_file": "old.txt", "questions": [], "per_topic": {
                     "Legacy": {"marks_total": 20, "mark_fraction": .2,
                     "format_distribution": {"short_answer": 1}, "Diff_hours": "3–6h"}}}
-        (app.PARSED_DIR / "old.json").write_text(json.dumps(self.old), encoding="utf-8")
+        (self.context.parsed_dir / "old.json").write_text(json.dumps(self.old), encoding="utf-8")
 
     def test_legacy_rebuild_preserves_records_and_removes_duration_from_both_exports(self):
         from openpyxl import load_workbook
-        before = {p: p.read_bytes() for p in [app.TAXONOMY_FILE, app.PARSED_DIR / "old.json"]}
-        app.cmd_rebuild(None)
-        rows = json.loads(app.OUTPUT_JSON.read_text(encoding="utf-8"))
+        before = {p: p.read_bytes() for p in [self.context.taxonomy_file, self.context.parsed_dir / "old.json"]}
+        app.cmd_rebuild(None, course=self.context)
+        rows = json.loads(self.context.output_json.read_text(encoding="utf-8"))
         self.assertEqual(rows[0]["Diff"], 4)
         self.assertEqual(rows[0]["Conn"], 2)
         self.assertEqual(rows[0]["priority"], 5)
         self.assertEqual(rows[0]["difficulty_contract_version"], LEGACY_VERSION)
         self.assertEqual(rows[0]["per_exam"]["old"]["evaluation_contract_version"], LEGACY_VERSION)
         self.assertNotIn("hours", json.dumps(rows))
-        wb = load_workbook(app.OUTPUT_XLSX)
+        wb = load_workbook(self.context.output_xlsx)
         try:
             cells = [str(c.value) for sheet in wb for row in sheet for c in row if c.value is not None]
             self.assertFalse(any("hour" in c.lower() or c == "3–6h" for c in cells))
@@ -235,8 +235,8 @@ class WorkflowTests(unittest.TestCase):
         with patch.object(app, "stage1_extract", return_value=([q], 2026)), \
              patch.object(app, "_stage2_tag", return_value=(tagging("Topic", self.example["quote"]), ["Topic"])), \
              patch.object(app, "call_llm", return_value=json.dumps(answer or score(self.example))):
-            app.process_exam_file(paper, force=True)
-        return json.loads((app.CANDIDATES_DIR / "new_2026.json").read_text(encoding="utf-8"))
+            app.process_exam_file(paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        return json.loads((self.context.candidates_dir / "new_2026.json").read_text(encoding="utf-8"))
 
     def test_new_analysis_records_version_and_grounded_qualitative_judgments(self):
         parsed = self._process_new()
@@ -244,41 +244,41 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(parsed["evaluation_contract_version"], CONTRACT_VERSION)
         judgment = parsed["per_topic"]["Topic"]
         self.assertEqual(judgment["Diff"], 3)
-        self.assertNotIn("course_prerequisites", app.load_taxonomy())
+        self.assertNotIn("course_prerequisites", app.load_taxonomy(course=self.context))
         self.assertEqual(judgment["prerequisite_evidence"][0]["q_id"], "Q1")
         self.assertEqual(judgment["question_difficulty"][0]["quote"], self.example["quote"])
         self.assertNotIn("hours", json.dumps(parsed))
-        taxonomy = app.load_taxonomy()
+        taxonomy = app.load_taxonomy(course=self.context)
         self.assertEqual(taxonomy, self.taxonomy)
         proposal = parsed["proposed_taxonomy_changes"]["topics"]["Topic"]
         self.assertEqual(proposal["evaluation_contract_version"], CONTRACT_VERSION)
         self.assertEqual(proposal["first_seen"], "new_2026")
 
     def test_abstained_new_difficulty_does_not_overwrite_course_scores(self):
-        before = app.TAXONOMY_FILE.read_bytes()
+        before = self.context.taxonomy_file.read_bytes()
         answer = score(self.example)
         answer["Topic"]["question_difficulty"][0]["level"] = None
         with self.assertRaisesRegex(ValueError, "resolved integer"):
             self._process_new(answer)
-        self.assertEqual(app.TAXONOMY_FILE.read_bytes(), before)
-        self.assertFalse((app.CANDIDATES_DIR / "new_2026.json").exists())
+        self.assertEqual(self.context.taxonomy_file.read_bytes(), before)
+        self.assertFalse((self.context.candidates_dir / "new_2026.json").exists())
 
     def test_explicit_override_preserved_when_topic_reappears(self):
         from argparse import Namespace
         with patch.object(app, "cmd_rebuild"):
-            app.cmd_edit_topic(Namespace(name="Legacy", diff=5, conn=None))
-        topic = app.load_taxonomy()["topics"]["Legacy"]
+            app.cmd_edit_topic(Namespace(name="Legacy", diff=5, conn=None), course=self.context)
+        topic = app.load_taxonomy(course=self.context)["topics"]["Legacy"]
         self.assertEqual(topic["Conn"], 2)
         self.assertNotIn("evaluation_contract_version", topic)
         self.assertEqual(difficulty_version(topic), CONTRACT_VERSION)
         self.assertEqual(topic["human_overrides"]["Diff"]["previous_value"], 4)
         q = question(self.example)
         q["topics"] = ["Legacy"]
-        taxonomy = app.load_taxonomy()
+        taxonomy = app.load_taxonomy(course=self.context)
         before = copy.deepcopy(taxonomy)
         with patch.object(app, "_stage2_tag", return_value=(tagging("Legacy", self.example["quote"]), [])), \
              patch.object(app, "call_llm", return_value=json.dumps({"Legacy": score(self.example)["Topic"]})) as call:
-            result = app.stage2_tag_score([q], taxonomy, 10)
+            result = app.stage2_tag_score([q], taxonomy, 10, client=app.call_llm)
         call.assert_called_once()
         self.assertEqual(taxonomy, before)
         self.assertEqual(result["per_topic"]["Legacy"]["Diff"], 3)

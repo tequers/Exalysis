@@ -162,18 +162,19 @@ class RejectionSafetyTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.folder = Path(self.tmp.name)
-        app.setup_course_folder(self.folder)
-        app.PARSED_DIR.mkdir()
+        self.context = app.setup_course_folder(self.folder)
+        self.context.parsed_dir.mkdir()
         self.paper = self.folder / "paper.txt"
         self.paper.write_text(question()["text"], encoding="utf-8")
-        app.save_taxonomy({"topics": {"Accepted": {"Diff": 2, "Conn": 1}}})
-        self.accepted = app.PARSED_DIR / "paper.json"
+        app.save_taxonomy({"topics": {"Accepted": {"Diff": 2, "Conn": 1}}}, course=self.context)
+        self.accepted = self.context.parsed_dir / "paper.json"
         self.accepted.write_text(json.dumps({
-            "exam_id": "paper", "source_path": str(self.paper.resolve()), "sentinel": "accepted"
+            "exam_id": "paper", "per_topic": {},
+            "source_path": str(self.paper.resolve()), "sentinel": "accepted"
         }), encoding="utf-8")
 
     def test_rejected_reparse_leaves_accepted_paper_and_taxonomy_unchanged(self):
-        before_taxonomy = app.TAXONOMY_FILE.read_bytes()
+        before_taxonomy = self.context.taxonomy_file.read_bytes()
         before_paper = self.accepted.read_bytes()
         extraction = {"exam_year": 2026, "questions": [
             {key: value for key, value in question().items() if key != "topics"}
@@ -182,13 +183,13 @@ class RejectionSafetyTests(unittest.TestCase):
         with patch.object(app, "call_llm", side_effect=[
                 json.dumps(extraction), json.dumps(incomplete_tags)]):
             with self.assertRaisesRegex(CandidateValidationError, "missing IDs: Q1") as raised:
-                app.process_exam_file(self.paper, force=True)
+                app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(raised.exception.disposition, "correction_required")
-        self.assertEqual(app.TAXONOMY_FILE.read_bytes(), before_taxonomy)
+        self.assertEqual(self.context.taxonomy_file.read_bytes(), before_taxonomy)
         self.assertEqual(self.accepted.read_bytes(), before_paper)
 
     def test_unresolved_difficulty_requests_review_without_changing_state(self):
-        before_taxonomy = app.TAXONOMY_FILE.read_bytes()
+        before_taxonomy = self.context.taxonomy_file.read_bytes()
         before_paper = self.accepted.read_bytes()
         unresolved = scores(level=None)
         with patch.object(app, "stage1_extract", return_value=([{
@@ -197,9 +198,9 @@ class RejectionSafetyTests(unittest.TestCase):
              patch.object(app, "_stage2_tag", return_value=({"Q1": tag(["Equations"])}, ["Equations"])), \
              patch.object(app, "call_llm", return_value=json.dumps(unresolved)):
             with self.assertRaises(CandidateValidationError) as raised:
-                app.process_exam_file(self.paper, force=True)
+                app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(raised.exception.disposition, "needs_review")
-        self.assertEqual(app.TAXONOMY_FILE.read_bytes(), before_taxonomy)
+        self.assertEqual(self.context.taxonomy_file.read_bytes(), before_taxonomy)
         self.assertEqual(self.accepted.read_bytes(), before_paper)
 
     def test_valid_candidate_records_contract_source_and_model_provenance(self):
@@ -208,18 +209,18 @@ class RejectionSafetyTests(unittest.TestCase):
         with patch.object(app, "stage1_extract", return_value=([q], 2026)), \
              patch.object(app, "_stage2_tag", return_value=({"Q1": tag(["Equations"])}, ["Equations"])), \
              patch.object(app, "call_llm", return_value=json.dumps(scores())):
-            app.process_exam_file(self.paper, force=True)
+            app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(json.loads(self.accepted.read_text(encoding="utf-8"))["sentinel"], "accepted")
-        candidate_path = app.CANDIDATES_DIR / "paper.json"
+        candidate_path = self.context.candidates_dir / "paper.json"
         candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
         self.assertEqual(candidate["record_kind"], "candidate-analysis")
         self.assertEqual(candidate["candidate_status"], "validated")
         self.assertEqual(candidate["source_provenance"]["file_name"], "paper.txt")
         self.assertEqual(len(candidate["source_provenance"]["sha256"]), 64)
         self.assertEqual(candidate["model_provenance"], {
-            "provider": app.LLM_PROVIDER,
-            "extraction_model": app.MODEL_STAGE1,
-            "analysis_model": app.MODEL_STAGE2,
+            "provider": "injected-callable",
+            "extraction_model": "injected-callable",
+            "analysis_model": "injected-callable",
         })
         self.assertEqual(candidate["proposed_taxonomy_changes"]["new_topic_names"], ["Equations"])
         self.assertIn("Equations", candidate["proposed_taxonomy_changes"]["topics"])
@@ -234,11 +235,11 @@ class RejectionSafetyTests(unittest.TestCase):
         with patch.object(app, "stage1_extract", return_value=([q], 2026)), \
              patch.object(app, "_stage2_tag", return_value=({"Q1": uncertain_tag}, ["Equations"])), \
              patch.object(app, "call_llm", return_value=json.dumps(scores())):
-            app.process_exam_file(self.paper, force=True)
-        candidate = json.loads((app.CANDIDATES_DIR / "paper.json").read_text(encoding="utf-8"))
+            app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        candidate = json.loads((self.context.candidates_dir / "paper.json").read_text(encoding="utf-8"))
         self.assertEqual(candidate["candidate_status"], "needs-review")
         self.assertEqual(json.loads(self.accepted.read_text(encoding="utf-8"))["sentinel"], "accepted")
-        self.assertEqual(app.load_taxonomy(), {"topics": {"Accepted": {"Diff": 2, "Conn": 1}}})
+        self.assertEqual(app.load_taxonomy(course=self.context), {"topics": {"Accepted": {"Diff": 2, "Conn": 1}}})
 
     def test_dependency_cycle_saves_needs_review_candidate(self):
         text = "A and B depend on each other."
@@ -267,8 +268,8 @@ class RejectionSafetyTests(unittest.TestCase):
         with patch.object(app, "stage1_extract", return_value=([q], 2026)), \
              patch.object(app, "_stage2_tag", return_value=(tags, ["A", "B"])), \
              patch.object(app, "call_llm", return_value=json.dumps(answer)):
-            app.process_exam_file(self.paper, force=True)
-        candidate = json.loads((app.CANDIDATES_DIR / "paper.json").read_text(encoding="utf-8"))
+            app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        candidate = json.loads((self.context.candidates_dir / "paper.json").read_text(encoding="utf-8"))
         self.assertEqual(candidate["candidate_status"], "needs-review")
         self.assertTrue(candidate["proposed_taxonomy_changes"]["topics"]["A"]
                         ["connection_review_required"])
@@ -278,15 +279,15 @@ class RejectionSafetyTests(unittest.TestCase):
         q = question()
         q.pop("topics")
 
-        def extract_then_change_source(_text, _total_marks):
+        def extract_then_change_source(_text, _total_marks, **_kwargs):
             self.paper.write_text("changed after extraction", encoding="utf-8")
             return [q], 2026
 
         with patch.object(app, "stage1_extract", side_effect=extract_then_change_source), \
              patch.object(app, "_stage2_tag", return_value=({"Q1": tag(["Equations"])}, ["Equations"])), \
              patch.object(app, "call_llm", return_value=json.dumps(scores())):
-            app.process_exam_file(self.paper, force=True)
-        candidate = json.loads((app.CANDIDATES_DIR / "paper.json").read_text(encoding="utf-8"))
+            app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
+        candidate = json.loads((self.context.candidates_dir / "paper.json").read_text(encoding="utf-8"))
         self.assertEqual(candidate["source_provenance"]["sha256"], hashlib.sha256(original).hexdigest())
 
 

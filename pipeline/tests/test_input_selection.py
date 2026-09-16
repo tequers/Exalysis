@@ -141,7 +141,7 @@ class InputSelectionTests(unittest.TestCase):
     def test_cli_lists_every_resolved_path_before_processing(self):
         first = self.paper("first.txt")
         second = self.paper("exams/second.txt")
-        app.setup_course_folder(self.course)
+        self.context = app.setup_course_folder(self.course)
         output = StringIO()
         args = SimpleNamespace(paths=[], recursive=False, year=None, exam_id=None,
                                total_marks=None, force=False)
@@ -152,7 +152,7 @@ class InputSelectionTests(unittest.TestCase):
             return app.ExamOutcome.SAVED
 
         with redirect_stdout(output), patch.object(app, "process_exam_file", side_effect=process) as process_mock:
-            app.cmd_add_exam(args)
+            app.cmd_add_exam(args, course=self.context)
         self.assertEqual([call.args[0] for call in process_mock.call_args_list], [first, second])
 
     def test_dry_run_cli_from_both_working_directories_creates_no_state(self):
@@ -172,10 +172,10 @@ class InputSelectionTests(unittest.TestCase):
 
     def test_dry_run_never_calls_processing(self):
         self.paper("paper.txt")
-        app.setup_course_folder(self.course)
+        self.context = app.setup_course_folder(self.course)
         args = SimpleNamespace(paths=[], recursive=False, year=None, exam_id=None, dry_run=True)
         with redirect_stdout(StringIO()), patch.object(app, "process_exam_file") as process:
-            app.cmd_add_exam(args)
+            app.cmd_add_exam(args, course=self.context)
         process.assert_not_called()
 
 

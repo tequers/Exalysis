@@ -78,9 +78,11 @@ class BudgetTests(unittest.TestCase):
         with self.assertRaises(RequestLimitError):
             client('system', 'x' * 100)
         sdk.chat.completions.create.assert_not_called()
-        with patch.object(app, '_client') as create:
-            with self.assertRaises(RequestLimitError):
-                app.call_llm('s', 'x' * 100, limits=RequestLimits(100, 20, 10))
+        create = Mock()
+        lazy_client = ModelClient(None, 'openai', 'one', RequestLimits(100, 20, 10),
+                                  client_factory=create)
+        with self.assertRaises(RequestLimitError):
+            app.call_llm('s', 'x' * 100, client=lazy_client)
         create.assert_not_called()
 
     def test_clients_keep_models_and_limits_separate(self):
@@ -237,14 +239,14 @@ class AnalysisBatchTests(unittest.TestCase):
         self.assertIn('COURSE BASELINE', score_client.call_args.args[1])
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)
-            app.setup_course_folder(folder)
+            self.context = app.setup_course_folder(folder)
             paper = folder / 'paper_2026.txt'
             paper.write_text(q['source_context'], encoding='utf-8')
             with patch.object(app, 'stage1_extract', return_value=([q], 2026)), \
                  patch.object(app, '_stage2_tag', return_value=(tags, [])), \
                  patch.object(app, 'load_taxonomy', return_value={'topics': {'Equations': {}}}):
-                app.process_exam_file(paper, analysis_client=fake_scoring)
-            candidate = json.loads((app.CANDIDATES_DIR / 'paper_2026.json').read_text(encoding='utf-8'))
+                app.process_exam_file(paper, analysis_client=fake_scoring, course=self.context, extraction_client=app.call_llm)
+            candidate = json.loads((self.context.candidates_dir / 'paper_2026.json').read_text(encoding='utf-8'))
             self.assertEqual(candidate['questions'][0]['source_context'], q['source_context'])
 
     def test_tagging_output_batches_and_final_exact_coverage(self):
