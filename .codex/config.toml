@@ -1,0 +1,6 @@
+[mcp_servers.graft]
+command = "npx"
+args = ["-y", "@nanonets/graft", "mcp"]
+cwd = "C:\\Users\\alber\\Claude\\Projects\\0_Projects\\Exams_Analysis_AI_pipeline"
+enabled = true
+startup_timeout_sec = 30
