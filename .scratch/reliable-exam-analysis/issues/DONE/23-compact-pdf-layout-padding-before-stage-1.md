@@ -32,7 +32,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "c2e7b5f0990f991883375d4116359d021c26c335",
+    "replacement": null,
+    "reviewed_by": "Codex automated verification",
+    "evidence": [
+      "The real 2024 Modelo A request now fits at 110,159 of 128,000 configured tokens; 221 pipeline tests and 35 ticket checks passed."
+    ]
+  }
 }
 ```
 
