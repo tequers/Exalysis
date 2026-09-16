@@ -22,13 +22,13 @@
     "pipeline/tests/test_request_limits.py"
   ],
   "verification": {
-    "commit": "610be3086bc519642f399023ef8408e67835fab0",
-    "checked_at": "2026-09-16T19:27:01+00:00",
+    "commit": "c2e7b5f0990f991883375d4116359d021c26c335",
+    "checked_at": "2026-09-16T19:30:46+00:00",
     "criteria_digest": "84cb1179d42d3329ec38e63423e7e7bd616f40d6c0c1651aff8cdad940d8d731",
     "checker": "Codex",
-    "result": "still_valid",
+    "result": "already_resolved",
     "evidence": [
-      "Offline reproduction extracted 202,815 characters from the 14-page 2024 Modelo A PDF, produced one complete source unit, and raised the reported 253,235-token RequestLimitError before any model call. Horizontal whitespace compaction reduced the unchanged complete request estimate to 110,159 tokens."
+      "At commit c2e7b5f, the real 2024 Modelo A PDF fits the unchanged 128,000-token Stage 1 context at an estimated 110,159 tokens. All 221 pipeline tests and 35 ticket checks passed offline; no model call was used for verification."
     ],
     "provisional": false
   },
