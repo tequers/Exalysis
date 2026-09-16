@@ -333,6 +333,12 @@ PROVIDERS = {
     },
 }
 
+MODEL_REQUEST_LIMITS = {
+    ("unorouter", "glm-5.3-flash"): RequestLimits(1_000_000, 128_000, 1024),
+    ("unorouter", "glm-5.3"): RequestLimits(1_000_000, 128_000, 1024),
+}
+
+
 def configure_model_clients(env, *, review=False):
     """Build each command's clients from its startup environment snapshot."""
     provider = env.get("LLM_PROVIDER", "anthropic").lower()
@@ -344,9 +350,14 @@ def configure_model_clients(env, *, review=False):
     if any(not model or not model.strip() for model in models):
         raise ModelConfigurationError(
             f"Set LLM_MODEL_STAGE1 and LLM_MODEL_STAGE2 to exact {provider} model IDs before reading exams.")
+
+    def request_limits(model, stage):
+        defaults = MODEL_REQUEST_LIMITS.get((provider, model))
+        return RequestLimits.from_env(env, stage, defaults)
+
     try:
         result = {
-            name: configured_model_client(provider, model, RequestLimits.from_env(env, stage),
+            name: configured_model_client(provider, model, request_limits(model, stage),
                                           providers=PROVIDERS, env=env)
             for name, model, stage in zip(("extraction_client", "analysis_client"), models, (1, 2))
         }
@@ -357,6 +368,20 @@ def configure_model_clients(env, *, review=False):
     if review:
         result.update(configure_reviewer(env, provider))
     return result
+
+
+def _print_llm_settings(clients):
+    """Print effective non-secret model settings for a live analysis run."""
+    print("\nLLM settings:")
+    for stage, name in ((1, "extraction_client"), (2, "analysis_client")):
+        client = clients[name]
+        limits = client.limits
+        provider = client.provider or f"{client.sdk}-compatible"
+        print(
+            f"   Stage {stage}: provider={provider}, model={client.model}, "
+            f"context={limits.context_tokens:,}, max_output={limits.output_tokens:,}, "
+            f"overhead={limits.overhead_tokens:,} tokens"
+        )
 
 
 def configure_reviewer(env, analyzer_provider):
@@ -1451,6 +1476,7 @@ def main():
         if args.cmd == "add-exam" and not args.dry_run:
             load_dotenv(DOTENV_FILE)
             clients = configure_model_clients(dict(os.environ), review=args.review)
+            _print_llm_settings(clients)
         course = setup_course_folder(args.course_folder)
         return dispatch[args.cmd](args, course, **clients)
     except StorageError as exc:
