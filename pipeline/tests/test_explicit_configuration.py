@@ -235,7 +235,7 @@ with patch.object(sys, "stdout", out), patch.object(sys, "stderr", err), \\
             raise AssertionError("import read environment defaults")
         return original(path, *args, **kwargs)
     with patch.object(pathlib.Path, "read_text", read):
-        import pipeline, exam_roi.llm, exam_roi.storage, exam_roi.reports
+        import pipeline, exam_roi.llm, exam_roi.storage, exam_roi.reports, exam_roi.scoring
 assert os.environ == before
 assert not out.getvalue() and not err.getvalue()
 '''

@@ -7,18 +7,14 @@ path and an already-built snapshot (ranked topic rows, the exam list, and the
 taxonomy dict) and write them out. They must NOT:
   - read course-folder globals (COURSE_FOLDER, OUTPUT_XLSX, OUTPUT_JSON, ...);
     every path this module writes to is passed in by the caller;
-  - decide which analyses are accepted, or otherwise select what goes into the
-    snapshot — that is cmd_rebuild's job in pipeline.py (ticket 19's scope:
-    row building, taxonomy aggregation, tier assignment and ordering stay
-    there);
+  - decide which analyses are accepted, aggregate marks, rank topics, or assign
+    tiers. The workflow selects accepted records and exam_roi.scoring builds the
+    report snapshot;
   - call a model or reach a provider;
   - mutate taxonomy, or any other input it is given.
 
-This module also owns the small helpers rendering needs to turn a snapshot
-into sheet/row content: `weighted_fmt` (a topic's mark-weighted average
-format score) and `exam_labels` (short, disambiguated per-exam column
-labels). `cmd_rebuild` and `cmd_status` in pipeline.py import these from here
-rather than duplicating them.
+This module owns short, disambiguated exam labels. Format arithmetic now lives
+in exam_roi.scoring and remains re-exported here for compatibility.
 
 Importing this module must not require credentials, terminate the process,
 or reconfigure global streams — it only defines functions and constants.
@@ -29,35 +25,15 @@ import re
 from datetime import datetime
 
 from .evaluation import LEGACY_VERSION, difficulty_version
-
-
-# Format → integer score (MVP scale 1–3)
-FMT_SCORE = {
-    "mcq":                 1,
-    "short_answer":        2,
-    "explain_derive":      2,
-    "write_code_or_proof": 3,
-}
-
-
-def weighted_fmt(fmt_dist: dict) -> float:
-    """Mark-weighted average format score across a topic's format distribution."""
-    total, weighted = 0.0, 0.0
-    for fmt, frac in fmt_dist.items():
-        weighted += FMT_SCORE.get(fmt, 2) * frac
-        total += frac
-    return round(weighted / total, 3) if total else 2.0
+from .scoring import weighted_fmt
 
 
 def _id_tokens(exam_id: str) -> list:
     return [t for t in re.split(r"[_\-\s]+", exam_id) if t]
 
 
-# A local copy of pipeline.py's EARLIEST_YEAR: this module must not import from
-# pipeline.py (see the interface note above — cross-module imports stay
-# directional, workflow -> reports, never the other way), and the value here is
-# only a heuristic bound for recognizing a bare year inside an exam_id label,
-# not a shared course-state constant.
+# A local copy of pipeline.py's EARLIEST_YEAR. This value only bounds the
+# heuristic that recognizes a bare year inside an exam ID label.
 _EARLIEST_YEAR = 1990
 
 
@@ -67,15 +43,7 @@ def _is_year_token(token: str) -> bool:
 
 
 def exam_labels(exam_list: list) -> dict:
-    """
-    {exam_id: short column label}.
-
-    Several papers per year is the norm — models, sittings, resits, coincidencias —
-    so a year alone does not identify a column. Papers that share a year are told
-    apart by whatever their names do NOT have in common: the tokens every name in
-    the group shares, front and back, are dropped, and what survives is the label
-    ("2022 Lunes", "2022 Martes"). A year with a single paper keeps the bare year.
-    """
+    """Return short, distinct report labels keyed by exam ID."""
     by_year = {}
     for exam in exam_list:
         by_year.setdefault(exam.get("year"), []).append(exam)
@@ -88,22 +56,20 @@ def exam_labels(exam_list: list) -> dict:
             continue
 
         token_lists = [_id_tokens(e["exam_id"]) for e in group]
-        shortest    = min(len(t) for t in token_lists)
+        shortest = min(len(tokens) for tokens in token_lists)
 
         n_pre = 0
         while (n_pre < shortest - 1
-               and len({t[n_pre].lower() for t in token_lists}) == 1):
+               and len({tokens[n_pre].lower() for tokens in token_lists}) == 1):
             n_pre += 1
         n_suf = 0
         while (n_pre + n_suf < shortest - 1
-               and len({t[-1 - n_suf].lower() for t in token_lists}) == 1):
+               and len({tokens[-1 - n_suf].lower() for tokens in token_lists}) == 1):
             n_suf += 1
 
         for exam, tokens in zip(group, token_lists):
             rest = tokens[n_pre:len(tokens) - n_suf] or tokens[-1:]
-            # The label already opens with the year; a "2023" left in the middle of
-            # the group's differing tokens would only repeat it ("2023 2023 Exam").
-            rest = [t for t in rest if not _is_year_token(t)] or rest
+            rest = [token for token in rest if not _is_year_token(token)] or rest
             suffix = " ".join(rest)
             if len(suffix) > 14:
                 suffix = suffix[:13] + "…"
