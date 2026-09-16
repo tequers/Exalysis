@@ -370,7 +370,10 @@ def _page_text(page, layout):
 def _normalize(text):
     # Layout mode pads every line to preserve columns; that padding carries no
     # information and is pure prompt weight in Stage 1.
-    text = "\n".join(line.rstrip() for line in (text or "").splitlines())
+    text = "\n".join(
+        re.sub(r"[^\S\r\n]+", " ", line).strip()
+        for line in (text or "").splitlines()
+    )
     return re.sub(r"\n{3,}", "\n\n", text).strip("\n")
 
 

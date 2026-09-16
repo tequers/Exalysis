@@ -17,6 +17,7 @@ sys.path.insert(0, str(PIPELINE))
 
 from exam_roi.inputs import ExtractionError, extract_exam_text
 from exam_roi.evaluation import CandidateValidationError, _validate_extraction_provenance
+from exam_roi.llm import RequestLimits
 
 with patch.dict(os.environ, {"LLM_PROVIDER": "anthropic"}):
     app = importlib.import_module("pipeline")
@@ -137,6 +138,18 @@ class PdfExtractionTests(unittest.TestCase):
             self.assertEqual(
                 extracted.text[segment.char_start:segment.char_end].splitlines()[0],
                 f"[Page {segment.page}]")
+
+    def test_pdf_layout_padding_does_not_consume_stage_1_context(self):
+        padded_page = "\n".join(
+            f"{number}.{' ' * 300}Question text {number}"
+            for number in range(1, 401)
+        )
+        extracted = self.extract(fake_pdf(padded_page))
+        prompt = app._extraction_prompt(extracted.text, 100)
+
+        RequestLimits().check(app._S1_SYSTEM, prompt, 32000)
+        self.assertIn("1. Question text 1", extracted.text)
+        self.assertNotIn("  ", extracted.text)
 
     def test_uses_text_fallback_when_pypdf_returns_no_text(self):
         extracted = self.extract(
