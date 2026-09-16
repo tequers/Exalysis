@@ -24,13 +24,13 @@
     "scripts/tests/test_tickets.py"
   ],
   "verification": {
-    "commit": "feaadb6d42a74d71cfb09f69256c8099a9270f80",
-    "checked_at": "2026-09-16T16:42:59+00:00",
-    "criteria_digest": "d5431f8fdd4dc7e306113a7c6e2cc7955c7dbe95f5f4f93db56a939f5038c019",
+    "commit": "f123e95764569b6e068aff16e06d85e4426ae8d2",
+    "checked_at": "2026-09-16T16:51:53+00:00",
+    "criteria_digest": "2428a3edd54f601cd73672f9149cc3cde847b43e840be6951ef4bcd7bacfd6ad",
     "checker": "Codex",
-    "result": "still_valid",
+    "result": "already_resolved",
     "evidence": [
-      "An offline patched CLI run at commit 6c99977 passed COURSE_FOLDER to setup as Path only after an explicit conversion in main, while args.paths reached cmd_add_exam as raw str values; the command printed COURSE_TYPE=WindowsPath and INPUT_TYPE=str."
+      "At commit f123e95, argparse converts COURSE_FOLDER and explicit add-exam PATH arguments to pathlib.Path before command dispatch. Focused 16-test input selection suite, full 220-test pipeline suite, 21 ticket-tool tests, and 35 ticket checks passed; git diff --check was clean."
     ],
     "provisional": false
   },
