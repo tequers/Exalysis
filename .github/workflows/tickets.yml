@@ -1,0 +1,37 @@
+name: Ticket checks
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tickets:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.9', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Test tooling and validate ticket records
+        run: python scripts/check_tickets.py
+      - name: Report tickets affected by the proposed change
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        shell: bash
+        env:
+          TICKET_BASE: ${{ github.event.pull_request.base.sha }}
+          TICKET_HEAD: ${{ github.sha }}
+        run: python scripts/tickets.py impact --base "$TICKET_BASE" --head "$TICKET_HEAD"

@@ -1,20 +1,42 @@
 # 10: Constrain exam IDs to the intended state directory
 
+```json
+{
+  "schema_version": 1,
+  "id": "10",
+  "priority": "P1",
+  "queue_order": 3,
+  "areas": [
+    "storage"
+  ],
+  "depends_on": [],
+  "related_to": [],
+  "references": [
+    "docs/adr/0008-modular-pipeline-architecture.md",
+    "pipeline/exam_roi/identity.py",
+    "pipeline/tests/test_exam_identity.py"
+  ],
+  "verification": null,
+  "closure": {
+    "reason": "implemented",
+    "commit": null,
+    "replacement": null,
+    "reviewed_by": null,
+    "evidence": [
+      "Historical implementation and check evidence is preserved in this ticket body."
+    ]
+  }
+}
+```
+
 **What to build:** Keep custom exam identifiers from escaping the course's parsed-record boundary.
-
-**Blocked by:** None (can start immediately).
-
-**Status:** implemented and reviewed (2026-09-12)
-
-**Priority:** P1
 
 - [x] Reject absolute paths, traversal, path separators, platform-invalid filenames, and empty or reserved identifiers with actionable errors.
 - [x] Verify the resolved destination remains within the intended state directory before any write, including force-reprocessing paths.
 - [x] Preserve valid custom IDs and specify collision and replacement behavior.
 - [x] Test traversal, absolute paths, reserved names, collisions, and force-enabled overwrite attempts using temporary directories.
 
-**Architecture:** Follow [ADR 0008](../../../docs/adr/0008-modular-pipeline-architecture.md). Keep identifier validation at the course persistence/input seam and test resolved containment. This fix can land before package extraction with relocation coordinated later.
-
+**Architecture:** Follow [ADR 0008](../../../../docs/adr/0008-modular-pipeline-architecture.md). Keep identifier validation at the course persistence/input seam and test resolved containment. This fix can land before package extraction with relocation coordinated later.
 
 ## Implementation and verification
 
