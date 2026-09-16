@@ -21,7 +21,17 @@
     "pipeline/tests/test_input_extraction.py",
     "pipeline/tests/test_request_limits.py"
   ],
-  "verification": null,
+  "verification": {
+    "commit": "610be3086bc519642f399023ef8408e67835fab0",
+    "checked_at": "2026-09-16T19:27:01+00:00",
+    "criteria_digest": "84cb1179d42d3329ec38e63423e7e7bd616f40d6c0c1651aff8cdad940d8d731",
+    "checker": "Codex",
+    "result": "still_valid",
+    "evidence": [
+      "Offline reproduction extracted 202,815 characters from the 14-page 2024 Modelo A PDF, produced one complete source unit, and raised the reported 253,235-token RequestLimitError before any model call. Horizontal whitespace compaction reduced the unchanged complete request estimate to 110,159 tokens."
+    ],
+    "provisional": false
+  },
   "closure": null
 }
 ```
