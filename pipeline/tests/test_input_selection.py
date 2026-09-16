@@ -155,6 +155,33 @@ class InputSelectionTests(unittest.TestCase):
             app.cmd_add_exam(args, course=self.context)
         self.assertEqual([call.args[0] for call in process_mock.call_args_list], [first, second])
 
+    def test_cli_parses_filesystem_arguments_as_paths(self):
+        paper = self.paper("paper.txt")
+        captured = {}
+        context = object()
+
+        def setup(course_folder):
+            captured["setup_course_folder"] = course_folder
+            return context
+
+        def add_exam(args, course, **_clients):
+            captured["parsed_course_folder"] = args.course_folder
+            captured["paths"] = args.paths
+            self.assertIs(course, context)
+            return app.EXIT_OK
+
+        argv = ["pipeline.py", str(self.course), "add-exam", str(paper), "--dry-run"]
+        with patch.object(app.sys, "argv", argv), \
+             patch.object(app, "setup_course_folder", side_effect=setup), \
+             patch.object(app, "cmd_add_exam", side_effect=add_exam):
+            self.assertEqual(app.main(), app.EXIT_OK)
+
+        self.assertEqual(captured["parsed_course_folder"], self.course)
+        self.assertIsInstance(captured["parsed_course_folder"], Path)
+        self.assertEqual(captured["setup_course_folder"], self.course)
+        self.assertEqual(captured["paths"], [paper])
+        self.assertIsInstance(captured["paths"][0], Path)
+
     def test_dry_run_cli_from_both_working_directories_creates_no_state(self):
         first = self.paper("first.txt")
         second = self.paper("exams/second.txt")

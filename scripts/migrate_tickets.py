@@ -409,11 +409,22 @@ def read_tickets() -> list[Ticket]:
             )
     actual = {ticket.ticket_id for ticket in tickets}
     expected = set(QUEUE_ORDER)
-    if actual != expected:
-        missing = sorted(expected - actual)
-        extra = sorted(actual - expected)
+    missing = sorted(expected - actual)
+    extra = sorted(
+        ticket.ticket_id
+        for ticket in tickets
+        if ticket.ticket_id not in expected and ticket.metadata is None
+    )
+    if missing or extra:
         raise ValueError(f"ticket inventory mismatch; missing={missing}, extra={extra}")
-    return sorted(tickets, key=lambda ticket: QUEUE_ORDER[ticket.ticket_id])
+    return sorted(
+        tickets,
+        key=lambda ticket: (
+            QUEUE_ORDER[ticket.ticket_id]
+            if ticket.ticket_id in QUEUE_ORDER
+            else ticket.metadata["queue_order"]
+        ),
+    )
 
 
 def closure_for(ticket: Ticket) -> Optional[dict[str, object]]:

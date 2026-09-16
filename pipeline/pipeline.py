@@ -1365,6 +1365,7 @@ def main():
     )
     p.add_argument(
         "course_folder",
+        type=Path,
         metavar="COURSE_FOLDER",
         help="Folder holding this exam's papers and results (created if it does not exist)",
     )
@@ -1383,7 +1384,7 @@ def main():
             "out-of-order extraction. Extracted text is sent to the configured provider for analysis."
         ),
     )
-    pa.add_argument("paths", nargs="*", metavar="PATH",
+    pa.add_argument("paths", nargs="*", type=Path, metavar="PATH",
                     help="Exam file(s) or folder(s): UTF-8 .txt, or .pdf with a text layer "
                          "(default: papers in both COURSE_FOLDER and its exams/ subfolder; "
                          "relative paths prefer the working directory, then COURSE_FOLDER)")
@@ -1450,7 +1451,7 @@ def main():
         if args.cmd == "add-exam" and not args.dry_run:
             load_dotenv(DOTENV_FILE)
             clients = configure_model_clients(dict(os.environ), review=args.review)
-        course = setup_course_folder(Path(args.course_folder))
+        course = setup_course_folder(args.course_folder)
         return dispatch[args.cmd](args, course, **clients)
     except StorageError as exc:
         print(f"ERROR: Course state unavailable: {exc}", file=sys.stderr)
