@@ -1,0 +1,66 @@
+{
+  "*": [
+    ".scratch/reliable-exam-analysis/areas.json",
+    "AGENTS.md",
+    "CONTEXT.md",
+    "README.md",
+    ".github/workflows/tickets.yml",
+    "docs/adr/**",
+    "docs/ticket-ground-truth-plan.md",
+    "docs/ticket-workflow.md",
+    "pipeline/exam_roi/contracts/**",
+    "pipeline/pipeline.py",
+    "pipeline/tests/fixtures/**",
+    "scripts/check_tickets.py",
+    "scripts/migrate_tickets.py",
+    "scripts/ticket_history.py",
+    "scripts/tickets.py",
+    "scripts/tests/**"
+  ],
+  "acceptance": [
+    "pipeline/exam_roi/evaluation.py",
+    "pipeline/exam_roi/review.py",
+    "pipeline/exam_roi/storage.py",
+    "pipeline/tests/test_independent_review.py",
+    "pipeline/tests/test_storage.py"
+  ],
+  "configuration": [
+    "HOW_TO_USE_PIPELINE_WITH_GLM_API.md",
+    "pipeline/exam_roi/llm.py",
+    "pipeline/requirements.txt",
+    "pipeline/tests/test_cli_outcomes.py",
+    "pipeline/tests/test_explicit_configuration.py",
+    "pipeline/tests/test_request_limits.py"
+  ],
+  "evaluation": [
+    "pipeline/exam_roi/evaluation.py",
+    "pipeline/exam_roi/review.py",
+    "pipeline/exam_roi/taxonomy.py",
+    "pipeline/tests/test_candidate_validation.py",
+    "pipeline/tests/test_cumulative_taxonomy.py",
+    "pipeline/tests/test_evaluation.py",
+    "pipeline/tests/test_independent_review.py"
+  ],
+  "extraction": [
+    "pipeline/exam_roi/inputs.py",
+    "pipeline/exam_roi/question_context.py",
+    "pipeline/tests/test_input_extraction.py",
+    "pipeline/tests/test_input_selection.py",
+    "pipeline/tests/test_request_limits.py"
+  ],
+  "reports": [
+    "pipeline/exam_roi/reports.py",
+    "pipeline/tests/test_report_rendering.py"
+  ],
+  "scoring": [
+    "pipeline/exam_roi/scoring.py",
+    "pipeline/exam_roi/taxonomy.py",
+    "pipeline/tests/test_scoring.py"
+  ],
+  "storage": [
+    "pipeline/exam_roi/identity.py",
+    "pipeline/exam_roi/storage.py",
+    "pipeline/tests/test_exam_identity.py",
+    "pipeline/tests/test_storage.py"
+  ]
+}
