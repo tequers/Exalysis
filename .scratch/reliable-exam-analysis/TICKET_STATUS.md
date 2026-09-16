@@ -25,3 +25,4 @@
 | 19 | [17](issues/BLOCKED/17-specify-and-verify-the-ranking-and-tier-1-contract.md) | Specify and verify the ranking and Tier 1 contract | P2 | BLOCKED | 01, 03, 08 | not recorded | None |
 | 20 | [13](issues/BLOCKED/13-resolve-ambiguous-sitting-years-and-support-metadata-correction.md) | Resolve ambiguous sitting years and support metadata correction | P2 | BLOCKED | 08, 11 | not recorded | None |
 | 21 | [21](issues/DONE/21-prototype-staged-gpt-evaluation-and-fixture-replay.md) | Prototype staged GPT evaluation and fixture replay | P1 | DONE | None | not recorded | implemented |
+| 22 | [22](issues/OPEN/22-parse-cli-file-arguments-as-paths.md) | Parse CLI file arguments as paths | P2 | OPEN | None | not recorded | None |
