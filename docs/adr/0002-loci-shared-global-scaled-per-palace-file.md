@@ -1,9 +1,0 @@
-# Loci stays global across courses, scaled by one file per palace
-
-**Status:** accepted
-
-The Living Room palace was already at 25/27 stations from Computer Vision alone, with Computer Vision's own taxonomy (16 topics, several needing multiple stations each) enough to exceed 27 on its own — so palace scaling (Open Design Problem #3 in `PROJECT_BRIEF.md`) was going to force itself even without a second course. Multi-course generalization (see [ADR 0001](./0001-course-exam-hierarchy.md)) sharpened a second open question at the same time: whether loci should be duplicated per Course now that real Course/Exam folder boundaries exist (Open Design Problem #5, station reuse across courses).
-
-We decided the loci layer **stays one shared resource across every Course and Exam**, not duplicated per course, because the palace's real constraint is physical locations the student actually owns — a resource independent of which course is being studied, not one that multiplies per course. Each individual Encoding is tagged with the Course/Exam it currently belongs to, so a Station can later be identified as eligible for repurposing once that Course/Exam is finished (the concrete repurposing workflow — when a station becomes eligible, what happens to its retired encoding — is deliberately left undesigned until there's an actual second course to design it against).
-
-For scaling: when a palace fills, a new physical location gets its own `loci_<room>.md` (with paired encodings), indexed by a small palace-index file — rather than growing a single master file. We rejected the single-master-file option because each new palace is inherently a different physical room, so one-file-per-palace matches the domain shape (a palace *is* a room) and mirrors the per-Exam file pattern from ADR 0001, rather than accumulating every room's stations into one increasingly expensive file to load.

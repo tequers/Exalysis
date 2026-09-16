@@ -5,12 +5,12 @@ Exam ROI Pipeline
 Processes exam files through an LLM to extract topics, score ROI variables,
 and produce a ranked Excel spreadsheet.
 
-Formula: Priority = 100 × (F × G × C) / (D × Fmt)
-  F   = fraction of exams where topic appeared  (0–1, computed)
-  G   = average mark fraction when present       (0–1, computed)
-  C   = connection / node value                  (1–3, AI-estimated once)
-  D   = difficulty bucket                        (1–6, AI-estimated once)
-  Fmt = format depth                             (1=MCQ · 2=short answer · 3=write code)
+Formula: Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)
+  Freq    = fraction of exams where topic appeared  (0–1, computed)
+  G_Marks = average mark fraction when present       (0–1, computed)
+  Conn    = connection / node value                  (1–3, AI-estimated once)
+  Diff    = difficulty bucket                        (1–6, AI-estimated once)
+  Fmt     = format depth                             (1=MCQ · 2=short answer · 3=write code)
 
 Setup:
   Pick a provider with the LLM_PROVIDER env var (default: anthropic).
@@ -37,16 +37,18 @@ Usage:
   python pipeline.py add-folder Courses/ --recursive --force
   python pipeline.py rebuild                          # rebuild spreadsheet only
   python pipeline.py status                           # show current state
-  python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3   # override scores
+  python pipeline.py edit-topic "Big-O Notation" --diff 2 --conn 3   # override scores
 
   Pass --course/--exam when more than one Exam folder exists under Courses/:
   python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
 
 File layout:
   Courses/<Course>/<Exam>/          one self-contained unit per Exam
-    taxonomy.json                    canonical topic list with D and C per topic
+    taxonomy.json                    canonical topic list with Diff and Conn per topic
     parsed/                          one JSON file per processed exam (audit trail)
-    Exam_ROI_Pipeline.xlsx           output spreadsheet (overwritten on each rebuild)
+    Exam_ROI_Pipeline.xlsx           ranked output, formatted (overwritten on each rebuild)
+    Exam_ROI_Pipeline.json           same ranked output, flat JSON (overwritten on each rebuild) —
+                                      the one to point an LLM or a script at
 
   Every command resolves its active Exam folder before running: if exactly one
   exists under Courses/, it's used automatically; the moment a second one
@@ -74,6 +76,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 TAXONOMY_FILE = None
 PARSED_DIR    = None
 OUTPUT_XLSX   = None
+OUTPUT_JSON   = None
 
 
 def resolve_exam_root(course=None, exam=None) -> Path:
@@ -381,9 +384,9 @@ def stage1_extract(exam_text: str, total_marks) -> list:
 # ── Stage 2: Tag topics and score parameters ───────────────────────────────────
 
 _S2_SYSTEM = (
-    "You are a computer science curriculum analyst. You tag exam questions with canonical "
-    "topic labels and estimate study parameters for ROI scoring. Output valid JSON only — "
-    "no markdown, no prose outside the JSON."
+    "You are an academic curriculum analyst. You tag exam questions from any subject with "
+    "canonical topic labels and estimate study parameters for ROI scoring. Output valid JSON "
+    "only — no markdown, no prose outside the JSON."
 )
 
 _S2A_TEMPLATE = """\
@@ -417,11 +420,11 @@ NEW TOPICS TO SCORE
 
 For each new topic estimate:
 
-  difficulty_d      : 1–6 bucket — time for a competent student to become exam-ready
+  Diff              : difficulty, 1–6 bucket — time for a competent student to become exam-ready
                       <30 min=1  30min–1h=2  1–3h=3  3–6h=4  6–15h=5  >15h=6
                       "Exam-ready" = passing competency, not mastery.
-  difficulty_hours  : matching range string, e.g. "1–3h"
-  connection_c      : 1–3 integer
+  Diff_hours        : matching range string, e.g. "1–3h"
+  Conn              : connection / node value, 1–3 integer
                       1 = isolated (helps no other exam topic)
                       2 = helps 1–2 other topics
                       3 = foundational (many other topics depend on it)
@@ -431,9 +434,9 @@ For each new topic estimate:
 OUTPUT exactly this JSON structure (no extra keys, no prose):
 {{
   "Topic Name": {{
-    "difficulty_d": 3,
-    "difficulty_hours": "1–3h",
-    "connection_c": 2,
+    "Diff": 3,
+    "Diff_hours": "1–3h",
+    "Conn": 2,
     "prerequisites": []
   }}
 }}"""
@@ -490,7 +493,7 @@ def _stage2_tag(questions: list, topic_names: list) -> tuple:
 
 
 def _stage2_score_new(new_names: list, taxonomy_list: str) -> dict:
-    """Estimate D / C / prerequisites for genuinely new topics only."""
+    """Estimate Diff / Conn / prerequisites for genuinely new topics only."""
     if not new_names:
         return {}
     user = _S2B_TEMPLATE.format(
@@ -557,9 +560,9 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float) -> dic
             "mark_fraction":       round(tot / total_marks, 4),
             "format_distribution": dist,
             "dominant_format":     max(dist, key=dist.get) if dist else "short_answer",
-            "difficulty_d":        known.get("difficulty_d")     or est.get("difficulty_d", 3),
-            "difficulty_hours":    known.get("difficulty_hours") or est.get("difficulty_hours", "1–3h"),
-            "connection_c":        known.get("connection_c")     or est.get("connection_c", 2),
+            "Diff":                known.get("Diff")             or est.get("Diff", 3),
+            "Diff_hours":          known.get("Diff_hours")       or est.get("Diff_hours", "1–3h"),
+            "Conn":                known.get("Conn")             or est.get("Conn", 2),
             "prerequisites":       known.get("prerequisites")    or est.get("prerequisites", []),
             "is_new_topic":        t in new_names,
         }
@@ -582,12 +585,27 @@ def weighted_fmt(fmt_dist: dict) -> float:
     return round(weighted / total, 3) if total else 2.0
 
 
+# ── JSON writer ────────────────────────────────────────────────────────────────
+
+def write_json(rows: list):
+    """
+    Write the ranked topic list as a flat JSON array — the machine-readable twin of the
+    .xlsx. Same rows, same sort order (priority desc), no formatting concerns: this is what
+    a script, or an LLM reading the exam folder directly, should parse instead of the sheet.
+    Each element: topic, Freq, G_Marks, Conn, Diff, Diff_hours, Fmt, priority, rank, tier, appearances,
+    prerequisites, per_exam (per-exam presence/marks breakdown).
+    """
+    OUTPUT_JSON.write_text(
+        json.dumps(rows, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+
 # ── Excel writer ───────────────────────────────────────────────────────────────
 
 def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
     """
     rows      : list of topic dicts, sorted by priority desc, each containing:
-                topic, F, G, C, D, D_hours, Fmt, priority, rank, tier,
+                topic, Freq, G_Marks, Conn, Diff, Diff_hours, Fmt, priority, rank, tier,
                 prerequisites, per_exam={exam_id: {present, mark_fraction, fmt_score}}
     exam_list : list of exam dicts sorted by year
     taxonomy  : full taxonomy dict (for Taxonomy sheet)
@@ -626,11 +644,11 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
         ("Rank",       7,  "rank",     "scores"),
         ("Tier",      13,  "tier",     "scores"),
         ("Topic",     32,  "topic",    "scores"),
-        ("F\n(0–1)",   9,  "F",        "scores"),
-        ("G\n(0–1)",   9,  "G",        "scores"),
-        ("C\n(1–3)",   8,  "C",        "scores"),
-        ("D\n(1–6)",   8,  "D",        "scores"),
-        ("Fmt\n(avg)", 9,  "Fmt",      "scores"),
+        ("Freq\n(0–1)",    9,  "Freq",     "scores"),
+        ("G_Marks\n(0–1)", 9,  "G_Marks",  "scores"),
+        ("Conn\n(1–3)",    8,  "Conn",     "scores"),
+        ("Diff\n(1–6)",    8,  "Diff",     "scores"),
+        ("Fmt\n(avg)",     9,  "Fmt",      "scores"),
         ("Priority",  12,  "priority", "scores"),
     ]
     EXAM_COLS = []
@@ -643,7 +661,7 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
             (f"{yr}\nFmt",     8, (eid, "fmt_score"),      "audit"),
         ]
     TAIL = [
-        ("D hours",       13, "D_hours",       "taxonomy"),
+        ("Diff hours",    13, "Diff_hours",    "taxonomy"),
         ("Prerequisites", 34, "prerequisites", "taxonomy"),
     ]
 
@@ -671,7 +689,7 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
     c = ws["A1"]
     c.value = (
         f"Exam ROI Analysis  ·  {n_topics} topics  ·  {n_exams} exam{'s' if n_exams != 1 else ''}"
-        f"  ·  {tier1_n} Tier 1  ·  Priority = 100 × (F × G × C) / (D × Fmt)"
+        f"  ·  {tier1_n} Tier 1  ·  Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)"
     )
     c.font = fn(12, bold=True, color=P["white"])
     c.fill = fl(P["dk_blue"])
@@ -754,10 +772,10 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
                 elif key == "priority":
                     c.number_format = "0.00"
                     c.alignment     = al("center", "center")
-                elif key in ("F", "G"):
+                elif key in ("Freq", "G_Marks"):
                     c.number_format = "0.00"
                     c.alignment     = al("center", "center")
-                elif key in ("C", "D"):
+                elif key in ("Conn", "Diff"):
                     c.alignment = al("center", "center")
                 elif key == "Fmt":
                     c.number_format = "0.0"
@@ -796,12 +814,12 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
     ws2.row_dimensions[1].height = 28
     ws2.merge_cells("A1:G1")
     c = ws2["A1"]
-    c.value     = "Topic Taxonomy  —  D and C scores  (yellow cells = editable overrides)"
+    c.value     = "Topic Taxonomy  —  Diff and Conn scores  (yellow cells = editable overrides)"
     c.font      = fn(12, bold=True, color=P["white"])
     c.fill      = fl(P["dk_blue"])
     c.alignment = al("left", "center")
 
-    TAX_HDRS   = ["Topic", "D (1–6)", "D hours", "C (1–3)", "First seen", "Appearances", "Prerequisites"]
+    TAX_HDRS   = ["Topic", "Diff (1–6)", "Diff hours", "Conn (1–3)", "First seen", "Appearances", "Prerequisites"]
     TAX_WIDTHS = [32, 9, 14, 9, 16, 14, 42]
     for i, (h, w) in enumerate(zip(TAX_HDRS, TAX_WIDTHS)):
         ws2.column_dimensions[gcl(i+1)].width = w
@@ -827,9 +845,9 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict):
 
         vals = [
             (tname,                                "left",   bg),
-            (tdata.get("difficulty_d", ""),        "center", YLW),
-            (tdata.get("difficulty_hours", ""),    "center", bg),
-            (tdata.get("connection_c", ""),        "center", YLW),
+            (tdata.get("Diff", ""),                "center", YLW),
+            (tdata.get("Diff_hours", ""),          "center", bg),
+            (tdata.get("Conn", ""),                "center", YLW),
             (tdata.get("first_seen", ""),          "center", bg),
             (appearances_map.get(tname, 0),        "center", bg),
             (", ".join(tdata.get("prerequisites", [])), "left", bg),
@@ -947,14 +965,14 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
     for tname, tdata in per_topic.items():
         if tname not in taxonomy["topics"]:
             taxonomy["topics"][tname] = {
-                "difficulty_d":     tdata.get("difficulty_d"),
-                "difficulty_hours": tdata.get("difficulty_hours"),
-                "connection_c":     tdata.get("connection_c"),
-                "prerequisites":    tdata.get("prerequisites", []),
-                "first_seen":       exam_id,
+                "Diff":          tdata.get("Diff"),
+                "Diff_hours":    tdata.get("Diff_hours"),
+                "Conn":          tdata.get("Conn"),
+                "prerequisites": tdata.get("prerequisites", []),
+                "first_seen":    exam_id,
             }
         else:
-            # Preserve existing D/C; add prerequisites if previously empty
+            # Preserve existing Diff/Conn; add prerequisites if previously empty
             ex = taxonomy["topics"][tname]
             if tdata.get("prerequisites") and not ex.get("prerequisites"):
                 ex["prerequisites"] = tdata["prerequisites"]
@@ -1070,24 +1088,24 @@ def cmd_rebuild(_args):
 
         # Aggregate variables
         appearances   = sum(1 for d in per_exam.values() if d["present"])
-        F             = appearances / n_exams
+        Freq          = appearances / n_exams
         present_marks = [d["mark_fraction"] for d in per_exam.values() if d["present"]]
-        G             = sum(present_marks) / len(present_marks) if present_marks else 0
+        G_Marks       = sum(present_marks) / len(present_marks) if present_marks else 0
         fmt_vals      = [d["fmt_score"]    for d in per_exam.values() if d["present"]]
         Fmt           = sum(fmt_vals) / len(fmt_vals) if fmt_vals else 2.0
-        C             = tax.get("connection_c") or 1
-        D             = tax.get("difficulty_d") or 3
+        Conn          = tax.get("Conn") or 1
+        Diff          = tax.get("Diff") or 3
 
-        priority = (100 * F * G * C / (D * Fmt)) if (D * Fmt) > 0 else 0
+        priority = (100 * Freq * G_Marks * Conn / (Diff * Fmt)) if (Diff * Fmt) > 0 else 0
 
         rows.append({
             "topic":         topic,
             "per_exam":      per_exam,
-            "F":             round(F,   3),
-            "G":             round(G,   3),
-            "C":             C,
-            "D":             D,
-            "D_hours":       tax.get("difficulty_hours", ""),
+            "Freq":          round(Freq,    3),
+            "G_Marks":       round(G_Marks, 3),
+            "Conn":          Conn,
+            "Diff":          Diff,
+            "Diff_hours":    tax.get("Diff_hours", ""),
             "Fmt":           round(Fmt, 2),
             "priority":      round(priority, 4),
             "appearances":   appearances,
@@ -1101,7 +1119,8 @@ def cmd_rebuild(_args):
         row["tier"] = "★ Tier 1" if i < tier1_n else ""
 
     write_xlsx(rows, exam_list, taxonomy)
-    print(f"   ✓ {OUTPUT_XLSX.name}  ({len(rows)} topics · {n_exams} exams · {tier1_n} Tier 1)")
+    write_json(rows)
+    print(f"   ✓ {OUTPUT_XLSX.name}, {OUTPUT_JSON.name}  ({len(rows)} topics · {n_exams} exams · {tier1_n} Tier 1)")
 
 
 def cmd_status(_args):
@@ -1114,6 +1133,7 @@ def cmd_status(_args):
         n = len(exam.get("per_topic", {}))
         print(f"     {exam.get('year', '?')}  {eid}  ({n} topics · {exam.get('total_marks', '?')} marks)")
     print(f"   Spreadsheet : {'✓ exists' if OUTPUT_XLSX.exists() else 'not created yet'}")
+    print(f"   Ranked JSON : {'✓ exists' if OUTPUT_JSON.exists() else 'not created yet'}")
     print()
 
 
@@ -1127,20 +1147,20 @@ def cmd_edit_topic(args):
             f"Known topics: {', '.join(known) if known else '(none yet)'}"
         )
     changed = False
-    if args.d is not None:
-        if not 1 <= args.d <= 6:
-            sys.exit("D must be 1–6")
-        taxonomy["topics"][name]["difficulty_d"] = args.d
-        print(f"   Set D={args.d} for '{name}'")
+    if args.diff is not None:
+        if not 1 <= args.diff <= 6:
+            sys.exit("Diff must be 1–6")
+        taxonomy["topics"][name]["Diff"] = args.diff
+        print(f"   Set Diff={args.diff} for '{name}'")
         changed = True
-    if args.c is not None:
-        if not 1 <= args.c <= 3:
-            sys.exit("C must be 1–3")
-        taxonomy["topics"][name]["connection_c"] = args.c
-        print(f"   Set C={args.c} for '{name}'")
+    if args.conn is not None:
+        if not 1 <= args.conn <= 3:
+            sys.exit("Conn must be 1–3")
+        taxonomy["topics"][name]["Conn"] = args.conn
+        print(f"   Set Conn={args.conn} for '{name}'")
         changed = True
     if not changed:
-        print("Nothing changed — pass --d or --c (or both).")
+        print("Nothing changed — pass --diff or --conn (or both).")
         return
     save_taxonomy(taxonomy)
     cmd_rebuild(None)
@@ -1162,7 +1182,7 @@ examples:
   python pipeline.py add-folder Courses/ --recursive --force
   python pipeline.py rebuild
   python pipeline.py status
-  python pipeline.py edit-topic "Big-O Notation" --d 2 --c 3
+  python pipeline.py edit-topic "Big-O Notation" --diff 2 --conn 3
 
   when Courses/ holds more than one Exam, add --course/--exam to any command:
   python pipeline.py status --course "Computer Vision" --exam final_26_08_2026
@@ -1194,19 +1214,20 @@ examples:
 
     pe = sub.add_parser("edit-topic", parents=[common], help="Override AI scores for a topic and rebuild")
     pe.add_argument("name",          help="Exact topic name (case-sensitive)")
-    pe.add_argument("--d", type=int, help="Override difficulty D (1–6)")
-    pe.add_argument("--c", type=int, help="Override connection C (1–3)")
+    pe.add_argument("--diff", type=int, help="Override difficulty (Diff, 1–6)")
+    pe.add_argument("--conn", type=int, help="Override connection (Conn, 1–3)")
 
     args = p.parse_args()
     if not args.cmd:
         p.print_help()
         return
 
-    global TAXONOMY_FILE, PARSED_DIR, OUTPUT_XLSX
+    global TAXONOMY_FILE, PARSED_DIR, OUTPUT_XLSX, OUTPUT_JSON
     exam_root     = resolve_exam_root(getattr(args, "course", None), getattr(args, "exam", None))
     TAXONOMY_FILE = exam_root / "taxonomy.json"
     PARSED_DIR    = exam_root / "parsed"
     OUTPUT_XLSX   = exam_root / "Exam_ROI_Pipeline.xlsx"
+    OUTPUT_JSON   = exam_root / "Exam_ROI_Pipeline.json"
 
     dispatch = {
         "add":        cmd_add,

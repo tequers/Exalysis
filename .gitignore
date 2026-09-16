@@ -34,6 +34,7 @@ __MACOSX/
 
 # Pipeline outputs (regenerated on every run)
 Exam_ROI_Pipeline.xlsx
+Exam_ROI_Pipeline.json
 _roi_stage_copy.xlsx
 
 # Copyrighted / personal course material (lecture slides, exam papers, exercise
@@ -45,6 +46,22 @@ Courses/**/exercises/
 Courses/**/exams/
 Courses/**/anki/
 Courses/**/parsed/
+
+# Real personal courses (kept locally for actual studying, not part of the portfolio repo —
+# the repo ships one synthetic example course instead; see Courses/Example_Course/).
+Courses/Computer Vision/
+Courses/Introduction_to_quantum_computers/
+Courses/STUDY_PLAN_FINALS_AUG2026.md
+
+# Superseded systems and personal tooling, kept locally, not tracked here — see git history
+# (pre-split) for why: the deep-understanding tutor, exploratory design docs for an unbuilt
+# feature, a redundant doc that duplicated the README, and a personal commit-message helper.
+_archive/
+docs/solid/course-materials-context-report.md
+docs/solid/course_materials_analysis.md
+pipeline/docs/pipeline_docs.md
+pipeline/docs/Topic_ROI_MVP_v1.md
+scripts/aicommit.sh
 
 # Scratch / superseded-content folders
 **/_to_delete/

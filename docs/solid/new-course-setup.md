@@ -1,8 +1,11 @@
 # Setting Up a New Course
 
-How to add a new Course/Exam to this repo and get it studyable — for a new user with Claude Cowork, or for adding a second course to an existing install.
+How to add a new Course/Exam to this repo and get it studyable — for a first-time setup or for
+adding a second course to an existing install.
 
-See `CONTEXT.md` for the Course/Exam/Topic vocabulary this doc assumes, and `docs/adr/0001-course-exam-hierarchy.md` / `docs/adr/0003-active-exam-resolution.md` for why the structure and disambiguation rules below exist.
+See `CONTEXT.md` for the Course/Exam/Topic vocabulary this doc assumes, and
+`docs/adr/0001-course-exam-hierarchy.md` / `docs/adr/0003-active-exam-resolution.md` for why the
+structure and disambiguation rules below exist.
 
 ---
 
@@ -10,6 +13,7 @@ See `CONTEXT.md` for the Course/Exam/Topic vocabulary this doc assumes, and `doc
 
 1. **Python deps:**
    ```bash
+   cd pipeline
    pip install -r requirements.txt
    ```
    Installs `openpyxl` and `pypdf` (core) plus the SDK for whichever `LLM_PROVIDER` you use.
@@ -21,9 +25,9 @@ See `CONTEXT.md` for the Course/Exam/Topic vocabulary this doc assumes, and `doc
    # export OPENAI_API_KEY=sk-...           # LLM_PROVIDER=openai
    ```
 
-3. **Install the tutor skill in Cowork** — upload `tutor/continue-study-session-v2.skill` as a Cowork skill so `/continue-study-session` is available. This is a separate step from the pipeline; the pipeline is a plain CLI script, the tutor only runs inside Cowork.
-
-None of this is repeated per course — it's done once.
+None of this is repeated per course — it's done once. This pipeline is the whole scope of this
+repo; if you also want to study with the output (step 4 below), that's a separate, optional
+project — [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt).
 
 ---
 
@@ -31,7 +35,8 @@ None of this is repeated per course — it's done once.
 
 ### 1. Create the Exam folder
 
-Nothing auto-creates this — `pipeline.py` exits with an error if the folder doesn't exist yet. Make it yourself:
+Nothing auto-creates this — `pipeline.py` exits with an error if the folder doesn't exist yet.
+Make it yourself:
 
 ```
 Courses/<Course Name>/<type>_<date>/exams/
@@ -40,7 +45,9 @@ Courses/<Course Name>/<type>_<date>/exams/
 e.g. `Courses/Operating Systems/final_15_02_2027/exams/`.
 
 - `<Course Name>` — the subject, e.g. "Operating Systems".
-- `<type>_<date>` — the Exam folder name, e.g. `final_15_02_2027`, `theory_20_08_2026`. This is the atomic state boundary: everything under it (taxonomy, past papers, ROI sheet, mastery ledger) belongs to this Exam alone, even if another Exam exists under the same Course.
+- `<type>_<date>` — the Exam folder name, e.g. `final_15_02_2027`, `theory_20_08_2026`. This is
+  the atomic state boundary: everything under it (taxonomy, past papers, ROI sheet) belongs to
+  this Exam alone, even if another Exam exists under the same Course.
 
 Drop the past-exam PDFs (or `.txt` files) into that `exams/` subfolder.
 
@@ -54,55 +61,60 @@ python pipeline.py add-folder --total-marks <N> --course "Operating Systems" --e
 python pipeline.py rebuild --course "Operating Systems" --exam final_15_02_2027
 ```
 
-- Use `add-folder` to process every file in `exams/` at once (same total marks applied to each), or `add <file.pdf> --total-marks <N>` one file at a time if totals differ per exam.
-- `--course`/`--exam` are only *required* once a second Exam folder exists anywhere under `Courses/` — with a single Exam in the whole repo, plain `add-folder` / `rebuild` / `status` auto-detect it. The moment a second one exists, every command needs them (never silently guessed — see ADR 0003).
-- This produces/updates `taxonomy.json`, `parsed/*.json`, and `Exam_ROI_Pipeline.xlsx` inside the Exam folder.
+- Use `add-folder` to process every file in `exams/` at once (same total marks applied to each),
+  or `add <file.pdf> --total-marks <N>` one file at a time if totals differ per exam.
+- `--course`/`--exam` are only *required* once a second Exam folder exists anywhere under
+  `Courses/` — with a single Exam in the whole repo, plain `add-folder` / `rebuild` / `status`
+  auto-detect it. The moment a second one exists, every command needs them (never silently
+  guessed — see ADR 0003).
+- This produces/updates `taxonomy.json`, `parsed/*.json`, and the ranked output
+  (`Exam_ROI_Pipeline.xlsx` and `.json`) inside the Exam folder. That's the pipeline's whole job
+  — everything below this point is optional.
 
 ### 3. Sanity-check the taxonomy
 
-The pipeline auto-tags topics with an LLM and prints a reminder afterward: **check `taxonomy.json` for near-duplicate topics and merge them by hand.** Also use:
+The pipeline auto-tags topics with an LLM and prints a reminder afterward: **check
+`taxonomy.json` for near-duplicate topics and merge them by hand.** Also use:
 
 ```bash
 python pipeline.py edit-topic --course "Operating Systems" --exam final_15_02_2027
 ```
 
-to override any AI-assigned difficulty (D) or connection (C) score you disagree with, then it rebuilds the sheet automatically.
+to override any AI-assigned difficulty (D) or connection (C) score you disagree with, then it
+rebuilds the sheet automatically.
 
-### 4. Start studying
+### 4. Start studying (optional, separate project)
 
-In Cowork, run `/continue-study-session`. On the *first* run for a new Exam:
-
-- The skill locates the live `TUTOR_SYSTEM_PROMPT_v*.md` (highest version, ignoring `_archive/`).
-- It reads that Exam's `taxonomy.json`, `Exam_ROI_Pipeline.xlsx`, and `parsed/*.json`.
-- It **creates `progress.json` itself**, bootstrapped from the taxonomy — you never hand-author the mastery ledger.
-- `PROJECT_NOTES.md` (Exam-specific quirks) and `sessions.json` (throughput calibration) are likewise created/owned by the tutor as sessions happen.
-
-From here, just keep invoking `/continue-study-session` each time you study; it resumes exactly where it left off.
+The pipeline only decides *what* to study — it doesn't help you study it. For that, see
+[`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt): paste its system prompt into
+whatever LLM tool you're using and point it at (or paste in) the Exam folder from steps 1–3, then
+just talk to it: "start a session, I have 90 minutes." It bootstraps its own state file
+(`study_state.json`, next to the pipeline's output) on first run — you never hand-author it.
 
 ### 5. Assets (as needed)
 
-Any diagrams/explainers Claude produces for the course go in `Courses/<Course>/assets/` (create it on first use). Never at repo root, never shared across courses — each course gets its own.
-
-### 6. Loci (shared, usually nothing to do)
-
-`loci/` is shared global infrastructure across every course — do not create a per-course copy. New concepts just get encoded into an existing station and tagged with the new Course/Exam in `loci_encodings.md`. A new palace file is only needed once the current palace's stations (27, in the Living Room) are full.
+Any diagrams/explainers made for the course go in `Courses/<Course>/assets/` (create it on first
+use). Never at repo root, never shared across courses — each course gets its own.
 
 ---
 
 ## Checklist
 
-- [ ] `pip install -r requirements.txt`, API key set
-- [ ] Tutor skill installed in Cowork
+- [ ] `pip install -r pipeline/requirements.txt`, API key set
 - [ ] `Courses/<Course>/<type>_<date>/exams/` created, past papers dropped in
 - [ ] `pipeline.py add-folder` (or `add`) run
-- [ ] `pipeline.py rebuild` run → `Exam_ROI_Pipeline.xlsx` exists
+- [ ] `pipeline.py rebuild` run → `Exam_ROI_Pipeline.xlsx` and `.json` exist
 - [ ] `taxonomy.json` reviewed for duplicate topics
-- [ ] `/continue-study-session` run once to confirm `progress.json` is created
+- [ ] *(optional)* `exam-prep-prompt`'s system prompt pasted into an LLM tool, pointed at the
+      Exam folder, run once to confirm `study_state.json` gets created
 
 ---
 
 ## Known gaps
 
-- `PROJECT_BRIEF.md` currently states generalization "not yet done" — that line is stale; `TUTOR_SYSTEM_PROMPT_v9.md` and the `Courses/<Course>/<Exam>/` hierarchy already make the tutor course-agnostic. Worth fixing in the brief.
-- The loci encoding rubric and multi-palace scaling are still open design problems (`docs/open/loci-*.md`) — a new course gets full ROI/mastery-gating support immediately, but loci support is thinner until those are resolved.
-- File resolution is by filename search, not fixed paths, so folders can be renamed freely — but the expected filenames (`taxonomy.json`, `progress.json`, `TUTOR_SYSTEM_PROMPT_v*.md`, etc.) must stay exact.
+- File resolution in `exam-prep-prompt` is by content, not fixed paths — but the expected
+  filenames (`taxonomy.json`, `parsed/*.json`, `study_state.json`) should stay exact, since
+  nothing guesses them from scratch.
+- The repo ships one example `Course/Exam` (synthetic, currently an empty scaffold — see
+  `Courses/Example_Course/`) rather than a real course, per
+  `docs/adr/0005-portfolio-cleanup-and-repo-split.md`.

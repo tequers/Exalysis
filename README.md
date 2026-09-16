@@ -1,195 +1,125 @@
-# Computer Science Exams Pipeline
+# Exam ROI Pipeline
 
-A systematic, science-based study system for university Computer Science exams. Two layers: a **CLI pipeline** that decides *what* to study (ROI ranking), and a **Cowork tutor** that teaches the prioritized topics using retrieval practice, mastery gating, and spaced repetition. The method of loci is available as an **optional add-on** for list-like material; the system runs fully without it.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pipeline/requirements.txt)
 
-> **Start here:** `PROJECT_BRIEF.md` is the ground-truth document — read it before designing any solution. `PROJECT_BRIEF.html` is the same content as a readable web page.
-
----
-
-## Repository map
-
-The repo is organized **by component** (what each thing *is*), except for per-course/per-exam study data, which is organized **by Course then Exam** (see `CONTEXT.md`). Within `docs/`, material is split **by lifecycle** (open problems vs. consolidated vs. archived).
-
-```
-.
-├── README.md                  ← you are here (repo map)
-├── CONTEXT.md                 ← glossary — Course, Exam, Topic, Palace, Station, Encoding, ...
-├── PROJECT_BRIEF.md / .html   ← ground-truth project description (entry point)
-├── requirements.txt           ← Python deps for the pipeline
-│
-├── Courses/                   ← per-course, per-exam study data. One self-contained unit per Exam.
-│   └── Computer Vision/
-│       ├── assets/                    ← diagrams, explainers, visual artifacts made FOR this course
-│       │   ├── concept_map_clustering.drawio
-│       │   ├── concept_map_clustering.mermaid
-│       │   ├── convolution_explainer.html
-│       │   ├── exam_roi_pipeline_plan.svg
-│       │   ├── maxpool_visualizer.html
-│       │   └── start-study-session-eval-review.html
-│       └── final_26_08_2026/  ← name = <type>_<date>. Everything below is owned by this Exam alone.
-│           ├── exams/                 ← source exam PDFs
-│           │   ├── 2023_Exam.pdf
-│           │   ├── Old Exam Tasks.pdf
-│           │   └── mockup_exam_2023.pdf
-│           ├── taxonomy.json          ← per-topic difficulty D, connection C, prerequisites
-│           ├── Exam_ROI_Pipeline.xlsx ← ranked study agenda (regenerated on rebuild)
-│           ├── parsed/                ← one JSON per past exam, questions tagged by topic
-│           ├── progress.json          ← mastery ledger (single source of truth for this Exam's state)
-│           ├── sessions.json          ← per-session calibration log
-│           └── PROJECT_NOTES.md       ← Exam-specific quirks for the tutor
-│
-├── pipeline/                  ← LAYER 1 — the CLI itself. Shared across every Course/Exam.
-│   ├── pipeline.py            ← the script; resolves the active Exam under Courses/ (see ADR 0003)
-│   └── docs/                  ← pipeline design + spec docs
-│       ├── pipeline_docs.md
-│       ├── Topic_ROI_Exam_Analysis_System.md
-│       └── Topic_ROI_MVP_v1.md
-│
-├── tutor/                     ← LAYER 2 — the study tutor. Shared prompt + shared skills.
-│   ├── TUTOR_SYSTEM_PROMPT_v9.md       ← the LIVE prompt (highest version wins), course-agnostic
-│   ├── continue-study-session-v2.skill← the /continue-study-session skill bundle
-│   ├── feedback/                      ← working feedback + improvement logs
-│   │   ├── tutor_feedback.md
-│   │   ├── tutor_improvements.md
-│   │   ├── feedback_final_rung_must_use_parsed_questions.md
-│   │   ├── feedback_label_exam_vs_warmup.md
-│   │   └── feedback_visual_artifacts.md
-│   └── _archive/                      ← superseded prompt versions (do not load)
-│       ├── TUTOR_SYSTEM_PROMPT.md
-│       ├── TUTOR_SYSTEM_PROMPT_v2.md
-│       ├── TUTOR_SYSTEM_PROMPT_v3.md
-│       ├── TUTOR_SYSTEM_PROMPT_v4.md
-│       ├── TUTOR_SYSTEM_PROMPT_v5.md
-│       ├── TUTOR_SYSTEM_PROMPT_v6.md
-│       ├── TUTOR_SYSTEM_PROMPT_v7.md
-│       └── TUTOR_SYSTEM_PROMPT_v8.md
-│
-├── loci/                      ← OPTIONAL ADD-ON — memory palace, global. Nothing depends on it.
-│   ├── loci_living_room.md    ← the 27-station palace map
-│   └── loci_encodings.md      ← concept→station encodings with status (❌/⚠️/✅), tagged by Course/Exam
-│
-├── docs/                      ← reports & analysis, split by lifecycle
-│   ├── adr/                    ← architecture decisions (why, not what — see each file)
-│   │   ├── 0001-course-exam-hierarchy.md
-│   │   ├── 0002-loci-shared-global-scaled-per-palace-file.md
-│   │   └── 0003-active-exam-resolution.md
-│   ├── open/                  ← OPEN PROBLEMS — to tackle next
-│   │   ├── Solution_Landscape.md
-│   │   ├── loci-files-brief-for-opus.md
-│   │   ├── loci-method-analysis.md
-│   │   ├── solution-research-connections-active-recall.md
-│   │   ├── solution-research-module-a-connections.md
-│   │   ├── critique-mindmap-graph-connections.md
-│   │   ├── critique-tutor-feedback-memories.md
-│   │   └── critique-tutor-learning-science.md  ← rationale record for v9 (implemented)
-│   ├── solid/                 ← CONSOLIDATED — good enough, settled
-│   │   ├── new-course-setup.md
-│   │   ├── exam-prep-mode.md  ← usage guide for the fast mode (/start-session etc.)
-│   │   ├── course-materials-context-report.md
-│   │   ├── course_materials_analysis.md
-│   │   └── workflow_prompts.md
-│   └── archive/
-│       └── version_outputs/   ← old pipeline run outputs (v1_full_sonnet, v1_haiku_sonnet)
-│
-└── _to_delete/                ← junk & exact duplicates, safe to remove (see below)
-```
+A CLI that reads a course's past exam papers and tells you which topics are worth the most exam
+marks per hour of study — for any text-based exam, any subject.
 
 ---
 
-## How to use it
+## The idea
 
-**Run the pipeline** (decides what to study):
+Given a pile of past exams, not every topic is worth equal study time. Some topics appear on
+every paper and are worth many marks; others show up once, worth two. The pipeline scores every
+topic on four factors — how often it appears, how many marks it's worth, how foundational it is
+(does understanding it unlock other topics), and how deeply it's tested (multiple choice vs.
+writing a proof) — and ranks them by a single **Priority Score**:
+
+```
+Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)
+  Freq    = fraction of past exams the topic appeared in     (0–1, computed)
+  G_Marks = average mark share when it did appear             (0–1, computed)
+  Conn    = connection value — how much it unlocks downstream (1–3, LLM-estimated once)
+  Diff    = difficulty                                        (1–6, LLM-estimated once)
+  Fmt     = format depth: MCQ < short answer < derivation/code (1–3)
+```
+
+The pipeline does not teach and does not evaluate understanding — it only answers "where should
+I start?" See [`pipeline/docs/Topic_ROI_Exam_Analysis_System.md`](pipeline/docs/Topic_ROI_Exam_Analysis_System.md)
+for the full methodology behind the formula.
+
+## Example output
+
+Running `rebuild` on a course's past papers produces a ranked list like this — an illustrative
+excerpt (top 5 of a longer list; values satisfy the formula above) — see
+[Quickstart](#quickstart) to generate your own from `Courses/Example_Course/`):
+
+| Rank | Topic | Priority | Freq | G_Marks | Conn | Diff | Fmt | Tier |
+|---:|---|---:|---:|---:|---:|---:|---:|---|
+| 1 | Hypothesis Testing | 18.9 | 1.00 | 0.22 | 3 | 2 | 1.75 | ★ Tier 1 |
+| 2 | Confidence Intervals | 11.8 | 0.83 | 0.19 | 3 | 2 | 2.00 | ★ Tier 1 |
+| 3 | Regression Basics | 8.0 | 0.67 | 0.24 | 2 | 2 | 2.00 | ★ Tier 1 |
+| 4 | Bayes' Theorem | 3.0 | 0.50 | 0.12 | 3 | 3 | 2.00 | |
+| 5 | Sampling Distributions | 1.5 | 0.33 | 0.09 | 4 | 4 | 2.00 | |
+
+Every run also writes this same ranking as a flat JSON array
+(`Exam_ROI_Pipeline.json`, alongside the formatted `.xlsx`) — meant to be read directly by a
+script, or handed straight to an LLM, no spreadsheet library required.
+
+## Quickstart
 
 ```bash
 cd pipeline
-python pipeline.py add <exam_file.pdf> --total-marks <N>   # process a new exam
-python pipeline.py rebuild                                  # rebuild the ROI sheet
-python pipeline.py status                                   # show pipeline state
+pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-ant-...   # or DEEPSEEK_API_KEY / OPENAI_API_KEY — see below
+
+# drop a past exam (.txt or .pdf, real or made up) into Courses/Example_Course/final_01_01_2026/exams/
+# — real course material is never committed, so this folder starts empty (see .gitignore)
+mkdir -p "../Courses/Example_Course/final_01_01_2026/exams"
+
+python pipeline.py add-folder "../Courses/Example_Course/final_01_01_2026/exams" --total-marks 100
+python pipeline.py rebuild      # writes Exam_ROI_Pipeline.xlsx + .json
+python pipeline.py status       # show current state
 ```
 
-`pipeline.py` resolves its active `Courses/<Course>/<Exam>/` folder before running: automatically when exactly one exists, or via `--course "Computer Vision" --exam final_26_08_2026` the moment a second one does. It reads that Exam's `taxonomy.json` / `parsed/` and writes its `Exam_ROI_Pipeline.xlsx` — see `docs/adr/0003-active-exam-resolution.md`.
+It picks a provider via the `LLM_PROVIDER` environment variable (`anthropic` by default;
+`openai`, `deepseek`, or any other OpenAI-compatible endpoint also work — see the docstring at
+the top of [`pipeline/pipeline.py`](pipeline/pipeline.py) for full setup and every subcommand).
 
-**Run the tutor** (teaches the topics): invoke `/continue-study-session` in Cowork. The skill finds the highest-versioned `TUTOR_SYSTEM_PROMPT` (searching recursively, ignoring `_archive/`), reads the active Exam's `progress.json` and `PROJECT_NOTES.md` (plus the shared `loci/` files if that add-on is present), and continues the session one atomic step per turn. From v9 the prompt executes the ledger's `next_session` block, so a session opens in three lines and goes straight into a question — no planning happens while you wait.
+It auto-detects the active `Courses/<Course>/<Exam>/` folder when exactly one exists, and needs
+`--course`/`--exam` the moment a second one does — see
+[`docs/adr/0003-active-exam-resolution.md`](docs/adr/0003-active-exam-resolution.md). To add a
+new course from scratch, see
+[`docs/solid/new-course-setup.md`](docs/solid/new-course-setup.md).
 
----
+## Repository map
+
+```
+.
+├── pipeline/                   the CLI and its docs
+│   ├── pipeline.py             run this
+│   ├── requirements.txt
+│   └── docs/                   the ROI methodology spec
+│
+├── Courses/                    per-course, per-exam data (see CONTEXT.md)
+│   ├── Example_Course/                 the one example shipped in the repo (synthetic)
+│   └── <Course>/<type>_<date>/         e.g. final_26_08_2026 — one self-contained Exam
+│       ├── exams/                      source past-paper files (gitignored)
+│       ├── parsed/                     pipeline output: one JSON per past exam (gitignored)
+│       ├── taxonomy.json               pipeline output: per-topic Diff, Conn, prerequisites
+│       └── Exam_ROI_Pipeline.{xlsx,json}   pipeline output: the ranked study agenda
+│
+├── docs/
+│   ├── adr/                    architecture decisions — why, not what
+│   └── solid/                  usage guides (e.g. adding a new course)
+│
+└── CONTEXT.md                  glossary — Course, Exam, Topic, Priority Score
+```
+
+## Studying with the output
+
+This repo's scope ends at the ranked list above — it decides *what* to study, not how. A separate
+project, [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt), reads this pipeline's
+output and turns it into an actual study session with whatever LLM you have open. It's optional
+and shares no code with this repo — the two are linked only by the files the pipeline produces.
 
 ## Conventions (so this stays scalable)
 
-- **By component first**, except study data — a new *tool* concern (pipeline, tutor) gets its own top-level folder; a new *course or exam* goes under `Courses/<Course>/<Exam>/` instead, never at root.
-- **`Courses/<Course>/<Exam>/` is the atomic state boundary.** Course is purely organizational; each Exam owns its own past-paper corpus, taxonomy, ROI sheet, and mastery ledger — nothing is shared across Exams, even within one Course. See `CONTEXT.md` and `docs/adr/0001-course-exam-hierarchy.md`.
+- **`Courses/<Course>/<Exam>/` is the atomic state boundary.** Course is purely organizational;
+  each Exam owns its own past-paper corpus, taxonomy, and ROI sheet — nothing is shared across
+  Exams, even within one Course. See [`CONTEXT.md`](CONTEXT.md) and
+  [`docs/adr/0001-course-exam-hierarchy.md`](docs/adr/0001-course-exam-hierarchy.md).
 - **Exam folder names are `<type>_<date>`**, e.g. `final_26_08_2026`, `theory_20_08_2026`.
-- **Lifecycle lives in `docs/`.** `open/` = problems to solve next · `solid/` = settled · `archive/` = kept for reference, not active · `adr/` = decisions made and why.
-- **Versioned files:** keep the live one in the component folder; move superseded versions to that component's `_archive/`. The newest `_vN` is always the live one. This applies to `tutor/TUTOR_SYSTEM_PROMPT_v*.md` too — when a new version is written, move the version(s) it replaces into `tutor/_archive/` in the same change, so exactly one `TUTOR_SYSTEM_PROMPT_v*.md` ever lives outside `_archive/`.
-- **Assets are per-course, not global.** Diagrams/explainers/visualizations Claude produces for a course live in `Courses/<Course>/assets/` — never at repo root, and never shared across courses. If a new course is added, it gets its own `assets/` folder.
-- **Adding a course:** create `Courses/<Course>/<type>_<date>/`, drop its exam PDFs in an `exams/` subfolder there, and run the pipeline against it. The `loci/` layer is shared across all courses — do not duplicate it per course; individual encodings are tagged by Course/Exam instead (`docs/adr/0002-loci-shared-global-scaled-per-palace-file.md`). Full step-by-step walkthrough: `docs/solid/new-course-setup.md`.
-- **Two study modes, never mixed.** The deep tutor (`/study-run` + `/continue-study-session`) builds understanding topic by topic; exam-prep mode (`/start-session`, `/session-end`, `/mock-exam`, `/cheat-sheet`) drills recurring question archetypes for marks per hour when the exam is days away. They share no state — `mastered` and `exam_ready` are separate criteria and are never added together. Usage guide: `docs/solid/exam-prep-mode.md`.
-- **Files referenced by name, not path.** The tutor and skill locate files by filename via recursive search, so moving things between component folders won't break them — but keep filenames stable.
+- **Course materials are never committed.** Lecture slides, exam papers, exercise sheets, and
+  the pipeline's verbatim text extractions (`parsed/*.json`) are copyrighted or personal — see
+  `.gitignore`. The pipeline reads them locally; the repo only ships the code that processes
+  them, plus one synthetic example.
 
----
+See [`docs/adr/`](docs/adr/) for the reasoning behind these decisions, in particular
+[ADR 0005](docs/adr/0005-portfolio-cleanup-and-repo-split.md) for why the repo looks the way it
+does today.
 
-## `_to_delete/` — pending cleanup
+## License
 
-These are exact duplicates and junk, quarantined here because file deletion wasn't permitted during the reorg. **Safe to delete this whole folder** whenever you like (drag to Recycle Bin, or `rmdir /s /q _to_delete` on Windows):
-
-- `*- copia.*` — byte-identical duplicates of files kept elsewhere
-- `ziCljPtl`, `ziU9P2qz` — stray OS temp artifacts (zip copies)
-- `__pycache__/` — Python bytecode cache (already gitignored, regenerates)
-- `continue-study-session_OLD.skill` — the pre-reorg skill bundle (replaced by `-v2`)
-- `_skill_build/`, `_test_perms/`, `parsed_empty_dir/`, `exams_cv_empty_dir/` — empty leftover dirs from the move
-
-## Note on git
-
-The git index was corrupted during the reorg (an `index.lock` couldn't be cleared under the sandbox's permissions). Your commit history and objects are intact — only the index cache is affected. To repair, from the project root:
-
-PowerShell (note the comma — PowerShell needs it to pass two paths):
-
-```powershell
-del .git\index, .git\index.lock    # if index.lock is already gone, that error is harmless
-git reset                          # regenerates the index from HEAD
-git add -A; git status             # then review the reorganization as changes
-```
-
-cmd.exe equivalent:
-
-```bat
-del .git\index .git\index.lock
-git reset && git add -A && git status
-```
-
-macOS / Linux:
-
-```bash
-rm -f .git/index .git/index.lock && git reset && git add -A && git status
-```
-
-### Committing changes — `aicommit`
-
-This repo uses a custom helper, **`aicommit`**, that drafts a Conventional Commit message from the staged diff using Claude, then opens it in your editor to confirm. Prefer it over a plain `git commit` so messages stay consistent.
-
-```bash
-git add <files>     # stage what you want to commit first
-aicommit            # Claude drafts a <type>(<scope>): summary + why-bullets, opens it to edit/save
-```
-
-**Where it works / prerequisites:**
-
-- Runs in **bash only** (Git Bash or WSL) — *not* PowerShell or cmd. From PowerShell, use a normal `git commit -m "..."`.
-- Requires the `claude` CLI on PATH in that shell, and **staged** changes (it aborts if nothing is staged).
-- Opens the drafted message in your editor (`git commit -e`) so you always review/edit before it's final.
-
-**The maintained version lives in [`scripts/aicommit.sh`](scripts/aicommit.sh).** Install it by sourcing that file from your `~/.bashrc`:
-
-```bash
-# in ~/.bashrc
-source "/c/Users/alber/Claude/Projects/Computer Science Exams Pipeline/scripts/aicommit.sh"
-```
-
-then `source ~/.bashrc`. (Or paste the function body directly into `~/.bashrc`.)
-
-What the maintained version adds over a naive draft-and-commit:
-
-- **Adaptive context.** Large diffs are sent to Claude as a compact `--stat` + name-status summary instead of the full patch, so big commits (like a 50-file reorg) don't overflow the model's context or run up cost. Full patches are used only under `AICOMMIT_DIFF_BUDGET` lines (default 600). Verified: a 51-file / 1810-line staged change auto-switches to the summary path.
-- **No blank commits.** If Claude returns an empty/whitespace-only message, it aborts without committing. Verified.
-- **Valid Conventional Commit type.** The prompt constrains `<type>` to the standard set (`feat`/`fix`/`docs`/`refactor`/`chore`/…), avoiding non-standard types like `repo:` that break changelog tooling.
-- **Optional pinned model** via `AICOMMIT_MODEL` for reproducible message quality.
-- **Safer temp handling** (`mktemp` + cleanup `trap`) instead of a reused `.git/AI_COMMIT_MSG`, and it strips stray ``` fences if the model adds them.
+[MIT](LICENSE) © 2026 Alberto Antequera Fernandez Palacios
