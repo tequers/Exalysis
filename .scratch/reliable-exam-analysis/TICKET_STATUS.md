@@ -27,4 +27,4 @@
 | 21 | [21](issues/DONE/21-prototype-staged-gpt-evaluation-and-fixture-replay.md) | Prototype staged GPT evaluation and fixture replay | P1 | DONE | None | not recorded | implemented |
 | 22 | [22](issues/DONE/22-parse-cli-file-arguments-as-paths.md) | Parse CLI file arguments as paths | P2 | DONE | None | already resolved | implemented |
 | 23 | [23](issues/DONE/23-compact-pdf-layout-padding-before-stage-1.md) | Compact PDF layout padding before Stage 1 | P1 | DONE | None | already resolved | implemented |
-| 24 | [24](issues/OPEN/24-print-effective-llm-settings.md) | Print effective LLM settings | P2 | OPEN | None | still valid | None |
+| 24 | [24](issues/IN_PROGRESS/24-print-effective-llm-settings.md) | Print effective LLM settings | P2 | IN_PROGRESS | None | still valid | None |
