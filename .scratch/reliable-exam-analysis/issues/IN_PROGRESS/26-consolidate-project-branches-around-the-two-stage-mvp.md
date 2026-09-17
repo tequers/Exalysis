@@ -16,7 +16,18 @@
     "docs/research/git-and-pull-requests-for-ai-development.md",
     ".scratch/reliable-exam-analysis/issues/BLOCKED/25-publish-an-accurate-developer-onboarding-and-project-guide.md"
   ],
-  "verification": null,
+  "verification": {
+    "commit": "88b906ced3b66c8bc947e43bb6b9e6377be9f74f",
+    "checked_at": "2026-09-17T17:26:27+00:00",
+    "criteria_digest": "e49c1208224a2afd503efb4c2ff78c8644361da8fcfaa84133b86c42f747a48a",
+    "checker": "Codex next-ticket preflight",
+    "result": "still_valid",
+    "evidence": [
+      "Fetched and pruned origin; codex/mvp-two-stage matched its upstream before the prerequisite repair.",
+      "Read ticket 26, AGENTS.md, the Git workflow research, and blocked ticket 25; every acceptance criterion remains actionable and the primary risk is loss of unique branch history during integration or deletion."
+    ],
+    "provisional": false
+  },
   "closure": null
 }
 ```
