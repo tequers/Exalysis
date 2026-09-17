@@ -14,7 +14,7 @@
   "references": [
     "AGENTS.md",
     "docs/research/git-and-pull-requests-for-ai-development.md",
-    ".scratch/reliable-exam-analysis/issues/BLOCKED/25-publish-an-accurate-developer-onboarding-and-project-guide.md"
+    ".scratch/reliable-exam-analysis/issues/OPEN/25-publish-an-accurate-developer-onboarding-and-project-guide.md"
   ],
   "verification": {
     "commit": "88b906ced3b66c8bc947e43bb6b9e6377be9f74f",
@@ -28,7 +28,17 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "08f65e176a67dad6c44677f65a0c3ee5eb949143",
+    "replacement": null,
+    "reviewed_by": "Project owner",
+    "evidence": [
+      "Project owner reviewed the branch consolidation evidence and explicitly requested ticket 26 be marked done on 2026-09-17.",
+      "The verified cleanup reduced 19 local branches to 10 and 15 origin branches to 5 while preserving all unique commits, six worktrees, three stashes, and recovery refs.",
+      "The implementation recorded 231 passing pipeline tests, 35 passing ticket tests with 0 errors, and a clean synchronized codex/mvp-two-stage worktree."
+    ]
+  }
 }
 ```
 
