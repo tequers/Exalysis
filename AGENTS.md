@@ -19,10 +19,10 @@
 2. Select one ticket when the task maps to the backlog. Use `python scripts/tickets.py next`, `python scripts/tickets.py show ID`, and `python scripts/tickets.py preflight ID`.
 3. Define one outcome, its likely files, its acceptance checks, and its non-goals.
 4. Run `git fetch origin --prune`, then verify the remote base. Do not assume that the local `main` is current or tracks `origin/main`.
-5. Create a short-lived branch named `codex/<ticket-id>-<short-name>`. If no ticket applies, use `codex/<short-name>`. Do not implement changes directly on `main`.
+5. Decide whether a separate branch adds clear isolation, review, or recovery value. Keep small administrative changes and closely related follow-ups on the current suitable non-`main` branch. Create a short-lived branch when the work needs its own pull request, a different base, protection from unrelated changes, or a separate worktree. Do not implement changes directly on `main`.
 6. Move the selected ticket to `IN_PROGRESS` with `python scripts/tickets.py move ID IN_PROGRESS`. Do not edit `TICKET_STATUS.md` by hand.
 
-For dependent work, base the branch on the branch it needs. For independent work, base it on the current remote `main`. If several tasks run at once, give each task its own branch and worktree. Never let two agents edit the same working tree.
+Before creating a branch, tell the user its source branch and source commit in the form `new branch <- source branch @ commit`. For dependent work, use the branch it needs as the source. For independent work, use the current remote `main`. Name a new branch `codex/<ticket-id>-<short-name>`, or `codex/<short-name>` when no ticket applies. If the task stays on the current branch, state that branch and why another branch would not help. In the final handoff, report the working branch and its source. If several tasks run at once, give each task its own branch and worktree. Never let two agents edit the same working tree.
 
 ## Make reviewable commits
 
