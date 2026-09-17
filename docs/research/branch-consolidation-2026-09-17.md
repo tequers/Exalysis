@@ -1,6 +1,6 @@
 # Branch consolidation on 17 September 2026
 
-This is the evidence for ticket 26. It records the decisions before branch deletion and will record the observed result afterward. Ticket 25 remains blocked until a person reviews this evidence and ticket 26 is complete.
+This is the evidence for ticket 26. Commit `673b5547b4205c1de3420ed8cfa6e50924e5151e` recorded the decisions before branch deletion. This revision adds the observed result. Ticket 25 remains blocked until a person reviews this evidence and ticket 26 is complete.
 
 The working branch is `codex/mvp-two-stage`, in `C:/Users/alber/Claude/Projects/0_Projects/Exams_Analysis_AI_pipeline-mvp-two-stage`. Its original creation entry is `codex/mvp-two-stage <- codex/developer-tooling @ 97d4451846eeb8e30f0f071776e7ed8894d1c104`. This cleanup starts at `a8b364ba66b0c6f7c9ec743e726511a7d51a687c`, including the prerequisite ticket-reference repair and ticket-26 start commits. Another implementation branch would not isolate work on the integration branch itself.
 
@@ -24,7 +24,7 @@ git stash list --format='%gd|%H|%gs'
 
 For each worktree, `git -C PATH status --porcelain=v1 --untracked-files=normal` established whether local work remained. No other worktree was edited.
 
-The GitHub CLI was not authenticated and an anonymous API read returned 404. A read through the existing Git credential helper returned HTTP 200 with `[]` from `GET /repos/tequers/exam-roi-pipeline/pulls?state=open&per_page=100`, without a pagination link. There were no open pull requests. The credential stayed in memory and was not written to this report or the repository. Repeat that query immediately before deletion.
+The GitHub CLI was not authenticated and an anonymous API read returned 404. A read through the existing Git credential helper returned HTTP 200 with `[]` from `GET /repos/tequers/exam-roi-pipeline/pulls?state=open&per_page=100`, without a pagination link. There were no open pull requests. The credential stayed in memory and was not written to this report or the repository. The same query returned the same result immediately before deletion.
 
 ## Before inventory
 
@@ -178,7 +178,60 @@ Completed before any source deletion:
 - `$env:PYTHONIOENCODING='utf-8'; python scripts/check_tickets.py` exited 0. It ran 35 tests in 44.872 seconds, then reported 26 tickets, 0 errors, and 6 warnings. The warnings concern historical unreviewed closures for tickets 01, 02, 05, 07, 10, and 18. Those review items remain unchanged.
 - `git diff --check` exited 0 with no output.
 
-The impact report, ref changes, and observed after inventory are pending. This report does not yet claim that deletion happened.
+- `python scripts/tickets.py impact --base a8b364ba66b0c6f7c9ec743e726511a7d51a687c --head HEAD` exited 0 at `673b554`. It reported one changed path, no affected areas, and no candidate tickets. Its `unmapped-path` warning names this new report. Manual review confirmed that this document is the only changed path and does not alter a ticket contract. The warning remains visible rather than expanding ticket-area configuration for a one-time report.
+- `git diff --check a8b364ba66b0c6f7c9ec743e726511a7d51a687c..HEAD` exited 0.
+- `git diff --quiet a8b364ba66b0c6f7c9ec743e726511a7d51a687c HEAD -- pipeline scripts AGENTS.md .scratch/reliable-exam-analysis` exited 0. Production code, tests, project instructions, the board, ticket paths, and blockers match the integration base.
+- `git diff --cached --check` passed before each evidence commit. Git's CRLF conversion notice for this new Windows working-tree file was a line-ending notice, not a whitespace failure.
+
+The pre-deletion guard verified every exact remote tip against `git ls-remote --heads origin` and every exact local tip against `git rev-parse`. It rejected any target attached in `git worktree list --porcelain`. `git merge-base --is-ancestor SOURCE RETAINED_BRANCH` succeeded for every target using the retained branches recorded in the before table. It also required a clean, synchronized MVP worktree and the fresh empty open-PR result.
+
+These mutations completed successfully, in this order:
+
+```powershell
+git update-ref refs/backup/ticket-26-before-cleanup-20260917 a8b364ba66b0c6f7c9ec743e726511a7d51a687c 0000000000000000000000000000000000000000
+git push --atomic origin --delete codex/23-compact-pdf-layout codex/candidate-evaluation-cli codex/developer-tooling codex/reconcile-repository-history codex/recoverable-storage codex/reporting-and-scoring codex/staged-evaluation codex/ticket-workflow split-pipeline-and-prompts codex/general-git-workflow-template
+git branch -d codex/23-compact-pdf-layout codex/candidate-evaluation-cli codex/developer-tooling codex/reconcile-repository-history codex/recoverable-storage codex/reporting-and-scoring codex/staged-evaluation codex/ticket-workflow
+git branch -D split-pipeline-and-prompts
+git branch --unset-upstream codex/general-git-workflow-template
+git fetch origin --prune
+```
+
+The `-D` deletion removed only the redundant local split branch name. Immediately before it, the guard required both that branch and `backup/pre-split-3bc78bd` to equal `3bc78bddb1c0d1541aaeddcc7310d9495b400069`. The normal merged-branch rule cannot identify that equality through the unrelated MVP root. The retained backup preserves the whole original history.
+
+After deletion, `git rev-list SOURCE --not --branches` returned no commits for all 11 distinct deleted tips. This proves every commit reachable through the 19 removed local/origin names is still reachable through at least one retained local branch. Exact-tip checks also confirmed both `main` refs, all existing backup refs, the local-only `982a5ca`, and all three stash tips were unchanged.
+
+No integration or conflict occurred, so there is no post-integration focused test result to claim. The full offline checks verify the unchanged MVP. No live model call, OCR call, worktree removal, data deletion, history rewrite, or force push occurred.
+
+## After inventory
+
+The following snapshot was observed after deletion and fetch/prune, at report commit `673b5547b4205c1de3420ed8cfa6e50924e5151e`. Finalizing this report advances only `codex/mvp-two-stage` and its origin ref. All other recorded tips and worktree attachments remain fixed. The ahead/behind values remain relative to the original integration base `a8b364b`.
+
+| Retained local branch | Local tip at snapshot | Origin branch and tip | Upstream state at snapshot | Ahead/behind baseline | Reason |
+|---|---|---|---|---|---|
+| `backup/mvp-two-stage-pre-help-20260917` | `28c5d34` | None | None | 0/8 | Existing recovery branch. |
+| `backup/mvp-two-stage-pre-unorouter-merge-20260917` | `6c99977` | None | None | 0/27 | Existing recovery branch. |
+| `backup/pre-split-3bc78bd` | `3bc78bd` | None | None | 18/46 | Original-history recovery branch. |
+| `codex/22-parse-cli-paths` | `095f39e` | Same name at `095f39e` | Same origin name, 0/0 | 0/22 | W5 and its upstream. |
+| `codex/24-print-llm-settings` | `e771c1b` | Same name at `e771c1b` | Same origin name, 0/0 | 0/10 | W6 and its upstream. |
+| `codex/general-git-workflow-template` | `982a5ca` | None | None | 2/39 | Unique local history reviewed above. |
+| `codex/mvp-help-update` | `3fc774e` | None | `origin/codex/mvp-two-stage`, behind 8 | 0/7 | W3. |
+| `codex/mvp-two-stage` | `673b554` | Same name at `673b554` | Same origin name, 0/0 | 1/0 | Priority integration branch and W4. |
+| `codex/unorouter-stream-retries` | `28c5d34` | Same name at `28c5d34` | Same origin name, 0/0 | 0/8 | W1 and its upstream. |
+| `main` | `a819798` | `main` at `551b7cf` | None | 7/46 | Preserve both existing default-branch histories. |
+
+There are ten local branches and five actual origin branches. `origin/main` remains an ancestor of the MVP with 0/39 baseline-relative counts. `origin/HEAD` still points to `origin/main`. All six worktrees retain the branches or detached tip in the before table. All three stashes remain. The new local audit ref points to `a8b364b`; the four existing recovery refs retain their original tips.
+
+Every remaining topic branch either has an attached worktree or holds unique local-only history. The worktrees' upstreams remain available. Local `main` remains unrelated to `origin/main`, with no upstream; that pre-existing mismatch is recorded rather than rewritten.
+
+## Human review and recovery
+
+1. Run `git branch -vv`, `git branch -r`, and `git worktree list` from W4. Expect the ten local and five origin branches above, six worktrees, and `codex/mvp-two-stage` tracking its origin branch. Run `git status --short --branch`; expect no file changes and no ahead/behind marker.
+2. Read the unique-history decisions in this report. Confirm that the generic workflow and private dataset material should remain local, and that the four retained non-MVP worktree branches are still justified. The original split history remains on `backup/pre-split-3bc78bd`; no private dataset content was added to the MVP.
+3. Run `git diff --stat a8b364ba66b0c6f7c9ec743e726511a7d51a687c HEAD` and the ticket-impact command above. For this implementation, expect only this report. Any later review-status transition is a separate parent-task change. Review the six historical-closure warnings independently; ticket 26 does not resolve them.
+
+To restore a deleted local name, first verify its recorded source commit is reachable from the retained branch, then use `git branch NAME COMMIT` with that exact row. To restore an origin name, push that same recorded origin commit to the exact original branch name. The original origin template tip was `65154f8`, not the private local-only `982a5ca`. Recovery does not require resetting or rewriting any retained branch.
+
+Ticket 26 stays in progress during the implementation handoff. The parent task owns its review transition. Ticket 25 and all blocker IDs remain unchanged. Moving ticket 25 to open requires completed human review and completion of ticket 26.
 
 ## Commit key
 
