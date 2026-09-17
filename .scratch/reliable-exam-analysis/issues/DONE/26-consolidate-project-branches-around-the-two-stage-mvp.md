@@ -13,8 +13,7 @@
   ],
   "references": [
     "AGENTS.md",
-    "docs/research/git-and-pull-requests-for-ai-development.md",
-    ".scratch/reliable-exam-analysis/issues/OPEN/25-publish-an-accurate-developer-onboarding-and-project-guide.md"
+    "docs/research/git-and-pull-requests-for-ai-development.md"
   ],
   "verification": {
     "commit": "88b906ced3b66c8bc947e43bb6b9e6377be9f74f",

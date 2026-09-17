@@ -1,5 +1,15 @@
 # Git and pull requests for AI-assisted development
 
+## Status of this research
+
+This document preserves the earlier workflow proposal and checkout observations.
+Its examples that start from local `main`, require a new branch for every task,
+or describe the old dirty tree are historical. Use the
+[contributor guide](../../CONTRIBUTING.md) for the current branch and review
+workflow, and the [branch consolidation record](branch-consolidation-2026-09-17.md)
+for the retained histories. Repository controls proposed below are not claims
+that those protections are configured today.
+
 ## Recommendation
 
 Use one ticket, one branch, and usually one pull request. Ask an AI agent to work on one reviewable outcome at a time, commit after each verified outcome, and start a new branch or worktree before beginning a different concern. Protect `main` so a change cannot merge without automated checks and human review.

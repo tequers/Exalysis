@@ -1,13 +1,17 @@
 # Independent candidate review
 
-Use `--review` with `add-exam` to challenge an analysis against the full extracted
-source and the evaluation contract before saving it as a candidate.
+## Availability in the two-stage MVP
 
-```powershell
-$env:LLM_REVIEW_PROVIDER = "openai"
-$env:LLM_REVIEW_MODEL = "your-reviewer-model-id"
-python pipeline/pipeline.py Courses/Example_Course add-exam paper.txt --review
-```
+Independent review is disabled in the current production CLI. `add-exam` rejects
+`--review` and nonzero `--review-corrections` before processing. It saves candidates
+with `independent_review.enabled: false` and `disposition: disabled`.
+See the [current architecture](../../docs/architecture.md) for the available flow.
+
+The sections below document the retained review module, its configuration, and
+the earlier CLI integration for later work. They are not instructions to enable
+review in the MVP. Offline tests exercise this code through injected clients.
+
+## Retained reviewer configuration
 
 The reviewer provider defaults to `LLM_PROVIDER`. The model ID must be explicitly
 set. The reviewer uses that provider's existing API key environment variable and
@@ -15,8 +19,8 @@ SDK. It can use a different provider from extraction and scoring. Every review i
 a fresh request with no analyzer conversation history. Using the same model is
 allowed, but its agreement does not prove correctness.
 
-Review is off unless `--review` is supplied. Candidates record this explicitly as
-`independent_review.enabled: false` and `disposition: disabled`.
+The retained workflow takes an explicit review-enabled setting; its historical
+CLI integration used `--review`. The current MVP gate prevents that live path.
 
 ## Evidence and outcomes
 

@@ -1,7 +1,27 @@
 # 0008: Modularize the exam analysis pipeline incrementally
 
-**Status:** proposed implementation direction; no module extraction has been implemented by this document.
+**Status at proposal:** proposed implementation direction; no module extraction had been implemented by this document.
 **Date:** 2026-09-11
+
+## Implementation update on 2026-09-17
+
+The two-stage MVP now delegates input handling, identity checks, source context,
+model requests, evaluation, taxonomy aggregation, scoring, storage, and report
+rendering to `pipeline/exam_roi/`. Tickets 18 through 20 supplied the package,
+report/scoring extraction, and explicit course/model configuration. Production
+imports do not require credentials or configure console streams.
+
+CLI dispatch, prompts, and workflow coordination still live in `pipeline.py`.
+There are no separate `cli.py`, `workflow.py`, or `acceptance.py` modules. Candidates
+do not enter accepted state; ticket 08's acceptance workflow remains pending.
+The independent reviewer module exists and has offline tests, but the MVP CLI
+disables that stage. Staged evaluation is a separate runner, and broader calibration
+remains pending.
+
+The [current architecture](../architecture.md) maps actual modules and command
+behavior. The original context, proposed boundaries, and migration sequence below
+remain as the decision's history. References there to the single-file application
+and future extraction describe the 2026-09-11 proposal, not today's file layout.
 
 ## Context and scope
 

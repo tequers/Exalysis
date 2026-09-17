@@ -7,6 +7,10 @@ A Python CLI that reads past exam papers and ranks topics by relative study prio
 It accepts text files and PDFs with a text layer, keeps each course's state in one
 folder, and writes the ranking as Excel and JSON.
 
+For development, start with the [contributor guide](CONTRIBUTING.md). Use the
+[documentation index](docs/README.md) to find a guide by task, or read the
+[current architecture](docs/architecture.md) to trace the two-stage MVP.
+
 > [!IMPORTANT]
 > The current `add-exam` command saves validated analyses to `candidates/`. It does
 > not promote them into accepted `parsed/` records. The repository does not yet have
@@ -41,30 +45,29 @@ The authoritative [evaluation contract 1.2.0](pipeline/exam_roi/contracts/evalua
 defines the six difficulty anchors, evidence requirements, and ambiguity rules. New topic
 scores cite their source questions and record the contract version.
 
-Add `--review` to `add-exam` to run an independent evidence review before saving
-the candidate. Configure `LLM_REVIEW_MODEL` and optionally `LLM_REVIEW_PROVIDER`.
-Review failures and unresolved findings leave a `needs-review` candidate. See
-[independent review](pipeline/docs/independent-review.md) for correction limits,
-request budgets, and saved review history.
+The MVP has two model stages. Stage 1 extracts questions and marks; Stage 2 tags
+topics and supplies qualitative judgments with evidence. Python validates both
+responses and calculates the deterministic metrics. Independent model review is
+disabled in the MVP CLI. The [independent review reference](pipeline/docs/independent-review.md)
+describes the retained implementation for later work.
 
-Each paper contributes independent judgments for every topic it tests, including
-existing topics. The taxonomy is recomputed from all compatible stored evidence:
-connection counts distinct supported dependencies, and difficulty combines question
-levels with equal weight per paper. New topic names also trigger a connection review
-of earlier papers, so relationships can be found regardless of discovery order.
-These reviews add model calls when the taxonomy grows. Conflicts are flagged;
-more evidence does not guarantee a higher score or greater accuracy.
+Each candidate records judgments for every topic the paper tests, including
+existing topics, and proposes taxonomy changes without applying them. `rebuild`
+recomputes accepted taxonomy summaries from compatible accepted records.
+Connection counts distinct supported dependencies, and difficulty combines question
+levels with equal weight per paper. Conflicts are flagged; more evidence does not
+guarantee a higher score or greater accuracy.
 
 The pipeline works from exam papers alone. It infers background assumptions and
 records supporting quotes and reasons. No manual prerequisite list or syllabus is
 needed. Human overrides remain protected while automatic estimates update separately.
-Reprocessing a paper replaces its contribution instead of double-counting it.
+Reprocessing with `--force` replaces its candidate after successful analysis.
 
-Older parsed records lack the required dependency evidence. Reprocess their source
-papers once with `add-exam --force` to include them in the new cumulative analysis.
-`rebuild` refreshes the taxonomy and exports from stored current-version judgments,
-without model calls; it does not convert older judgments. Review notes identify
-excluded older evidence and conflicting judgments.
+Older parsed records may lack the required dependency evidence. `add-exam --force`
+can produce a new candidate but cannot update those accepted records. `rebuild`
+refreshes the taxonomy and exports from accepted evidence without model calls;
+it does not convert older judgments. Review notes identify excluded older evidence
+and conflicting judgments. Candidate promotion remains pending in ticket 08.
 
 ## Example output
 
@@ -86,23 +89,13 @@ the JSON without a spreadsheet library.
 
 ## Quickstart
 
-Run these commands from the repository root. On Windows PowerShell:
+Follow the [offline environment setup](CONTRIBUTING.md#set-up-offline-development)
+first. No provider credentials are needed for tests, help, status, dry runs, or
+rebuilding existing accepted records. Run commands from the repository root.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r pipeline/requirements.txt
-
-Copy-Item .env.example .env
-# Edit .env and set the provider, exact Stage 1 and Stage 2 model IDs, and API key.
-```
-
-On macOS or Linux, activate the environment with `source .venv/bin/activate` and copy
-the environment template with `cp .env.example .env`.
-
-The checked-in `.env.example` is set up for UnoRouter and separate GLM models for the
-two analysis stages. You can instead use Anthropic, DeepSeek, OpenAI, or OpenRouter.
-The built-in default is Anthropic when `LLM_PROVIDER` is absent. Never commit `.env`.
+Live analysis requires the separate [provider setup and approval](CONTRIBUTING.md#optional-live-provider-setup).
+The provider receives extracted text. Approve the provider, exact models, and
+expected cost before running `add-exam` without `--dry-run`.
 
 Every command has this shape. The course folder always comes first:
 
@@ -117,15 +110,16 @@ it on first use.
 # Preview which files the command would read. This makes no API calls.
 python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" add-exam --dry-run
 
-# Analyse one paper and save a candidate. Extracted text is sent to the configured provider.
-python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" add-exam "exam_2026.pdf"
-
 # Inspect the taxonomy, accepted papers, and whether report files exist.
 python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" status
 
 # Regenerate Excel and JSON from records already accepted in parsed/. No API calls.
 python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" rebuild
 ```
+
+After live-provider approval and configuration, analyze one paper with
+`python pipeline/pipeline.py "Courses/Statistics/final_01_06_2027" add-exam "exam_2026.pdf"`.
+This saves a candidate. With no accepted papers, `rebuild` creates no new reports.
 
 Run `python pipeline/pipeline.py` for the short help screen, or append `--help` to a
 command for all of its options.
@@ -170,10 +164,11 @@ directory takes precedence over the same name inside the course folder. If it
 does not exist there, the course folder is tried. Use an absolute path to remove
 ambiguity. Inputs retain argument order, and each folder's matches are sorted.
 
-Papers go in as **UTF-8 `.txt`**, or as **`.pdf` with a text layer**. Nothing is rendered and
-no OCR is run, so a scanned paper has to be OCRed first (`ocrmypdf scan.pdf paper.pdf`) or
-retyped as text. The text that comes out is sent to the configured provider to be analysed;
-the file itself stays on your disk.
+Papers go in as UTF-8 `.txt`, or as `.pdf` with a text layer. The pipeline does not
+render pages or run OCR. Scanned papers are unsupported; use a text-layer copy or
+transcribe the source. Adding an OCR service requires separate approval and an
+expected cost. Live analysis sends extracted text to the configured provider;
+the source file stays on disk.
 
 A paper is refused *before any AI call*, so it costs nothing, when it holds no text, when a
 `.txt` file is not valid UTF-8 (the bad byte is reported rather than quietly replaced with `�`),
@@ -198,9 +193,9 @@ paper itself when the filename is silent, and an academic year like `2021-2022` 
 year the paper was sat: 2022. Pass `--year` to overrule it. See
 [`docs/adr/0007-one-record-per-paper-and-the-sitting-year.md`](docs/adr/0007-one-record-per-paper-and-the-sitting-year.md).
 
-It picks a provider via the `LLM_PROVIDER` environment variable (`anthropic` by default;
-`openai`, `deepseek`, or any other OpenAI-compatible endpoint also work). See the docstring at
-the top of [`pipeline/pipeline.py`](pipeline/pipeline.py) for full setup and every subcommand).
+The `LLM_PROVIDER` variable selects Anthropic, DeepSeek, OpenAI, OpenRouter, or
+UnoRouter. Anthropic is the default when it is absent. See the
+[provider setup](CONTRIBUTING.md#optional-live-provider-setup) for configuration.
 
 One folder holds one exam's worth of state, and nothing is shared between folders. A second
 exam uses a second folder, named on its own commands (see
@@ -282,7 +277,7 @@ Run `python scripts/check_tickets.py` to validate the backlog and run its offlin
 |---|---|
 | [New course setup](docs/solid/new-course-setup.md) | Course folder conventions and the per-course workflow. |
 | [Evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md) | Required evidence, difficulty anchors, and ambiguity rules. |
-| [Independent review](pipeline/docs/independent-review.md) | Reviewer configuration, correction limits, and saved review history. |
+| [Independent review](pipeline/docs/independent-review.md) | Retained reviewer implementation, disabled in the MVP CLI. |
 | [Model request limits](pipeline/docs/model-request-limits.md) | Context and output token budgets for both model stages. |
 | [Course state recovery](docs/course-state-recovery.md) | Locking, transaction recovery, and damaged-state handling. |
 | [Staged evaluation](docs/staged-evaluation.md) | Capture, audit, approve, and replay model evaluation fixtures. |

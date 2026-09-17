@@ -26,7 +26,19 @@
     "docs/ticket-workflow.md",
     "pipeline/pipeline.py"
   ],
-  "verification": null,
+  "verification": {
+    "commit": "7d57f897563e62b7c6a77ccee633a7925dd50054",
+    "checked_at": "2026-09-17T18:14:31+00:00",
+    "criteria_digest": "8eeb95d0c768e37cbe35260301d445f3f2b4970858f54bc93c78bf518b9e737d",
+    "checker": "Codex next-ticket, 2026-09-17",
+    "result": "still_valid",
+    "evidence": [
+      "pipeline.py help confirms the current two-stage add-exam command saves validated candidates and leaves independent review unavailable in the MVP.",
+      "README.md and docs/solid/new-course-setup.md still need one contributor route, consistent candidate-only reporting guidance, and a task-based documentation index.",
+      "docs/adr/0008-modular-pipeline-architecture.md requires a current implementation-status update while preserving the original decision history."
+    ],
+    "provisional": false
+  },
   "closure": null
 }
 ```
