@@ -19,9 +19,7 @@
     "pipeline/exam_roi/contracts/evaluation-v1.2.0.md",
     "pipeline/exam_roi/evaluation.py",
     "pipeline/exam_roi/llm.py",
-    "pipeline/exam_roi/review.py",
-    "Courses/SISTEMAS_OPERATIVOS/evaluations/2026_Enero/2026_Enero-case.reviewed.json",
-    "Courses/SISTEMAS_OPERATIVOS/evaluations/2026_Enero/review-summary.md"
+    "pipeline/exam_roi/review.py"
   ],
   "verification": null,
   "closure": {
