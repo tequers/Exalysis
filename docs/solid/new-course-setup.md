@@ -1,116 +1,117 @@
-# Setting Up a New Course
+# Set up a new course
 
-How to add a new Course/Exam to this repo and get it studyable — for a first-time setup or for
-adding a second course to an existing install.
+This guide creates candidates from past papers. The current two-stage MVP has no
+CLI command to accept them, so a new course cannot yet produce a ranking from its
+new candidates. Existing accepted records can still produce reports.
 
-See `CONTEXT.md` for the Course/Exam/Topic vocabulary this doc assumes, and
-`docs/adr/0001-course-exam-hierarchy.md` / `docs/adr/0003-active-exam-resolution.md` for why the
-structure and disambiguation rules below exist.
+Read the [glossary](../../CONTEXT.md) for Course, Exam, and Topic. The
+[course-folder decision](../adr/0006-course-folder-as-cli-argument.md) explains
+the independent state boundary. For development without model calls, start with
+the [contributor guide](../../CONTRIBUTING.md).
 
----
+## Set up the environment
 
-## One-time setup (per machine, not per course)
+Follow [offline environment setup](../../CONTRIBUTING.md#set-up-offline-development)
+once per machine. Tests, help, input previews, status, and rebuilding accepted
+records require no provider credentials.
 
-1. **Python deps:**
-   ```bash
-   cd pipeline
-   pip install -r requirements.txt
-   ```
-   Installs `openpyxl` and `pypdf` (core) plus the SDK for whichever `LLM_PROVIDER` you use.
+To analyze papers, complete the separate
+[live-provider setup](../../CONTRIBUTING.md#optional-live-provider-setup). Approve
+the provider, exact models, and expected cost before running live analysis. Check
+that the paper may be sent to that provider. Keep `.env`, source papers, candidates,
+and generated reports out of Git. No step below enables or calls OCR.
 
-2. **API key** — set the env var matching your provider (default `anthropic`):
-   ```bash
-   export ANTHROPIC_API_KEY=sk-ant-...      # LLM_PROVIDER=anthropic (default)
-   # export DEEPSEEK_API_KEY=sk-...         # LLM_PROVIDER=deepseek
-   # export OPENAI_API_KEY=sk-...           # LLM_PROVIDER=openai
-   ```
+Run every command below from the repository root.
 
-None of this is repeated per course — it's done once. This pipeline is the whole scope of this
-repo; if you also want to study with the output (step 4 below), that's a separate, optional
-project — [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt).
+## Choose a course folder and preview inputs
 
----
+One course folder holds one Exam's papers and state. Another Exam uses a separate
+folder, even within the same Course. The CLI accepts any folder path and creates
+it on first use. This repository uses `Courses/<Course>/<type>_<date>/` by convention.
 
-## Per-course workflow
+Place UTF-8 `.txt` papers or PDFs with a text layer in that folder or its `exams/`
+subfolder. Every PDF page must yield text. Scanned PDFs are unsupported, and even
+a text-layer PDF needs inspection for damaged formulas or reading order.
 
-### 1. Pick the course folder
-
-The folder you name on the command line *is* the Exam: everything in it (past papers, taxonomy,
-ROI sheet) belongs to that Exam alone, even if the same subject has another exam elsewhere. It
-can be any path on disk, and `pipeline.py` creates it if it isn't there yet.
-
-This repo keeps its own under `Courses/<Course Name>/<type>_<date>/`, e.g.
-`Courses/Operating Systems/final_15_02_2027/` — a convention that keeps several courses tidy in
-one place, nothing the CLI requires.
-
-Drop the past-exam PDFs (or `.txt` files) straight into that folder, or into an `exams/`
-subfolder — `add-exam` looks in both. Keep every paper of a year, not one per year: models,
-sittings and resits each count as a separate sample of what the examiner asks. Per-year
-subfolders are fine too, even when the filenames inside them repeat.
-
-### 2. Run the pipeline
-
-From `pipeline/`:
-
-Every command reads `python pipeline.py COURSE_FOLDER COMMAND [data]`:
-
-```bash
-cd pipeline
-python pipeline.py "../Courses/Operating Systems/final_15_02_2027" add-exam --total-marks <N>
-python pipeline.py "../Courses/Operating Systems/final_15_02_2027" status
+```powershell
+python pipeline/pipeline.py "Courses/Operating Systems/final_15_02_2027" add-exam --dry-run
 ```
 
-- `add-exam` with no filename processes every paper in the folder (the same `--total-marks`
-  applied to each); name a file — `add-exam final_2024.pdf --total-marks <N>` — when the totals
-  differ per exam. Papers already processed are skipped unless you pass `--force`.
-- This writes validated analyses and proposed taxonomy changes to `candidates/*.json`.
-  Accepted `taxonomy.json`, `parsed/*.json`, and ranked outputs stay unchanged until a
-  candidate is accepted through the separate acceptance workflow.
+The preview lists resolved paths and makes no model calls. Add `--recursive` for
+deeper folders. Every matching TXT/PDF is treated as a paper, including notes or
+slides. Name only intended files or folders to replace the default search.
+Relative paths prefer an existing path in the shell's working directory, then a
+path inside the course folder. An absolute path removes that ambiguity.
 
-### 3. Sanity-check the taxonomy
+Keep distinct papers from the same year, including resits and alternate sittings.
+Each paper has its own ID. See [paper identity and replacement](../../README.md#paper-ids-and-replacement)
+before using `--exam-id` or `--force`.
 
-The pipeline auto-tags topics with an LLM and prints a reminder afterward: **check
-`taxonomy.json` for near-duplicate topics and merge them by hand.** Also use:
+## Analyze an approved input
 
-```bash
-python pipeline.py "../Courses/Operating Systems/final_15_02_2027" edit-topic "Page Replacement" --diff 4 --conn 3
+After live-provider approval and configuration:
+
+```powershell
+python pipeline/pipeline.py "Courses/Operating Systems/final_15_02_2027" add-exam "final_2024.pdf" --total-marks 100
 ```
 
-to override any AI-assigned difficulty (D) or connection (C) score you disagree with, then it
-rebuilds the sheet automatically.
+Replace the filename and total with the paper's actual values. Omit `--total-marks`
+to use the command's inferred total. With multiple papers, one supplied total
+applies to all of them; invoke the command separately when totals differ.
 
-### 4. Start studying (optional, separate project)
+Stage 1 extracts questions and marks. Stage 2 tags topics and supplies qualitative
+judgments. Python validates the responses and computes deterministic metrics.
+Successful analysis saves `candidates/EXAM_ID.json`, including source provenance,
+evidence, uncertainty, and `proposed_taxonomy_changes`. Existing candidates or
+accepted records are skipped unless `--force` is supplied. Forced analysis replaces
+only the candidate after success.
 
-The pipeline only decides *what* to study — it doesn't help you study it. For that, see
-[`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt): paste its system prompt into
-whatever LLM tool you're using and point it at (or paste in) the Exam folder from steps 1–3, then
-just talk to it: "start a session, I have 90 minutes." It bootstraps its own state file
-(`study_state.json`, next to the pipeline's output) on first run — you never hand-author it.
+Inspect the candidate's questions and evidence against the paper. Check proposed
+topic names for duplicates and read any `needs-review` findings. Independent model
+review is disabled in this MVP; `--review` is unavailable.
 
-### 5. Assets (as needed)
+`add-exam` does not update `parsed/`, accepted `taxonomy.json`, or reports. Ticket
+08's acceptance workflow is pending. Do not treat a candidate as accepted or copy
+it into `parsed/` as an undocumented promotion step.
 
-Any diagrams/explainers made for the course go in `Courses/<Course>/assets/` (create it on first
-use). Never at repo root, never shared across courses — each course gets its own.
+## Inspect accepted state and rebuild reports
 
----
+```powershell
+python pipeline/pipeline.py "Courses/Operating Systems/final_15_02_2027" status
+python pipeline/pipeline.py "Courses/Operating Systems/final_15_02_2027" rebuild
+```
 
-## Checklist
+These commands make no model calls. `status` counts accepted papers and taxonomy
+topics and reports whether output files exist. A saved candidate does not increase
+the accepted-paper count. `rebuild` uses accepted records from `parsed/` and
+recomputes their taxonomy summaries and ranking. With no accepted papers it creates
+no new Excel or JSON report.
 
-- [ ] `pip install -r pipeline/requirements.txt`, API key set
-- [ ] course folder chosen, past papers dropped in
-- [ ] `pipeline.py <COURSE_FOLDER> add-exam` run → `Exam_ROI_Pipeline.xlsx` and `.json` exist
-- [ ] `taxonomy.json` reviewed for duplicate topics
-- [ ] *(optional)* `exam-prep-prompt`'s system prompt pasted into an LLM tool, pointed at the
-      Exam folder, run once to confirm `study_state.json` gets created
+If accepted state already exists, inspect its taxonomy and reports independently
+of the new candidate. To override difficulty or connection for an existing exact
+topic name:
 
----
+```powershell
+python pipeline/pipeline.py "Courses/Operating Systems/final_15_02_2027" edit-topic "Page Replacement" --diff 4 --conn 3
+```
 
-## Known gaps
+This saves human overrides and rebuilds reports. It fails if that topic is absent
+from the accepted taxonomy. It does not accept a proposed topic or merge duplicate
+labels. Use the [recovery guide](../course-state-recovery.md) for damaged records,
+interrupted writes, or locked course state.
 
-- File resolution in `exam-prep-prompt` is by content, not fixed paths — but the expected
-  filenames (`taxonomy.json`, `candidates/*.json`, `parsed/*.json`, `study_state.json`) should
-  stay exact, since
-  nothing guesses them from scratch.
-- The repo ships one example `Course/Exam` (synthetic, currently an empty scaffold — see
-  `Courses/Example_Course/`) rather than a real course, per
-  `docs/adr/0005-portfolio-cleanup-and-repo-split.md`.
+## Check the result
+
+- [ ] Offline setup and checks run without credentials.
+- [ ] The dry run lists only intended papers.
+- [ ] Any live analysis has provider, model, cost, and data-sharing approval.
+- [ ] Successful analysis saved a candidate whose evidence and proposals were inspected.
+- [ ] Accepted state and report counts were not inferred from candidate creation.
+- [ ] If accepted records existed, `rebuild` wrote `Exam_ROI_Pipeline.xlsx` and
+      `Exam_ROI_Pipeline.json`, or reported a specific recovery action.
+
+The repository's `Courses/Example_Course/` is an empty scaffold, not an accepted
+sample dataset. A separate optional project,
+[exam-prep-prompt](https://github.com/tequers/exam-prep-prompt), can use generated
+reports for study sessions. It shares no code or state-management implementation
+with this pipeline. Keep course-specific diagrams under `Courses/<Course>/assets/`.

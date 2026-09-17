@@ -43,9 +43,10 @@ used. These assumptions describe what the paper appears to expect, not verified
 course entry requirements or the student's current knowledge.
 
 **Paper judgment and taxonomy summary**:
-Each paper stores independent model observations in `topic_judgments`. The taxonomy
-combines current-contract evidence after every parse and on rebuild. Dependency edges
-are counted once per distinct dependent topic, with citations from every supporting
-paper. New labels trigger connection reviews of earlier papers; their original
-judgments stay intact. Human overrides take precedence over `model_estimate`. Older
-contract records must be explicitly reprocessed before joining this summary.
+Each candidate stores independent model observations in `topic_judgments` and
+proposes a taxonomy summary without changing accepted state. On `rebuild`, the
+taxonomy combines compatible evidence from accepted records in `parsed/`.
+Dependency edges are counted once per distinct dependent topic, with citations
+from supporting papers. Human overrides take precedence over `model_estimate`.
+Reprocessing an older record creates a candidate; promotion into accepted state
+remains pending in ticket 08. See the [current architecture](docs/architecture.md).
