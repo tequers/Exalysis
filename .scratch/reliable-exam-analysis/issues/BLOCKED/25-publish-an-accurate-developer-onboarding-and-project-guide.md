@@ -5,9 +5,11 @@
   "schema_version": 1,
   "id": "25",
   "priority": "P1",
-  "queue_order": 25,
+  "queue_order": 26,
   "areas": [],
-  "depends_on": [],
+  "depends_on": [
+    "26"
+  ],
   "related_to": [
     "08",
     "18",
@@ -57,3 +59,5 @@ The documentation audit on 2026-09-17 found that all 96 checked local Markdown l
 The audit also found two correctness problems. The course setup guide says that `add-exam` leaves accepted state and reports unchanged, then its checklist says the same command creates the spreadsheet and JSON report. The modular architecture decision still describes module extraction as proposed, while the production CLI already delegates to the extracted package modules.
 
 This ticket is ready without ticket 08. It must document the present candidate-only behavior accurately and can be updated again when promotion becomes available.
+
+Ticket 26 must consolidate the project branches before this documentation work starts. This guide should describe the branch model that remains after that reviewed cleanup.
