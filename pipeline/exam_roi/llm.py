@@ -1,6 +1,8 @@
 """Request budgets and provider responses, independent of exam interpretation."""
 
 from dataclasses import dataclass, field
+import math
+import random
 import time
 
 
@@ -14,6 +16,70 @@ class RequestLimitError(ValueError):
 
 class TruncatedResponse(RuntimeError):
     """The provider stopped before completing its answer."""
+
+
+def _error_body(exc):
+    body = getattr(exc, "body", None)
+    return body if isinstance(body, dict) else {}
+
+
+def _error_status(exc):
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    return status if isinstance(status, int) else None
+
+
+def _body_value(body, name):
+    if name in body:
+        return body[name]
+    nested = body.get("error")
+    return nested.get(name) if isinstance(nested, dict) else None
+
+
+def _retry_after_seconds(exc):
+    body_value = _body_value(_error_body(exc), "retry_after")
+    candidates = [body_value]
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers is not None:
+        try:
+            candidates.append(headers.get("retry-after"))
+        except AttributeError:
+            pass
+    for value in candidates:
+        try:
+            seconds = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(seconds) and seconds > 0:
+            return int(seconds) if seconds.is_integer() else seconds
+    return None
+
+
+def _is_retryable(exc):
+    declared = _body_value(_error_body(exc), "retryable")
+    if isinstance(declared, bool):
+        return declared
+    status = _error_status(exc)
+    if status is not None:
+        return status in {408, 409, 425, 429} or 500 <= status <= 599
+    return isinstance(exc, (ConnectionError, TimeoutError)) or type(exc).__name__ in {
+        "APIConnectionError", "APITimeoutError", "ConnectError", "ReadTimeout"
+    }
+
+
+def _error_summary(exc):
+    summary = type(exc).__name__
+    status = _error_status(exc)
+    if status is not None:
+        summary += f" (HTTP {status})"
+    request_id = getattr(exc, "request_id", None)
+    if request_id:
+        summary += f", request_id={request_id}"
+    return summary
 
 
 def estimate_tokens(text):
@@ -86,6 +152,32 @@ def text_from_openai(resp):
     return choice.message.content
 
 
+def text_from_openai_stream(chunks):
+    """Join one OpenAI-compatible stream and enforce a complete response."""
+    parts = []
+    finish_reason = None
+    for chunk in chunks:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            continue
+        choice = choices[0]
+        delta = getattr(choice, "delta", None)
+        content = getattr(delta, "content", None)
+        if content:
+            parts.append(content)
+        if getattr(choice, "finish_reason", None) is not None:
+            finish_reason = choice.finish_reason
+    if finish_reason == "length":
+        raise TruncatedResponse(
+            "Incomplete model output. Split the work or configure a larger supported output budget.")
+    if finish_reason != "stop":
+        raise ValueError(f"Model did not finish its answer: {finish_reason}")
+    text = "".join(parts)
+    if not text:
+        raise ValueError("Empty model response")
+    return text
+
+
 @dataclass
 class ModelClient:
     """An explicitly supplied SDK client, model, and model-specific limits."""
@@ -98,12 +190,20 @@ class ModelClient:
     attempts: int = 3
     provider: str = ""
     client_factory: object = field(default=None, repr=False)
+    progress: object = field(default=None, repr=False)
+    sleep: object = field(default=time.sleep, repr=False)
+    random_uniform: object = field(default=random.uniform, repr=False)
+    reasoning_effort: str | None = None
 
     def __post_init__(self):
         if self.sdk not in {"anthropic", "openai"}:
             raise ValueError(f"Unsupported SDK family: {self.sdk}")
         if type(self.attempts) is not int or self.attempts < 1:
             raise ValueError("attempts must be a positive integer")
+        if self.reasoning_effort is not None and (
+                not isinstance(self.reasoning_effort, str)
+                or not self.reasoning_effort.strip()):
+            raise ValueError("reasoning_effort must be a nonempty string when supplied")
 
     def __call__(self, system, user, max_tokens=None, model=None):
         if model is not None and model != self.model:
@@ -114,25 +214,68 @@ class ModelClient:
             if self.client_factory is None:
                 raise ModelConfigurationError("Supply a model client before analyzing an exam")
             self.client = self.client_factory()
+        openai_options = ({"reasoning_effort": self.reasoning_effort}
+                          if self.reasoning_effort is not None else {})
         for attempt in range(self.attempts):
             try:
+                endpoint = self.provider or f"{self.sdk}-compatible"
+                self._report(
+                    f"LLM connection: attempt {attempt + 1}/{self.attempts} "
+                    f"to {endpoint}/{self.model}")
                 if self.sdk == "anthropic":
                     with self.client.messages.stream(
                         model=self.model, max_tokens=max_tokens, system=system,
                         messages=[{"role": "user", "content": user}],
                     ) as stream:
-                        return text_from_anthropic(stream.get_final_message())
-                return text_from_openai(self.client.chat.completions.create(
-                    model=self.model, max_tokens=max_tokens,
-                    messages=[{"role": "system", "content": system},
-                              {"role": "user", "content": user}],
-                ))
-            except (TruncatedResponse, ValueError):
+                        self._report("LLM connection: connected; receiving response")
+                        result = text_from_anthropic(stream.get_final_message())
+                elif self.provider == "unorouter":
+                    stream = self.client.chat.completions.create(
+                        model=self.model, max_tokens=max_tokens, stream=True,
+                        messages=[{"role": "system", "content": system},
+                                  {"role": "user", "content": user}],
+                        **openai_options,
+                    )
+                    self._report("LLM connection: connected; receiving response")
+                    try:
+                        result = text_from_openai_stream(stream)
+                    finally:
+                        close = getattr(stream, "close", None)
+                        if close:
+                            close()
+                else:
+                    self._report("LLM connection: connected; awaiting response")
+                    result = text_from_openai(self.client.chat.completions.create(
+                        model=self.model, max_tokens=max_tokens,
+                        messages=[{"role": "system", "content": system},
+                                  {"role": "user", "content": user}],
+                        **openai_options,
+                    ))
+                self._report("LLM connection: response complete")
+                return result
+            except (TruncatedResponse, ValueError) as exc:
+                self._report(f"LLM connection: response rejected ({type(exc).__name__})")
                 raise
-            except Exception:
-                if attempt + 1 == self.attempts:
+            except Exception as exc:
+                summary = _error_summary(exc)
+                retryable = _is_retryable(exc)
+                if not retryable:
+                    self._report(f"LLM connection: {summary}; not retryable")
                     raise
-                time.sleep(2 ** (attempt + 1))
+                if attempt + 1 == self.attempts:
+                    self._report(f"LLM connection: {summary}; no retries left")
+                    raise
+                delay = _retry_after_seconds(exc)
+                if delay is None:
+                    delay = round(min(2 ** (attempt + 1), 60)
+                                  * self.random_uniform(0.8, 1.2), 1)
+                self._report(
+                    f"LLM connection: {summary}; retrying in {delay:g} seconds")
+                self.sleep(delay)
+
+    def _report(self, message):
+        if self.progress is not None:
+            self.progress(f"   {message}")
 
 
 def run_batches(items, make_prompt, consume, *, system, client, limits,
@@ -175,7 +318,8 @@ def run_batches(items, make_prompt, consume, *, system, client, limits,
                     limits=limits, output_estimate=output_estimate, label=label)
 
 
-def configured_model_client(provider, model, limits, *, providers, env, attempts=3):
+def configured_model_client(provider, model, limits, *, providers, env, attempts=3,
+                            reasoning_effort=None, progress=None):
     """Capture configuration now; open the SDK only when a request is needed.
 
     The environment mapping is supplied by startup, never read from the process.
@@ -208,13 +352,17 @@ def configured_model_client(provider, model, limits, *, providers, env, attempts
         try:
             if config["sdk"] == "anthropic":
                 import anthropic
-                return anthropic.Anthropic(api_key=key, base_url=base_url)
+                return anthropic.Anthropic(
+                    api_key=key, base_url=base_url, max_retries=0)
             import openai
         except ImportError as exc:
             raise ModelConfigurationError(
                 f"Install the {config['sdk']} SDK: pip install {config['sdk']}") from exc
-        return openai.OpenAI(api_key=key, base_url=base_url,
-                             organization=organization, project=project)
+        return openai.OpenAI(
+            api_key=key, base_url=base_url, organization=organization,
+            project=project, max_retries=0)
 
     return ModelClient(None, config["sdk"], model, limits,
-                       attempts=attempts, provider=provider, client_factory=create_sdk_client)
+                       attempts=attempts, provider=provider,
+                       client_factory=create_sdk_client, progress=progress,
+                       reasoning_effort=reasoning_effort)

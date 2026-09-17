@@ -1,6 +1,8 @@
 """Offline coverage for full question evidence, request budgets, and recovery."""
 
+from contextlib import redirect_stdout
 import importlib
+import io
 import json
 import os
 from pathlib import Path
@@ -15,7 +17,8 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from exam_roi.llm import (ModelClient, RequestLimitError, RequestLimits,
                           TruncatedResponse, estimate_tokens,
-                          text_from_anthropic, text_from_openai)
+                          configured_model_client, text_from_anthropic,
+                          text_from_openai, text_from_openai_stream)
 from exam_roi.question_context import source_questions
 from exam_roi.evaluation import CandidateValidationError, CONTRACT_TEXT
 
@@ -56,6 +59,111 @@ def fake_tags(system, user, **kwargs):
 
 
 class BudgetTests(unittest.TestCase):
+    def test_unorouter_streams_response_and_reports_connection_state(self):
+        sdk = Mock()
+        sdk.chat.completions.create.return_value = iter([
+            NS(id="completion-1", choices=[NS(
+                delta=NS(content='{"ok":'), finish_reason=None)]),
+            NS(id="completion-1", choices=[NS(
+                delta=NS(content="true}"), finish_reason="stop")]),
+        ])
+        progress = []
+        client = ModelClient(
+            sdk, "openai", "glm-5.3", RequestLimits(200, 50, 10),
+            provider="unorouter", progress=progress.append,
+        )
+
+        self.assertEqual(client("system", "user"), '{"ok":true}')
+        request = sdk.chat.completions.create.call_args.kwargs
+        self.assertTrue(request["stream"])
+        self.assertIn("attempt 1/3", progress[0])
+        self.assertTrue(any("connected; receiving response" in line for line in progress))
+        self.assertTrue(any("response complete" in line for line in progress))
+
+    def test_retryable_524_honors_server_delay_and_reports_retry(self):
+        class Retryable524(Exception):
+            status_code = 524
+            body = {"retryable": True, "retry_after": 120}
+            request_id = "req-timeout-524"
+
+        sdk = Mock()
+        sdk.chat.completions.create.side_effect = [
+            Retryable524("origin response timeout"),
+            iter([NS(id="completion-2", choices=[NS(
+                delta=NS(content="{}"), finish_reason="stop")])]),
+        ]
+        progress, delays = [], []
+        client = ModelClient(
+            sdk, "openai", "glm-5.3", RequestLimits(200, 50, 10),
+            provider="unorouter", progress=progress.append, sleep=delays.append,
+        )
+
+        self.assertEqual(client("system", "user"), "{}")
+        self.assertEqual(delays, [120])
+        self.assertEqual(sdk.chat.completions.create.call_count, 2)
+        retry = next(line for line in progress if "retrying" in line)
+        self.assertIn("HTTP 524", retry)
+        self.assertIn("request_id=req-timeout-524", retry)
+        self.assertIn("120 seconds", retry)
+
+    def test_non_retryable_http_error_is_not_retried(self):
+        class AuthenticationFailure(Exception):
+            status_code = 401
+            body = {"retryable": False}
+
+        sdk = Mock()
+        sdk.chat.completions.create.side_effect = AuthenticationFailure("bad key")
+        progress, delays = [], []
+        client = ModelClient(
+            sdk, "openai", "glm-5.3", RequestLimits(200, 50, 10),
+            provider="unorouter", progress=progress.append, sleep=delays.append,
+        )
+
+        with self.assertRaises(AuthenticationFailure):
+            client("system", "user")
+        self.assertEqual(sdk.chat.completions.create.call_count, 1)
+        self.assertEqual(delays, [])
+        self.assertTrue(any("not retryable" in line for line in progress))
+
+    def test_configured_openai_client_disables_sdk_retries(self):
+        sdk = Mock()
+        sdk.chat.completions.create.return_value = iter([
+            NS(id="completion-3", choices=[NS(
+                delta=NS(content="{}"), finish_reason="stop")]),
+        ])
+        openai_module = NS(OpenAI=Mock(return_value=sdk))
+        providers = {"unorouter": {
+            "sdk": "openai", "base_url": "https://api.unorouter.test/v1",
+            "key_env": "UNOROUTER_API_KEY", "key_env_aliases": (),
+        }}
+        output = io.StringIO()
+
+        with patch.dict(sys.modules, {"openai": openai_module}), redirect_stdout(output):
+            client = configured_model_client(
+                "unorouter", "glm-5.3", RequestLimits(200, 50, 10),
+                providers=providers, env={"UNOROUTER_API_KEY": "test-key"},
+                progress=print,
+            )
+            self.assertEqual(client("system", "user"), "{}")
+
+        self.assertEqual(openai_module.OpenAI.call_args.kwargs["max_retries"], 0)
+        self.assertIn("attempt 1/3", output.getvalue())
+
+    def test_openai_request_receives_configured_reasoning_effort(self):
+        sdk = Mock()
+        sdk.chat.completions.create.return_value = iter([
+            NS(id="completion-4", choices=[NS(
+                delta=NS(content="{}"), finish_reason="stop")]),
+        ])
+        client = ModelClient(
+            sdk, "openai", "glm-5.3", RequestLimits(200, 50, 10),
+            provider="unorouter", reasoning_effort="low",
+        )
+
+        self.assertEqual(client("system", "user"), "{}")
+        self.assertEqual(
+            sdk.chat.completions.create.call_args.kwargs["reasoning_effort"], "low")
+
     def test_checks_include_system_utf8_framing_and_reserved_output(self):
         limits = RequestLimits(100, 20, 10)
         limits.check('s' * 30, 'u' * 40, 20)
@@ -97,6 +205,9 @@ class BudgetTests(unittest.TestCase):
     def test_provider_truncation_rejects_even_complete_json_and_thinking_only(self):
         with self.assertRaises(TruncatedResponse):
             text_from_openai(NS(choices=[NS(finish_reason='length', message=NS(content='{}'))]))
+        with self.assertRaises(TruncatedResponse):
+            text_from_openai_stream(iter([NS(choices=[NS(
+                finish_reason='length', delta=NS(content='{}'))])]))
         for content in [[], [NS(type='text', text='{}')], [NS(type='thinking')]]:
             with self.assertRaises(TruncatedResponse):
                 text_from_anthropic(NS(stop_reason='max_tokens', content=content))
