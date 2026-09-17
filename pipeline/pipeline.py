@@ -1342,13 +1342,15 @@ COMMANDS = ("add-exam", "rebuild", "status", "edit-topic")
 # Deliberately ASCII-only: this screen is the first thing a new user sees, and it has
 # to survive a terminal in any codepage.
 HELP = """\
-Exam ROI Pipeline - ranks a course's topics by relative study priority.
+Exam ROI Pipeline - two-stage MVP for ranking a course's study topics.
 
 USAGE
-  python pipeline.py COURSE_FOLDER COMMAND [data]
+  python pipeline/pipeline.py COURSE_FOLDER COMMAND [options]
 
-  COURSE_FOLDER is one folder per exam, holding its past papers. Name it on every
-  command. It is created if new, and every file the pipeline writes goes in it.
+  COURSE_FOLDER is one folder per course. It holds saved state and generated
+  reports, and is created if it does not exist. Exam files may be elsewhere.
+  Relative FILE/FOLDER paths prefer the working directory, then COURSE_FOLDER.
+  Absolute paths are used directly.
 
 COMMANDS
   add-exam [FILE|FOLDER ...]  Read past papers and save validated candidate analyses.
@@ -1359,10 +1361,19 @@ COMMANDS
   edit-topic TOPIC            Correct a topic's scores by hand, then rebuild.
 
 EXAMPLES
-  python pipeline.py Exams/History add-exam exam_2023.pdf
-  python pipeline.py Exams/History add-exam
-  python pipeline.py Exams/History status
-  python pipeline.py Exams/History edit-topic "Cold War" --diff 4 --conn 3
+  python pipeline/pipeline.py Courses/History add-exam exams/2023.pdf
+  python pipeline/pipeline.py Courses/History add-exam
+  python pipeline/pipeline.py Courses/History status
+  python pipeline/pipeline.py Courses/History edit-topic "Cold War" --diff 4 --conn 3
+
+TWO-STAGE MVP
+  Stage 1 extracts complete questions, marks, formats, and the exam year.
+  Stage 2 tags topics and supplies qualitative difficulty, prerequisite, and
+  connection evidence. Python validates both responses and calculates metrics.
+  Independent model evaluation is not run in the MVP.
+
+  Live runs print the effective provider, Stage 1 and Stage 2 models, token
+  budgets, stage progress, and LLM connection attempts. API keys are never printed.
 
 EXAM FILES
   .txt papers must be UTF-8; .pdf papers must have a text layer (nothing is
@@ -1382,17 +1393,16 @@ RESULTS, written into COURSE_FOLDER
 
 BEFORE THE FIRST RUN
   pip install -r requirements.txt
-  set ANTHROPIC_API_KEY=sk-ant-...     (Windows;  export ANTHROPIC_API_KEY=... elsewhere)
+  Copy-Item .env.example .env
 
-  Reading exams costs AI calls, so the pipeline needs a key. Another provider:
-  set LLM_PROVIDER to deepseek, openai, openrouter or unorouter and supply its key.
-  For OpenRouter (PowerShell):
-  $env:LLM_PROVIDER = "openrouter"
-  $env:OPENROUTER_API_KEY = "your-key"
-  $env:LLM_MODEL_STAGE1 = "your-openrouter-model-id"
-  $env:LLM_MODEL_STAGE2 = "your-openrouter-model-id"
+  Edit .env and set LLM_PROVIDER, the provider API key, and the exact model ID
+  for LLM_MODEL_STAGE1 and LLM_MODEL_STAGE2. Supported providers are Anthropic,
+  DeepSeek, OpenAI, OpenRouter, and UnoRouter. Never commit .env.
 
-Every option of a command:  python pipeline.py COURSE_FOLDER add-exam --help
+Every add-exam option:
+  python pipeline/pipeline.py COURSE_FOLDER add-exam --help
+
+When running from the pipeline/ directory, use python pipeline.py instead.
 """
 
 
@@ -1429,7 +1439,7 @@ def main():
         "course_folder",
         type=Path,
         metavar="COURSE_FOLDER",
-        help="Folder holding this exam's papers and results (created if it does not exist)",
+        help="Folder holding this course's saved state and reports (created if needed)",
     )
     # parser_class: without it the subcommands inherit BriefHelpParser, and
     # `add-exam --help` would reprint the top-level screen instead of its options.
@@ -1443,7 +1453,10 @@ def main():
             "Supported input: UTF-8 .txt (a UTF-8 byte-order mark is accepted), or .pdf "
             "with a text layer. Scanned PDFs are unsupported in the MVP; OCR is not included. "
             "Every PDF page must yield some text; this does not detect garbled, partial, or "
-            "out-of-order extraction. Extracted text is sent to the configured provider for analysis."
+            "out-of-order extraction. Extracted text is sent to the configured provider. "
+            "Stage 1 extracts questions. Stage 2 tags topics and supplies scoring evidence. "
+            "Python validates both responses and calculates the final metrics. Independent model "
+            "evaluation is disabled in the MVP."
         ),
     )
     pa.add_argument("paths", nargs="*", type=Path, metavar="PATH",

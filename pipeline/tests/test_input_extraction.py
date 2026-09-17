@@ -391,6 +391,29 @@ class AcceptedInputProvenanceTests(unittest.TestCase):
 
 
 class AddExamHelpTests(unittest.TestCase):
+    def test_top_level_help_describes_paths_and_the_two_stage_mvp(self):
+        import io
+
+        with patch.object(sys, "argv", ["pipeline.py", "--help"]), \
+             patch("sys.stdout", new_callable=io.StringIO) as out, \
+             self.assertRaises(SystemExit) as raised:
+            app.main()
+        self.assertEqual(raised.exception.code, 0)
+        help_text = " ".join(out.getvalue().split())
+        for phrase in (
+            "python pipeline/pipeline.py COURSE_FOLDER COMMAND",
+            "Relative FILE/FOLDER paths prefer the working directory, then COURSE_FOLDER",
+            "Stage 1 extracts complete questions",
+            "Stage 2 tags topics",
+            "Python validates both responses and calculates metrics",
+            "Independent model evaluation is not run in the MVP",
+            "LLM connection attempts",
+            "API keys are never printed",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, help_text)
+        self.assertNotIn("one folder per exam", help_text)
+
     def test_add_exam_help_explains_input_preparation_and_provider_transmission(self):
         import io
 
@@ -406,6 +429,10 @@ class AddExamHelpTests(unittest.TestCase):
             "OCR is not included",
             "garbled, partial",
             "configured provider",
+            "Stage 1 extracts questions",
+            "Stage 2 tags topics",
+            "Python validates both responses and calculates the final metrics",
+            "Independent model evaluation is disabled in the MVP",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, help_text)
