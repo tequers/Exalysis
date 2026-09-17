@@ -1,15 +1,17 @@
 """Deterministic validation checks for ticket 02; no model calls required."""
 
 import copy
+from contextlib import redirect_stdout
 import hashlib
 import importlib
+import io
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 PIPELINE = Path(__file__).resolve().parents[1]
@@ -157,6 +159,30 @@ class ResponseValidationTests(unittest.TestCase):
                 validate_topic_scores(candidate, ["Equations"], tagged, ["Equations"])
 
 
+class Stage2CorrectionTests(unittest.TestCase):
+    def test_invalid_tag_quote_gets_one_complete_correction_attempt(self):
+        invalid_tags = {"tags": {"Q1": tag(["Equations"], quote="invented quote")},
+                        "new_topic_names": []}
+        valid_tags = {"tags": {"Q1": tag(["Equations"])}, "new_topic_names": []}
+        client = Mock(side_effect=[
+            json.dumps(invalid_tags), json.dumps(valid_tags), json.dumps(scores()),
+        ])
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            result = app.stage2_tag_score(
+                [question()], {"topics": {"Equations": {"Diff": 3, "Conn": 1}}},
+                10, client=client,
+            )
+
+        self.assertEqual(client.call_count, 3)
+        correction_prompt = client.call_args_list[1].args[1]
+        self.assertIn("Q1 tag quote is absent from its source question", correction_prompt)
+        self.assertIn("Return the complete corrected JSON", correction_prompt)
+        self.assertIn("correction attempt 1/1", output.getvalue())
+        self.assertEqual(result["questions"][0]["topic_tagging"]["quote"], "Use elimination")
+
+
 class RejectionSafetyTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -181,7 +207,8 @@ class RejectionSafetyTests(unittest.TestCase):
         ]}
         incomplete_tags = {"tags": {}, "new_topic_names": []}
         with patch.object(app, "call_llm", side_effect=[
-                json.dumps(extraction), json.dumps(incomplete_tags)]):
+                json.dumps(extraction), json.dumps(incomplete_tags),
+                json.dumps(incomplete_tags)]):
             with self.assertRaisesRegex(CandidateValidationError, "missing IDs: Q1") as raised:
                 app.process_exam_file(self.paper, force=True, course=self.context, extraction_client=app.call_llm, analysis_client=app.call_llm)
         self.assertEqual(raised.exception.disposition, "correction_required")

@@ -718,12 +718,40 @@ def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None)
     """Tag full evidence in size-aware batches, preserving exact ID coverage."""
     client, limits = _stage_request(2, client, limits)
     tags, new_names = {}, []
+    active_batch = []
 
     def prompt(batch):
+        nonlocal active_batch
+        active_batch = batch
         return _S2A_TEMPLATE.format(
             taxonomy_list=_fmt_taxonomy(list(topic_names) + new_names),
             batch_no=1, batch_count=1,
             questions_json=json.dumps(question_evidence(batch), ensure_ascii=False))
+
+    def call_with_one_correction(system, user, max_tokens):
+        raw = client(system, user, max_tokens=max_tokens)
+        try:
+            validate_tags(
+                parse_json_from(raw), active_batch, list(topic_names) + new_names)
+        except CandidateValidationError as exc:
+            if exc.disposition != "correction_required":
+                raise
+            print(
+                "   ↻ Stage 2 validation: response rejected; "
+                f"correction attempt 1/1 ({exc.reason})")
+            corrected_user = (
+                user
+                + "\n\nDETERMINISTIC VALIDATION FAILURE:\n"
+                + exc.reason
+                + "\nReturn the complete corrected JSON for every question in this batch. "
+                  "Copy every evidence quote as an exact contiguous substring of that "
+                  "question's supplied source text. Do not return commentary or a partial patch."
+            )
+            limits.check(
+                system, corrected_user, max_tokens,
+                client.count_tokens if isinstance(client, ModelClient) else estimate_tokens)
+            return client(system, corrected_user, max_tokens=max_tokens)
+        return raw
 
     def consume(raw, batch):
         batch_tags, names = validate_tags(parse_json_from(raw), batch, list(topic_names) + new_names)
@@ -732,7 +760,8 @@ def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None)
         tags.update(batch_tags)
         new_names.extend(name for name in names if name not in new_names)
 
-    run_batches(questions, prompt, consume, system=_S2_SYSTEM, client=client, limits=limits,
+    run_batches(questions, prompt, consume, system=_S2_SYSTEM,
+                client=call_with_one_correction, limits=limits,
                 output_estimate=lambda batch: 512 * len(batch), label="topic tagging")
     return validate_tags({"tags": tags, "new_topic_names": new_names}, questions, topic_names)
 
