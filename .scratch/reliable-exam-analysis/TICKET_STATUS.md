@@ -29,4 +29,4 @@
 | 23 | [23](issues/DONE/23-compact-pdf-layout-padding-before-stage-1.md) | Compact PDF layout padding before Stage 1 | P1 | DONE | None | already resolved | implemented |
 | 24 | [24](issues/DONE/24-print-effective-llm-settings.md) | Print effective LLM settings | P2 | DONE | None | already resolved | implemented |
 | 25 | [26](issues/DONE/26-consolidate-project-branches-around-the-two-stage-mvp.md) | Consolidate project branches around the two-stage MVP | P1 | DONE | None | still valid | implemented |
-| 26 | [25](issues/IN_PROGRESS/25-publish-an-accurate-developer-onboarding-and-project-guide.md) | Publish an accurate developer onboarding and project guide | P1 | IN_PROGRESS | None | still valid | None |
+| 26 | [25](issues/TO_REVIEW/25-publish-an-accurate-developer-onboarding-and-project-guide.md) | Publish an accurate developer onboarding and project guide | P1 | TO_REVIEW | None | still valid | None |
