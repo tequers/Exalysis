@@ -17,7 +17,7 @@
 
 1. Run `git status --short --branch` before editing.
 2. Select one ticket when the task maps to the backlog. Use `python scripts/tickets.py next`, `python scripts/tickets.py show ID`, and `python scripts/tickets.py preflight ID`.
-3. Define one outcome, its likely files, its acceptance checks, and its non-goals.
+3. Establish shared ground truth with the developer: current behavior, intended outcome, likely files, acceptance checks, and non-goals. If any part is unclear, use `grill-me` or `grill-with-docs`. Wait for the developer to confirm the ground truth before implementing a feature or ticket.
 4. Run `git fetch origin --prune`, then verify the remote base. Do not assume that the local `main` is current or tracks `origin/main`.
 5. Decide whether a separate branch adds clear isolation, review, or recovery value. Keep small administrative changes and closely related follow-ups on the current suitable non-`main` branch. Create a short-lived branch when the work needs its own pull request, a different base, protection from unrelated changes, or a separate worktree. Do not implement changes directly on `main`.
 6. Move the selected ticket to `IN_PROGRESS` with `python scripts/tickets.py move ID IN_PROGRESS`. Do not edit `TICKET_STATUS.md` by hand.
