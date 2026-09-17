@@ -46,6 +46,7 @@ Setup:
 
   (Windows CMD: use `set VAR=value` instead of `export VAR=value`.)
   Optionally override the models: LLM_MODEL_STAGE1 / LLM_MODEL_STAGE2.
+  Models that support it also accept LLM_REASONING_EFFORT_STAGE1 / STAGE2.
   OpenRouter and UnoRouter require both model variables, using exact catalog IDs.
 
 Usage:
@@ -339,7 +340,7 @@ MODEL_REQUEST_LIMITS = {
 }
 
 
-def configure_model_clients(env, *, review=False):
+def configure_model_clients(env, *, review=False, progress=None):
     """Build each command's clients from its startup environment snapshot."""
     provider = env.get("LLM_PROVIDER", "anthropic").lower()
     if provider not in PROVIDERS:
@@ -358,7 +359,10 @@ def configure_model_clients(env, *, review=False):
     try:
         result = {
             name: configured_model_client(provider, model, request_limits(model, stage),
-                                          providers=PROVIDERS, env=env)
+                                          providers=PROVIDERS, env=env,
+                                          reasoning_effort=env.get(
+                                              f"LLM_REASONING_EFFORT_STAGE{stage}"),
+                                          progress=progress)
             for name, model, stage in zip(("extraction_client", "analysis_client"), models, (1, 2))
         }
     except ModelConfigurationError:
@@ -366,7 +370,7 @@ def configure_model_clients(env, *, review=False):
     except ValueError as exc:
         raise ModelConfigurationError(f"Invalid LLM request-limit configuration: {exc}") from exc
     if review:
-        result.update(configure_reviewer(env, provider))
+        result.update(configure_reviewer(env, provider, progress=progress))
     return result
 
 
@@ -380,11 +384,12 @@ def _print_llm_settings(clients):
         print(
             f"   Stage {stage}: provider={provider}, model={client.model}, "
             f"context={limits.context_tokens:,}, max_output={limits.output_tokens:,}, "
-            f"overhead={limits.overhead_tokens:,} tokens"
+            f"overhead={limits.overhead_tokens:,} tokens, "
+            f"reasoning={client.reasoning_effort or 'provider-default'}"
         )
 
 
-def configure_reviewer(env, analyzer_provider):
+def configure_reviewer(env, analyzer_provider, *, progress=None):
     """Keep reviewer setup failures in the existing saved-review failure path."""
     provider = env.get("LLM_REVIEW_PROVIDER", analyzer_provider).lower()
     model = env.get("LLM_REVIEW_MODEL")
@@ -395,7 +400,10 @@ def configure_reviewer(env, analyzer_provider):
             overhead_tokens=int(env.get("LLM_REVIEW_OVERHEAD_TOKENS", 1024)))
         if not model or not model.strip():
             raise ModelConfigurationError("Set LLM_REVIEW_MODEL to an exact reviewer model ID")
-        client = configured_model_client(provider, model, limits, providers=PROVIDERS, env=env)
+        client = configured_model_client(
+            provider, model, limits, providers=PROVIDERS, env=env,
+            reasoning_effort=env.get("LLM_REVIEW_REASONING_EFFORT"),
+            progress=progress)
     except ValueError as exc:
         limits = None
         def client(system, user, max_tokens, error=exc):
@@ -1475,7 +1483,8 @@ def main():
         clients = {}
         if args.cmd == "add-exam" and not args.dry_run:
             load_dotenv(DOTENV_FILE)
-            clients = configure_model_clients(dict(os.environ), review=args.review)
+            clients = configure_model_clients(
+                dict(os.environ), review=args.review, progress=print)
             _print_llm_settings(clients)
         course = setup_course_folder(args.course_folder)
         return dispatch[args.cmd](args, course, **clients)

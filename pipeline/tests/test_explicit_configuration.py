@@ -28,6 +28,11 @@ def completion(text):
     return NS(choices=[NS(finish_reason="stop", message=NS(content=text))])
 
 
+def streamed_completion(text):
+    return iter([NS(id="test-completion", choices=[NS(
+        finish_reason="stop", delta=NS(content=text))])])
+
+
 class IndependentConfigurationTests(unittest.TestCase):
     def test_two_course_contexts_and_analyzer_reviewer_clients_do_not_leak(self):
         q = question()
@@ -108,9 +113,9 @@ class IndependentConfigurationTests(unittest.TestCase):
             self.assertEqual(dict(os.environ), changed_environment)
         self.assertEqual([call.kwargs for call in factory.call_args_list], [
             {"api_key": "first-test-key", "base_url": "https://first.example/v1",
-             "organization": "first-org", "project": "first-project"},
+             "organization": "first-org", "project": "first-project", "max_retries": 0},
             {"api_key": "second-test-key", "base_url": "https://second.example/v1",
-             "organization": "second-org", "project": "second-project"}])
+             "organization": "second-org", "project": "second-project", "max_retries": 0}])
         self.assertEqual(first_sdk.chat.completions.create.call_args.kwargs["model"], "first-model")
         self.assertEqual(second_sdk.chat.completions.create.call_args.kwargs["model"], "second-model")
         self.assertEqual(first.limits.output_tokens, 100)
@@ -159,8 +164,8 @@ class IndependentConfigurationTests(unittest.TestCase):
             self.assertEqual(first("s", "u"), "first answer")
             self.assertEqual(dict(os.environ), changed_environment)
         self.assertEqual([call.kwargs for call in factory.call_args_list], [
-            {"api_key": "first-test-key", "base_url": "https://first.example"},
-            {"api_key": "second-test-key", "base_url": "https://second.example"}])
+            {"api_key": "first-test-key", "base_url": "https://first.example", "max_retries": 0},
+            {"api_key": "second-test-key", "base_url": "https://second.example", "max_retries": 0}])
 
     def test_absent_anthropic_endpoint_uses_explicit_sdk_default(self):
         client = app.configure_model_clients({"LLM_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "test-key"})[
@@ -172,7 +177,8 @@ class IndependentConfigurationTests(unittest.TestCase):
              patch.dict(os.environ, changed_environment, clear=True):
             client.client_factory()
             self.assertEqual(dict(os.environ), changed_environment)
-        factory.assert_called_once_with(api_key="test-key", base_url="https://api.anthropic.com")
+        factory.assert_called_once_with(
+            api_key="test-key", base_url="https://api.anthropic.com", max_retries=0)
 
     def test_documented_defaults_alias_and_missing_credentials(self):
         for provider, models in (("anthropic", ("claude-haiku-4-5-20251001", "claude-sonnet-5")),
@@ -184,14 +190,14 @@ class IndependentConfigurationTests(unittest.TestCase):
                 clients["extraction_client"]("s", "u")
         self.assertEqual(app.configure_model_clients({})["analysis_client"].provider, "anthropic")
         sdk = Mock()
-        sdk.chat.completions.create.return_value = completion("ok")
+        sdk.chat.completions.create.return_value = streamed_completion("ok")
         factory = Mock(return_value=sdk)
         clients = app.configure_model_clients({"LLM_PROVIDER": "unorouter",
             "OPENROUTER_API_KEY": "alias-test-key", "LLM_MODEL_STAGE1": "one", "LLM_MODEL_STAGE2": "two"})
         with patch.dict(sys.modules, {"openai": NS(OpenAI=factory)}):
             clients["analysis_client"]("s", "u")
         factory.assert_called_once_with(api_key="alias-test-key", base_url="https://api.unorouter.com/v1",
-                                        organization="", project="")
+                                        organization="", project="", max_retries=0)
 
     def test_glm_53_defaults_cover_a_twenty_page_exam_and_keep_env_overrides(self):
         env = {
@@ -234,6 +240,8 @@ class StartupTests(unittest.TestCase):
             "UNOROUTER_API_KEY": "secret-test-key",
             "LLM_MODEL_STAGE1": "glm-5.3-flash",
             "LLM_MODEL_STAGE2": "glm-5.3",
+            "LLM_REASONING_EFFORT_STAGE1": "low",
+            "LLM_REASONING_EFFORT_STAGE2": "high",
         }
         out = io.StringIO()
         with tempfile.TemporaryDirectory() as temp, \
@@ -254,6 +262,8 @@ class StartupTests(unittest.TestCase):
             "context=1,000,000, max_output=128,000, overhead=1,024 tokens",
             out.getvalue(),
         )
+        self.assertIn("reasoning=low", out.getvalue())
+        self.assertIn("reasoning=high", out.getvalue())
         self.assertNotIn("secret-test-key", out.getvalue())
 
     def test_dry_run_does_not_configure_or_print_llm_settings(self):
