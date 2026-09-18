@@ -45,11 +45,15 @@ The authoritative [evaluation contract 1.2.0](pipeline/exam_roi/contracts/evalua
 defines the six difficulty anchors, evidence requirements, and ambiguity rules. New topic
 scores cite their source questions and record the contract version.
 
-The MVP has two model stages. Stage 1 extracts questions and marks; Stage 2 tags
-topics and supplies qualitative judgments with evidence. Python validates both
-responses and calculates the deterministic metrics. Independent model review is
-disabled in the MVP CLI. The [independent review reference](pipeline/docs/independent-review.md)
-describes the retained implementation for later work.
+The MVP has two model stages:
+
+- Stage 1 extracts questions and marks.
+- Stage 2 tags topics and supplies qualitative judgments with evidence.
+
+Python validates both responses and calculates the deterministic metrics. Independent
+model review is disabled in the MVP CLI. The
+[independent review reference](pipeline/docs/independent-review.md) describes the retained
+implementation for later work.
 
 Each candidate records judgments for every topic the paper tests, including
 existing topics, and proposes taxonomy changes without applying them. `rebuild`
