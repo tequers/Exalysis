@@ -90,26 +90,19 @@ so it does not require a syllabus or a manual prerequisite list. Human overrides
 protected while automatic estimates update separately. Reprocessing with `--force`
 replaces only the candidate after a successful analysis.
 
-> [!NOTE]
-> Accepted records created under an older evaluation contract may lack the evidence
-> required by the current contract. `rebuild` excludes incompatible judgments and
-> identifies them in the review notes. Reprocessing creates a current candidate but
-> does not replace the accepted record. See
-> [legacy accepted records](docs/course-state-recovery.md#legacy-accepted-records).
-
 ## Example output
 
 Running `rebuild` on accepted papers produces a ranked list like this. This is an
 illustrative excerpt. The empty `Courses/Example_Course/` folder does not contain
 accepted sample data.
 
-| Rank | Topic | Priority | Freq | G_Marks | Conn | Diff | Fmt | Tier |
-|---:|---|---:|---:|---:|---:|---:|---:|---|
-| 1 | Hypothesis Testing | 18.9 | 1.00 | 0.22 | 3 | 2 | 1.75 | Tier 1 |
-| 2 | Confidence Intervals | 11.8 | 0.83 | 0.19 | 3 | 2 | 2.00 | Tier 1 |
-| 3 | Regression Basics | 8.0 | 0.67 | 0.24 | 2 | 2 | 2.00 | Tier 1 |
-| 4 | Bayes' Theorem | 3.0 | 0.50 | 0.12 | 3 | 3 | 2.00 | |
-| 5 | Sampling Distributions | 1.1 | 0.33 | 0.09 | 3 | 4 | 2.00 | |
+| Rank | Topic                  | Priority | Freq | G_Marks | Conn | Diff |  Fmt | Tier   |
+| ---: | ---------------------- | -------: | ---: | ------: | ---: | ---: | ---: | ------ |
+|    1 | Hypothesis Testing     |     18.9 | 1.00 |    0.22 |    3 |    2 | 1.75 | Tier 1 |
+|    2 | Confidence Intervals   |     11.8 | 0.83 |    0.19 |    3 |    2 | 2.00 | Tier 1 |
+|    3 | Regression Basics      |      8.0 | 0.67 |    0.24 |    2 |    2 | 2.00 | Tier 1 |
+|    4 | Bayes' Theorem         |      3.0 | 0.50 |    0.12 |    3 |    3 | 2.00 |        |
+|    5 | Sampling Distributions |      1.1 | 0.33 |    0.09 |    3 |    4 | 2.00 |        |
 
 Each successful rebuild also writes this ranking as a flat JSON array
 (`Exam_ROI_Pipeline.json`) alongside the formatted `.xlsx`. A script or model can read
@@ -157,26 +150,26 @@ command for all of its options.
 
 ### Commands
 
-| Command | What it does |
-|---|---|
-| `add-exam [FILE\|FOLDER ...]` | Validates selected papers, runs the two-stage model analysis, and saves candidate JSON. |
-| `status` | Shows taxonomy and accepted-paper counts, plus whether the Excel and JSON reports exist. |
-| `rebuild` | Recomputes the ranking and rewrites Excel and JSON from accepted records, without model calls. |
-| `edit-topic TOPIC` | Overrides a topic's difficulty or connection score, then rebuilds the reports. |
+| Command                       | What it does                                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `add-exam [FILE\|FOLDER ...]` | Validates selected papers, runs the two-stage model analysis, and saves candidate JSON.        |
+| `status`                      | Shows taxonomy and accepted-paper counts, plus whether the Excel and JSON reports exist.       |
+| `rebuild`                     | Recomputes the ranking and rewrites Excel and JSON from accepted records, without model calls. |
+| `edit-topic TOPIC`            | Overrides a topic's difficulty or connection score, then rebuilds the reports.                 |
 
 ### Exit codes
 
 Every command returns one of these, so a script (or `$?`/`$LASTEXITCODE`) can tell a clean
 run from a partial one without parsing the log:
 
-| Code | Meaning |
-|---:|---|
-| 0 | Everything requested succeeded. A skip for an existing record or a no-op rebuild still counts as success. |
-| 1 | A setup or usage problem stopped the command before any work ran, such as a bad course folder, missing credentials, or an unknown topic name. |
-| 2 | Reserved by argparse for usage errors such as an unknown flag or invalid choice. Nothing ran. |
-| 3 | At least one requested paper failed during `add-exam`. Successful papers keep their saved candidates. The error names each failed file and its recovery action. |
-| 4 | `rebuild`, or the rebuild step inside `edit-topic`, could not write `Exam_ROI_Pipeline.xlsx` and `Exam_ROI_Pipeline.json`. Parsed papers and taxonomy remain unchanged. Close the spreadsheet if it is open, fix any other write error, and run `rebuild` again. |
-| 5 | Course state is locked, corrupt, incompatible, or needs transaction recovery. Follow the lock or record diagnostic before retrying. `--force` cannot bypass a state failure. |
+| Code | Meaning                                                                                                                                                                                                                                                          |
+| ---: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|    0 | Everything requested succeeded. A skip for an existing record or a no-op rebuild still counts as success.                                                                                                                                                        |
+|    1 | A setup or usage problem stopped the command before any work ran, such as a bad course folder, missing credentials, or an unknown topic name.                                                                                                                    |
+|    2 | Reserved by argparse for usage errors such as an unknown flag or invalid choice. Nothing ran.                                                                                                                                                                    |
+|    3 | At least one requested paper failed during `add-exam`. Successful papers keep their saved candidates. The error names each failed file and its recovery action.                                                                                                  |
+|    4 | `rebuild`, or the rebuild step inside `edit-topic`, could not write `Exam_ROI_Pipeline.xlsx` and `Exam_ROI_Pipeline.json`. Parsed papers and taxonomy remain unchanged. Close the spreadsheet if it is open, fix any other write error, and run `rebuild` again. |
+|    5 | Course state is locked, corrupt, incompatible, or needs transaction recovery. Follow the lock or record diagnostic before retrying. `--force` cannot bypass a state failure.                                                                                     |
 
 ### Input files
 
@@ -334,18 +327,18 @@ Run `python scripts/check_tickets.py` to validate the backlog and run its offlin
 
 ## More documentation
 
-| Document | Use it for |
-|---|---|
-| [New course setup](docs/solid/new-course-setup.md) | Course folder conventions and the per-course workflow. |
-| [Evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md) | Required evidence, difficulty anchors, and ambiguity rules. |
-| [Independent review](pipeline/docs/independent-review.md) | Retained reviewer implementation, disabled in the MVP CLI. |
-| [Model request limits](pipeline/docs/model-request-limits.md) | Context and output token budgets for both model stages. |
-| [Course state recovery](docs/course-state-recovery.md) | Locking, transaction recovery, and damaged-state handling. |
-| [Staged evaluation](docs/staged-evaluation.md) | Capture, audit, approve, and replay model evaluation fixtures. |
+| Document                                                                      | Use it for                                                     |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [New course setup](docs/solid/new-course-setup.md)                            | Course folder conventions and the per-course workflow.         |
+| [Evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md) | Required evidence, difficulty anchors, and ambiguity rules.    |
+| [Independent review](pipeline/docs/independent-review.md)                     | Retained reviewer implementation, disabled in the MVP CLI.     |
+| [Model request limits](pipeline/docs/model-request-limits.md)                 | Context and output token budgets for both model stages.        |
+| [Course state recovery](docs/course-state-recovery.md)                        | Locking, transaction recovery, and damaged-state handling.     |
+| [Staged evaluation](docs/staged-evaluation.md)                                | Capture, audit, approve, and replay model evaluation fixtures. |
 
 ## Studying with the output
 
-This repo's scope ends at the ranked list above. It decides *what* to study, not how. A separate
+This repo's scope ends at the ranked list above. It decides _what_ to study, not how. A separate
 project, [`exam-prep-prompt`](https://github.com/tequers/exam-prep-prompt), reads this pipeline's
 output and turns it into an actual study session with whatever LLM you have open. It's optional
 and shares no code with this repo. The generated files are the only link between the projects.
