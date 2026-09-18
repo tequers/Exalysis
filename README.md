@@ -359,7 +359,7 @@ and shares no code with this repo. The generated files are the only link between
   contains only the processing code and one synthetic example.
 
 See [`docs/adr/`](docs/adr/) for the reasoning behind these decisions, in particular
-[ADR 0005](docs/adr/0005-portfolio-cleanup-and-repo-split.md) for why the repo looks the way it
+[ADR 0005](docs/adr/SUPPRESSED/0005-portfolio-cleanup-and-repo-split.md) for why the repo looks the way it
 does today.
 
 ## License

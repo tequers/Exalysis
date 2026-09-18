@@ -1,6 +1,6 @@
 # Split the repo into `pipeline/` (the deliverable) and `prompts/` (a portable exam-prep bridge)
 
-**Status:** suppressed. [ADR 0005](../0005-portfolio-cleanup-and-repo-split.md) moved `prompts/` to its own repository and removed the archived tutor systems from this repository.
+**Status:** suppressed. [ADR 0005](0005-portfolio-cleanup-and-repo-split.md) moved `prompts/` to its own repository and removed the archived tutor systems from this repository.
 
 Before this decision the repo was one tangled system: a provider-agnostic CLI pipeline sitting
 alongside a tutoring layer built as Claude-Code Skill bundles (YAML frontmatter, slash-command

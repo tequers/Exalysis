@@ -1,8 +1,8 @@
 # Split `prompts/` into its own repo, drop personal content, generalize beyond CS
 
-**Status:** accepted
+**Status:** suppressed. This repository cleanup is complete and no longer defines the MVP architecture.
 
-[ADR 0004](./SUPPRESSED/0004-split-pipeline-from-portable-exam-prep-prompt.md) split this repo into `pipeline/` (the deliverable) and `prompts/` (a portable bridge)
+[ADR 0004](0004-split-pipeline-from-portable-exam-prep-prompt.md) split this repo into `pipeline/` (the deliverable) and `prompts/` (a portable bridge)
 as two folders in one repo. That was enough to decouple the code, but not enough to make the
 repo readable as a single-purpose portfolio piece: it still carried real personal course data
 (taxonomies, cheat sheets, study plans, progress logs — two actual RWTH courses), a superseded
