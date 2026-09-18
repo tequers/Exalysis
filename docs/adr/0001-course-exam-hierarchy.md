@@ -1,13 +1,21 @@
-# Course/exam-type hierarchy with per-exam-type state independence
+# One exam type per Course
 
-**Status:** accepted. The state boundary stands. The folder layout below is now a convention only because [ADR 0006](./0006-course-folder-as-cli-argument.md) made the CLI take its working folder as an argument.
+**Status:** accepted. [ADR 0006](./0006-course-folder-as-cli-argument.md) makes the Course folder the pipeline's working folder.
 
-Before this decision, the pipeline and tutor used flat, ungrouped paths (a single `taxonomy.json`, a single `progress.json`) implicitly scoped to one exam type (Computer Vision) with no course dimension. Adding another course's exams would have silently merged its topics into CV's taxonomy and ROI sheet. Generalizing to other courses required deciding where the state boundary sits, especially once it became clear that a single Course can have structurally different exam types, such as Operating Systems practical exams and theory exams, with different syllabi and formats.
+## Context
 
-We decided on `Courses/<Course>/<EXAM_TYPE>/` as the folder hierarchy. **Course is purely organizational** and owns no data. **Exam Type is the atomic, fully independent state unit.** Each Exam Type owns one past-paper corpus, one `taxonomy.json`, `parsed/`, an ROI spreadsheet, and `progress.json`.
+A subject can use different exam types, such as separate theory and practical exams. Giving one Course several exam types would require another hierarchy level, rules for selecting the active type, and rules for keeping their state separate. The MVP does not need that complexity.
 
-`EXAM_TYPE` and `EXAMS` are different levels. An `EXAM_TYPE` groups individual `EXAMS`, and every exam in that group must be of the same type. Each `EXAM_TYPE` has exactly one `taxonomy.json`. The pipeline builds and updates that taxonomy using all exams in the group. It must never share or merge the taxonomy across different exam types. For example, all theory exams contribute to one theory `taxonomy.json`, while all practical exams contribute to a separate practical `taxonomy.json`. An individual exam does not get its own taxonomy.
+The pipeline still needs multiple past papers to calculate topic frequency and exam ROI. Those papers are different sittings of the same exam type, not different exam types.
 
-We rejected sharing a taxonomy at the Course level because different exam types may have different topics or assign different D/C scores to the same topic. The exam-type boundary avoids having to reconcile those differences. The Course layer only organizes exam-type folders.
+## Decision
 
-Computer Vision must be migrated into this structure in place while preserving its live `progress.json` and loci state. Its exam type remains the active unit of study throughout the refactor, not a fixture rebuilt from scratch.
+In the MVP, one Course folder contains papers for exactly one exam type. The Course folder is the atomic state boundary. It owns that exam type's past-paper corpus, `taxonomy.json`, candidate and parsed records, and reports.
+
+The pipeline never combines state from separate Course folders. If a subject has another exam type, the user creates another Course folder, such as `OPERATING_SYSTEMS_EXAM_2`, and runs the pipeline there. Each folder remains independent even when both folders belong to the same subject.
+
+## Consequences
+
+The MVP needs no nested exam-type hierarchy or active-exam selection rule. Course setup and pipeline commands always refer to one folder and one exam type.
+
+A future architecture decision may add multiple exam types to one Course. Until then, separate Course folders provide the same isolation without extra state or selection logic.
