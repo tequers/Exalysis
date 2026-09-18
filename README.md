@@ -7,9 +7,13 @@ A Python CLI that reads past exam papers and ranks topics by relative study prio
 It accepts text files and PDFs with a text layer, keeps each course's state in one
 folder, and writes the ranking as Excel and JSON.
 
-For development, start with the [contributor guide](CONTRIBUTING.md). Use the
-[documentation index](docs/README.md) to find a guide by task, or read the
-[current architecture](docs/architecture.md) to trace the two-stage MVP.
+Use these documents to work on the project:
+
+- [Contributor guide](CONTRIBUTING.md). Set up the offline environment, run checks,
+  and follow the branch and review workflow.
+- [Documentation index](docs/README.md). Find a guide by task.
+- [Current architecture](docs/architecture.md). Trace the two-stage MVP from input
+  selection to candidate storage and accepted-record reports.
 
 > [!IMPORTANT]
 > The current `add-exam` command saves validated analyses to `candidates/`. It does
@@ -19,27 +23,33 @@ For development, start with the [contributor guide](CONTRIBUTING.md). Use the
 
 ---
 
-## The idea
+## How the ranking works
 
-Given a pile of past exams, topics differ in their observed exam value. Some topics appear on
-every paper and are worth many marks; others show up once, worth two. The pipeline scores every
-topic using observed frequency and marks, downstream usefulness, conceptual and reasoning
-complexity, and response mode. It combines them into one **Priority Score**:
+Past exams give each topic a different observed value. The pipeline combines that
+evidence into one **Priority Score**:
 
 ```
 Priority = 100 × (Freq × G_Marks × Conn) / (Diff × Fmt)
-  Freq    = fraction of past exams the topic appeared in     (0–1, computed)
-  G_Marks = average mark share when it did appear             (0–1, computed)
-  Conn    = connection value: how much it unlocks downstream (1–3, qualitative estimate)
-  Diff    = conceptual and reasoning complexity               (1–6, qualitative estimate)
-  Fmt     = response-mode weight: MCQ=1, answer/derive=2, code/proof=3
 ```
 
-The pipeline does not teach or evaluate understanding. It only answers "where should
-I start?" See [`pipeline/docs/Topic_ROI_Exam_Analysis_System.md`](pipeline/docs/Topic_ROI_Exam_Analysis_System.md)
-for the supported methodology behind the formula. This is a relative ranking heuristic,
-not predicted marks or a study-duration estimate. Difficulty is independent of marks and
-response format; the separate format weight remains part of the existing ranking formula.
+The score uses these inputs:
+
+- `Freq`: The fraction of accepted past exams that test the topic. Python computes
+  this value from 0 to 1.
+- `G_Marks`: The average mark share when the topic appears. Python computes this
+  value from 0 to 1.
+- `Conn`: An evidence-backed estimate of how much the topic unlocks downstream,
+  from 1 to 3.
+- `Diff`: An evidence-backed estimate of conceptual and reasoning complexity,
+  from 1 to 6.
+- `Fmt`: A response-mode weight. Multiple choice is 1, explanation or derivation is
+  2, and code or proof is 3.
+
+The score answers "where should I start?" It does not predict marks, estimate study
+time, teach the material, or evaluate a student's understanding. Difficulty is
+independent of marks and response format. See the
+[ranking methodology](pipeline/docs/Topic_ROI_Exam_Analysis_System.md) for the supported
+formula and its limits.
 
 The authoritative [evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md)
 defines the six difficulty anchors, evidence requirements, and ambiguity rules. New topic
@@ -50,33 +60,49 @@ The MVP has two model stages:
 - Stage 1 extracts questions and marks.
 - Stage 2 tags topics and supplies qualitative judgments with evidence.
 
-Python validates both responses and calculates the deterministic metrics. Independent
-model review is disabled in the MVP CLI. The
-[independent review reference](pipeline/docs/independent-review.md) describes the retained
-implementation for later work.
+After the model stages:
 
-Each candidate records judgments for every topic the paper tests, including
-existing topics, and proposes taxonomy changes without applying them. `rebuild`
-recomputes accepted taxonomy summaries from compatible accepted records.
-Connection counts distinct supported dependencies, and difficulty combines question
-levels with equal weight per paper. Conflicts are flagged; more evidence does not
-guarantee a higher score or greater accuracy.
+- Python validates both responses and calculates the deterministic metrics.
+- Independent model review stays disabled in the MVP CLI. The
+  [independent review reference](pipeline/docs/independent-review.md) describes the
+  retained implementation for later work.
 
-The pipeline works from exam papers alone. It infers background assumptions and
-records supporting quotes and reasons. No manual prerequisite list or syllabus is
-needed. Human overrides remain protected while automatic estimates update separately.
-Reprocessing with `--force` replaces its candidate after successful analysis.
+Each candidate contains:
 
-Older parsed records may lack the required dependency evidence. `add-exam --force`
-can produce a new candidate but cannot update those accepted records. `rebuild`
-refreshes the taxonomy and exports from accepted evidence without model calls;
-it does not convert older judgments. Review notes identify excluded older evidence
-and conflicting judgments. Candidate promotion remains pending in ticket 08.
+- A judgment for every topic that the paper tests, including existing topics.
+- A supporting quote and reason for each model judgment.
+- Proposed taxonomy changes that the pipeline does not apply automatically.
+- Source and model provenance for later review.
+
+Accepted records follow these rules:
+
+- `add-exam` writes a validated candidate. It does not change `parsed/`,
+  `taxonomy.json`, or the ranked outputs.
+- `rebuild` recalculates taxonomy summaries and reports from compatible records in
+  `parsed/`. It makes no model calls.
+- Connection counts distinct supported dependencies.
+- Difficulty gives each accepted paper equal weight when it combines question levels.
+- Conflicting judgments are flagged. More evidence does not guarantee a higher score
+  or greater accuracy.
+
+The pipeline works from question-only exam papers. It infers background assumptions,
+so it does not require a syllabus or a manual prerequisite list. Human overrides remain
+protected while automatic estimates update separately. Reprocessing with `--force`
+replaces only the candidate after a successful analysis.
+
+Older accepted records may lack the required dependency evidence:
+
+- `add-exam --force` can produce a new candidate, but it cannot update an accepted
+  record.
+- `rebuild` refreshes taxonomy summaries and reports from accepted evidence, but it
+  does not convert older judgments.
+- Review notes identify excluded older evidence and conflicting judgments.
+- Candidate promotion remains pending in ticket 08.
 
 ## Example output
 
 Running `rebuild` on accepted papers produces a ranked list like this. This is an
-illustrative excerpt; the empty `Courses/Example_Course/` folder does not contain
+illustrative excerpt. The empty `Courses/Example_Course/` folder does not contain
 accepted sample data.
 
 | Rank | Topic | Priority | Freq | G_Marks | Conn | Diff | Fmt | Tier |
@@ -93,13 +119,16 @@ the JSON without a spreadsheet library.
 
 ## Quickstart
 
-Follow the [offline environment setup](CONTRIBUTING.md#set-up-offline-development)
-first. No provider credentials are needed for tests, help, status, dry runs, or
-rebuilding existing accepted records. Run commands from the repository root.
+Before you run a command:
 
-Live analysis requires the separate [provider setup and approval](CONTRIBUTING.md#optional-live-provider-setup).
-The provider receives extracted text. Approve the provider, exact models, and
-expected cost before running `add-exam` without `--dry-run`.
+- Complete the [offline environment setup](CONTRIBUTING.md#set-up-offline-development).
+- Run commands from the repository root.
+- You do not need provider credentials for tests, help, `status`, dry runs, or
+  rebuilding accepted records.
+- Before live analysis, complete the
+  [provider setup and approval](CONTRIBUTING.md#optional-live-provider-setup).
+  The provider receives the extracted exam text. Approve the provider, exact models,
+  and expected cost before you run `add-exam` without `--dry-run`.
 
 Every command has this shape. The course folder always comes first:
 
@@ -148,95 +177,120 @@ run from a partial one without parsing the log:
 | 1 | A setup or usage problem stopped the command before any work ran, such as a bad course folder, missing credentials, or an unknown topic name. |
 | 2 | Reserved by argparse for usage errors such as an unknown flag or invalid choice. Nothing ran. |
 | 3 | At least one requested paper failed during `add-exam`. Successful papers keep their saved candidates. The error names each failed file and its recovery action. |
-| 4 | `rebuild` (or the rebuild step inside `edit-topic`) could not write `Exam_ROI_Pipeline.xlsx`/`.json`. Parsed papers and taxonomy already on disk are unaffected; rerunning `rebuild` once the cause (e.g. the spreadsheet open elsewhere) is cleared is the whole fix. |
-| 5 | Course state is locked, corrupt, incompatible, or needs transaction recovery. Follow the named lock or record diagnostic before retrying; `--force` cannot bypass a state failure. |
+| 4 | `rebuild`, or the rebuild step inside `edit-topic`, could not write `Exam_ROI_Pipeline.xlsx` and `Exam_ROI_Pipeline.json`. Parsed papers and taxonomy remain unchanged. Close the spreadsheet if it is open, fix any other write error, and run `rebuild` again. |
+| 5 | Course state is locked, corrupt, incompatible, or needs transaction recovery. Follow the lock or record diagnostic before retrying. `--force` cannot bypass a state failure. |
 
-### What it can read
+### Input files
 
-**Input requirement: use past papers without solutions.** The pipeline is designed for
-exams where only the question paper is available. Do not include answer keys, marking
-schemes, worked solutions, or model answers in the input. If a source combines questions
-and solutions, make a question-only copy before processing it.
+**Use past papers without solutions.** The pipeline is designed for exams where only
+the question paper is available. Do not include answer keys, marking schemes, worked
+solutions, or model answers. If a source contains both questions and solutions, make a
+question-only copy before you process it.
 
-With no input paths, `add-exam` combines `.txt` and `.pdf` files in the course
-root and its `exams/` subfolder. `--recursive` also searches deeper folders.
-The course's `candidates/` and `parsed/` directories are excluded, including
-resolved aliases. Recursive searches do not follow directory symlinks.
-Selected files are resolved to absolute paths and deduplicated, then listed
-before processing. Use `add-exam --dry-run` to inspect the list without model calls.
+The pipeline accepts these file types:
 
-Every matching TXT/PDF is treated as a paper, including notes or slides saved in
-those formats. To leave unrelated material out, name only the intended files or
-folders, for example `add-exam exams/2024.pdf exams/2025.pdf`. Explicit paths
-replace the default search. An existing relative path in the shell's working
-directory takes precedence over the same name inside the course folder. If it
-does not exist there, the course folder is tried. Use an absolute path to remove
-ambiguity. Inputs retain argument order, and each folder's matches are sorted.
+- A UTF-8 `.txt` file.
+- A `.pdf` file with a text layer on every page.
 
-Papers go in as UTF-8 `.txt`, or as `.pdf` with a text layer. The pipeline does not
-render pages or run OCR. Scanned papers are unsupported; use a text-layer copy or
-transcribe the source. Adding an OCR service requires separate approval and an
-expected cost. Live analysis sends extracted text to the configured provider;
-the source file stays on disk.
+The pipeline does not render pages or run OCR. For a scanned paper, use a text-layer
+copy or transcribe the source. Adding an OCR service requires separate approval and
+an expected cost. During live analysis, the provider receives extracted text. The
+source file stays on disk.
 
-A paper is refused *before any AI call*, so it costs nothing, when it holds no text, when a
-`.txt` file is not valid UTF-8 (the bad byte is reported rather than quietly replaced with `�`),
-or when **any** page of a PDF has no text layer, since reading on would drop those questions
-without saying so. Each message names the file, the problem, and the fix.
+#### Select papers
 
-That check only asks whether a page produced *any* text. Garbled glyphs, half-read columns,
-formulas flattened into noise and text pulled out of reading order all pass it, so skim a
-converted paper before trusting its ranking. Page and offset references for every accepted
-paper are kept in its record under `source_provenance.extraction`.
+`add-exam` selects papers with these rules:
 
-Each `add-exam` run writes a validated record to `candidates/`, including its evidence,
-provenance, uncertainty, and proposed taxonomy changes. It does not change `parsed/`,
-`taxonomy.json`, or the ranked outputs. Promotion into accepted course state is a separate
-step so malformed or unresolved model output cannot affect the study ranking. The current
-repository does not provide that step as a CLI command.
+- With no input paths, it scans the course root and its `exams/` subfolder.
+- Explicit file or folder paths replace the default search. For example, use
+  `add-exam exams/2024.pdf exams/2025.pdf`.
+- `--recursive` searches below the selected folders. Recursive searches do not
+  follow directory symlinks.
+- The command excludes `candidates/` and `parsed/`, including resolved aliases.
+- A relative path first resolves from the shell's working directory. If no path
+  exists there, the command tries the course folder.
+- An absolute path removes that resolution ambiguity.
+- The command preserves input order, sorts each folder's matches, resolves paths,
+  removes duplicates, and lists the final selection before processing.
 
-Several papers in the same year, including models, sittings, and resits, are normal. Each paper
-is its own record and its own set of columns, labelled by whatever its filename doesn't share
-with the others (`2022 Lunes`, `2022 Martes`). The year comes from the filename, or from the
-paper itself when the filename is silent, and an academic year like `2021-2022` counts as the
-year the paper was sat: 2022. Pass `--year` to overrule it. See
-[`docs/adr/0007-one-record-per-paper-and-the-sitting-year.md`](docs/adr/0007-one-record-per-paper-and-the-sitting-year.md).
+Every matching `.txt` or `.pdf` file counts as a paper. This includes notes and
+slides that use those extensions. Name the intended files or folders to exclude
+unrelated material. Run `add-exam --dry-run` to inspect the selection without a
+model call.
 
-The `LLM_PROVIDER` variable selects Anthropic, DeepSeek, OpenAI, OpenRouter, or
-UnoRouter. Anthropic is the default when it is absent. See the
-[provider setup](CONTRIBUTING.md#optional-live-provider-setup) for configuration.
+#### Validate extracted text
 
-One folder holds one exam's worth of state, and nothing is shared between folders. A second
-exam uses a second folder, named on its own commands (see
-[`docs/adr/0006-course-folder-as-cli-argument.md`](docs/adr/0006-course-folder-as-cli-argument.md)).
-To set up a new course from scratch, see
-[`docs/solid/new-course-setup.md`](docs/solid/new-course-setup.md).
+The pipeline rejects a paper before any model call when:
+
+- The paper contains no text.
+- A `.txt` file is not valid UTF-8. The error identifies the invalid byte.
+- Any PDF page has no text layer. Continuing would omit that page's questions.
+
+Each error names the file, the problem, and the recovery action. These checks do
+not detect garbled glyphs, partial columns, flattened formulas, or incorrect reading
+order. Inspect converted text before you trust the ranking. Accepted records keep
+page and offset references in `source_provenance.extraction`.
+
+#### Identify sittings and years
+
+The pipeline stores each paper as a separate record and a separate report column:
+
+- Models, sittings, and resits from the same year can coexist.
+- Column labels use the filename parts that distinguish the papers, such as
+  `2022 Lunes` and `2022 Martes`.
+- The year comes from the filename or the paper text.
+- An academic year such as `2021-2022` uses the later year, `2022`.
+- `--year` overrides the detected year for one paper.
+
+See [ADR 0007](docs/adr/0007-one-record-per-paper-and-the-sitting-year.md) for the
+paper identity and sitting-year decision.
+
+### Course folders and providers
+
+- `LLM_PROVIDER` selects Anthropic, DeepSeek, OpenAI, OpenRouter, or UnoRouter.
+  Anthropic is the default. See the
+  [provider setup](CONTRIBUTING.md#optional-live-provider-setup).
+- One course folder contains one exam's papers, state, and reports. State is never
+  shared between course folders. See [ADR 0006](docs/adr/0006-course-folder-as-cli-argument.md).
+- To create a course folder, follow the
+  [new course setup](docs/solid/new-course-setup.md).
 
 ### Paper IDs and replacement
 
-`--exam-id` takes a filename ID, such as `exam_2026_A`, never a path. Valid custom
-IDs retain their spelling, including internal spaces and Unicode. Without an
-explicit ID, the pipeline uses the source filename without its extension and
-replaces spaces with underscores. For an older custom ID whose spaces were
-converted to underscores, use the stored underscore spelling when reprocessing.
+`--exam-id` accepts a filename ID such as `exam_2026_A`, not a path:
 
-Empty IDs, traversal, separators, reserved device names, invalid filename
-characters, and trailing dots or spaces are rejected. IDs must fit a 255-byte
-UTF-8 filename and a 255-unit UTF-16 filename, including `.json`.
+- A valid custom ID keeps its spelling, including internal spaces and Unicode.
+- Without `--exam-id`, the pipeline uses the source filename without its extension
+  and replaces spaces with underscores.
+- To reprocess an older custom ID that converted spaces to underscores, use the
+  stored underscore spelling.
+- The pipeline rejects empty IDs, traversal, path separators, reserved device names,
+  invalid filename characters, and trailing dots or spaces.
+- The ID and `.json` extension must fit both a 255-byte UTF-8 filename and a
+  255-unit UTF-16 filename.
 
-An existing candidate or accepted record is skipped unless `--force` is supplied.
-An automatic ID already claimed by another source gains a source-folder prefix.
-If all generated names are taken, choose a distinct `--exam-id`; `--force` does not
-bypass automatic collisions. An explicit ID selects that record deliberately,
-including when reprocessing a source stored at a different path. With `--force`,
-only its candidate is replaced after successful analysis. Accepted records remain
-unchanged.
+Replacement follows these rules:
 
-The pipeline checks that record paths stay inside the course's `parsed/` and
-`candidates/` directories, including immediately before saving. It rejects redirected
-state directories, file symlinks, and hard-linked records. Each course has an
-operating-system lock, so two commands cannot update the same course at once. A
-transaction journal restores a complete old or new state after an interrupted write.
+- The command skips an existing candidate or accepted record unless you use
+  `--force`.
+- If another source already owns an automatic ID, the pipeline adds a source-folder
+  prefix.
+- If all generated IDs are taken, choose a distinct `--exam-id`. `--force` does not
+  bypass an automatic collision.
+- An explicit ID selects that record even when the source moved to another path.
+- With `--force`, the pipeline replaces only the candidate after a successful
+  analysis. It does not change accepted records.
+
+The storage layer protects course state:
+
+- Record paths must stay inside the course's `parsed/` and `candidates/` directories.
+- The pipeline rejects redirected state directories, file symlinks, and hard-linked
+  records.
+- An operating-system lock prevents two commands from updating one course at the
+  same time.
+- A transaction journal restores either the complete old state or the complete new
+  state after an interrupted write.
+
 See [course state and interruption recovery](docs/course-state-recovery.md) for the
 recovery rules and filesystem requirements.
 
@@ -277,7 +331,7 @@ explains the intended module boundaries. The current backlog is in
 
 The [ticket workflow](docs/ticket-workflow.md) explains how to check that a problem
 still exists before starting work and find older tickets affected by a change.
-Ticket folders and metadata are authoritative; the status table is generated.
+Ticket folders and metadata are authoritative. The status table is generated.
 Run `python scripts/check_tickets.py` to validate the backlog and run its offline tests.
 
 ## More documentation
@@ -304,14 +358,14 @@ and shares no code with this repo. The generated files are the only link between
   taxonomy, and ROI sheet. Nothing is shared across folders, even for the same subject. See
   [`CONTEXT.md`](CONTEXT.md) and
   [`docs/adr/0001-course-exam-hierarchy.md`](docs/adr/0001-course-exam-hierarchy.md).
-- **Exam folder names are `<type>_<date>`**, e.g. `final_26_08_2026`, `theory_20_08_2026`.
+- **Exam folder names are `<type>_<date>`.** Examples include `final_26_08_2026`
+  and `theory_20_08_2026`.
 - **Grouping them as `Courses/<Course>/<Exam>/` is a convention, not a requirement.** The CLI
-  takes whatever folder you hand it; this repo arranges its own under `Courses/`.
+  accepts any course folder. This repository stores its own course folders under `Courses/`.
 - **Course materials are never committed.** Lecture slides, exam papers, exercise sheets, and
   the pipeline's verbatim text extractions (`candidates/*.json` and `parsed/*.json`) are
-  copyrighted or personal. See
-  `.gitignore`. The pipeline reads them locally; the repo only ships the code that processes
-  them, plus one synthetic example.
+  copyrighted or personal. See `.gitignore`. The pipeline reads them locally. The repository
+  contains only the processing code and one synthetic example.
 
 See [`docs/adr/`](docs/adr/) for the reasoning behind these decisions, in particular
 [ADR 0005](docs/adr/0005-portfolio-cleanup-and-repo-split.md) for why the repo looks the way it
