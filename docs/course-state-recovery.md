@@ -100,11 +100,21 @@ overwrite the damaged file. Keep the course folder intact, make a backup, then
 restore the named file from a known-good backup or repair it explicitly. Run
 `status` again. `--force` does not bypass these checks.
 
+## Legacy accepted records
+
 Unversioned historical records remain readable if their structure is valid.
 An optional `storage_schema_version` must be integer `1`. Evaluation versions
-`1.0.0`, `1.1.0`, `1.2.0`, and `legacy-unversioned` remain recognized; aggregation
-keeps its existing policy of excluding prior contracts from current judgments.
-Storage does not migrate or reinterpret old judgments.
+`1.0.0`, `1.1.0`, `1.2.0`, and `legacy-unversioned` remain recognized.
+
+Older accepted records may lack the topic judgments or dependency evidence that the
+current evaluation contract requires. Aggregation excludes judgments from prior
+contracts and identifies excluded records and conflicts in the report review notes.
+`rebuild` recalculates reports from compatible accepted evidence. It does not migrate
+or reinterpret older judgments.
+
+`add-exam --force` can reprocess the source and save a current candidate. It does not
+replace the record in `parsed/`. The current CLI cannot promote that candidate into
+accepted state.
 
 ## State failures and exports
 

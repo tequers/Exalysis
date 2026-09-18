@@ -90,14 +90,12 @@ so it does not require a syllabus or a manual prerequisite list. Human overrides
 protected while automatic estimates update separately. Reprocessing with `--force`
 replaces only the candidate after a successful analysis.
 
-Older accepted records may lack the required dependency evidence:
-
-- `add-exam --force` can produce a new candidate, but it cannot update an accepted
-  record.
-- `rebuild` refreshes taxonomy summaries and reports from accepted evidence, but it
-  does not convert older judgments.
-- Review notes identify excluded older evidence and conflicting judgments.
-- Candidate promotion remains pending in ticket 08.
+> [!NOTE]
+> Accepted records created under an older evaluation contract may lack the evidence
+> required by the current contract. `rebuild` excludes incompatible judgments and
+> identifies them in the review notes. Reprocessing creates a current candidate but
+> does not replace the accepted record. See
+> [legacy accepted records](docs/course-state-recovery.md#legacy-accepted-records).
 
 ## Example output
 
