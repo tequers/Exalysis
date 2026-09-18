@@ -320,10 +320,10 @@ scoring, and report generation to `exam_roi` modules. [ADR 0008](docs/adr/0008-m
 explains the intended module boundaries. The current backlog is in
 [Ticket status](.scratch/reliable-exam-analysis/TICKET_STATUS.md).
 
-The [ticket workflow](docs/ticket-workflow.md) explains how to check that a problem
-still exists before starting work and find older tickets affected by a change.
-Ticket folders and metadata are authoritative. The status table is generated.
-Run `python scripts/check_tickets.py` to validate the backlog and run its offline tests.
+The [ticket workflow](docs/ticket-workflow.md) explains how to choose, update, and
+verify project work. Ticket files are the source of truth, and the status table is
+generated from them. Run `python scripts/check_tickets.py` to check the files and run
+the ticket tests.
 
 ## More documentation
 
