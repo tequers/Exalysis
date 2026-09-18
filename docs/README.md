@@ -10,7 +10,7 @@ setup, ticket selection, implementation, checks, and review.
 | Set up a course and inspect a candidate | [New course setup](solid/new-course-setup.md) |
 | Understand the ranking's purpose and limits | [Scoring methodology](../pipeline/docs/Topic_ROI_Exam_Analysis_System.md) |
 | Check the authoritative evidence and evaluation rules | [Evaluation contract 1.2.0](../pipeline/exam_roi/contracts/evaluation-v1.2.0.md) |
-| Understand a design decision | [Decision records](adr/), including [modularization and its current status](adr/0008-modular-pipeline-architecture.md) |
+| Understand a design decision | [Architecture decision index](adr/README.md), including [modularization and its current status](adr/0008-modular-pipeline-architecture.md) |
 | Select, verify, or move a ticket | [Ticket workflow](ticket-workflow.md) and [current backlog](../.scratch/reliable-exam-analysis/TICKET_STATUS.md) |
 | Choose a branch and prepare a review | [Contributor workflow](../CONTRIBUTING.md#choose-the-branch-base) and [branch consolidation record](research/branch-consolidation-2026-09-17.md) |
 | Split a large change or plan recovery | [Git and pull request research](research/git-and-pull-requests-for-ai-development.md), with its historical examples labeled |
@@ -20,5 +20,6 @@ setup, ticket selection, implementation, checks, and review.
 | Recover after an interrupted write or diagnose course state | [Course state recovery](course-state-recovery.md) |
 
 The [architecture overview](architecture.md#pending-work) separates available
-behavior from pending acceptance and calibration work. Approved decision records
-preserve their original reasoning; their dates and implementation updates matter.
+behavior from pending acceptance and calibration work. The
+[architecture decision index](adr/README.md) separates current decisions from
+suppressed history.

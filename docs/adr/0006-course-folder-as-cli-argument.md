@@ -1,16 +1,35 @@
-# COURSE_FOLDER as the first argument of every command
+# Course folder as the first command argument
 
-**Status:** accepted — supersedes [ADR 0003](./0003-active-exam-resolution.md)
+**Status:** accepted. This decision supersedes [ADR 0003](./SUPPRESSED/0003-active-exam-resolution.md).
 
-[ADR 0003](./0003-active-exam-resolution.md) had commands auto-detect the active Exam folder under the repo's own `Courses/` directory, and fall back to `--course`/`--exam` flags once a second one existed. Two problems surfaced as soon as the pipeline was pointed at a second body of exams (`EXAMS_EVAU/Historia`, a folder of past papers sitting outside `Courses/`):
+## Context
 
-- **The working folder was not expressible.** The pipeline could only ever act on `Courses/<Course>/<Exam>/` inside the repo. A folder of papers anywhere else on disk — the normal case for someone using the tool on their own material — had no way to be named at all.
-- **Where the work landed was invisible at the call site.** `python pipeline.py add exam.pdf` names an input and never names a destination; whether it was right depended on how many folders happened to exist under `Courses/`, and the disambiguating flags trailed at the end of the line, where they are easiest to forget.
+[ADR 0001](./0001-course-exam-hierarchy.md) defines one Course folder as the state boundary for one exam type. The CLI therefore needs the Course folder for every operation.
 
-We decided that **every command takes the course folder as its first positional argument** — `python pipeline.py COURSE_FOLDER COMMAND [data]` — and that this folder is the pipeline's entire state boundary: `taxonomy.json`, `parsed/`, and the two ranked outputs live in it and nowhere else. It may be any path on disk. It is created if it does not exist, so a first run on an empty or absent folder writes the files and every later run updates those same files in place. Nothing is auto-detected and nothing is remembered between runs: the destination is read straight off the command the user typed.
+Before this decision, commands tried to find an active Exam folder under the repository's `Courses/` directory. That design could not use a folder elsewhere on disk. It also made the destination depend on other folders in the repository instead of the command the user typed.
 
-The same move collapsed `add` and `add-folder` into one `add-exam` command that accepts files, folders, or nothing at all (in which case it reads the course folder itself, then its `exams/` subfolder). Two commands that differed only in whether their argument had a file extension were a distinction the user had to make on the tool's behalf.
+## Decision
 
-We rejected keeping auto-detection as a convenience for the single-folder case: it is precisely the case where typing the folder is cheapest, and the rule "sometimes the folder is implied" is what made the multi-folder case surprising. We rejected a flag (`--folder`) because an option reads as optional, and this argument never is. We rejected a pointer file recording the active folder for the reason ADR 0003 already gave for rejecting it: it is one more piece of state to keep in sync and forget to update.
+Every command takes `COURSE_FOLDER` as its first positional argument:
 
-The consequence for [ADR 0001](./0001-course-exam-hierarchy.md) is that `Courses/<Course>/<Exam>/` becomes a convention for arranging folders, not a structure the CLI knows anything about. The decision that ADR records — one Exam's state is atomic and never merged with another's — is unchanged and is now enforced by the folder argument itself: two exams are two folders, and the pipeline can only ever be looking at one of them.
+```text
+python pipeline/pipeline.py COURSE_FOLDER COMMAND [arguments]
+```
+
+`COURSE_FOLDER` can be any path. The CLI creates the folder when needed. The folder contains past papers for exactly one exam type and owns that type's `taxonomy.json`, candidate records, parsed records, and ranked outputs. Every command reads and writes state only within the named Course folder.
+
+A different exam type requires a separate Course folder. The pipeline does not detect an active folder, merge Course folders, or remember a previous selection.
+
+`add-exam` accepts files, folders, or no input path. With no input path, it reads supported papers from the Course folder and its `exams/` subfolder.
+
+## Consequences
+
+The command always shows which Course owns the operation. The MVP needs no active-exam selection rule or nested exam-type hierarchy. `Courses/` remains an optional convention for organizing folders, not a location the CLI requires.
+
+Separate Course folders isolate different exam types. Each folder can contain multiple past papers of its one exam type.
+
+## Considered options
+
+- Auto-detecting one Course folder was rejected because the destination changed when another folder appeared and because folders outside the repository were unavailable.
+- An optional `--folder` flag was rejected because the Course folder is required for every command.
+- A persistent active-folder file was rejected because it could become stale and send work to the wrong Course.
