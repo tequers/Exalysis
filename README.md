@@ -153,6 +153,11 @@ run from a partial one without parsing the log:
 
 ### What it can read
 
+**Input requirement: use past papers without solutions.** The pipeline is designed for
+exams where only the question paper is available. Do not include answer keys, marking
+schemes, worked solutions, or model answers in the input. If a source combines questions
+and solutions, make a question-only copy before processing it.
+
 With no input paths, `add-exam` combines `.txt` and `.pdf` files in the course
 root and its `exams/` subfolder. `--recursive` also searches deeper folders.
 The course's `candidates/` and `parsed/` directories are excluded, including
