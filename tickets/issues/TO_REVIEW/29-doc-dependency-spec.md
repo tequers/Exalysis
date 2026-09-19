@@ -135,3 +135,20 @@ For human review, start with `docs/specs/doc-dependencies.md`. The expected resu
 is that the workflow and proposed policy can be understood without reading the
 technical reference. Use the reference to check exact implementation rules.
 The original design approval remains pending; this ticket stays TO_REVIEW.
+
+## Required writing skills follow-up
+
+The owner explicitly requested that the development workflow require agents to
+use `technical-writing` and `unslop` when creating files. The workflow now requires
+both for agent-authored human-readable text, including edits, and defines when
+to apply each skill. Its skills table matches the rule. Missing skills must be
+reported rather than counted as a completed writing check. The documentation
+index follows the renamed skills heading. Personal skills and AGENTS.md are
+unchanged. This is a requested writing-policy update; dependency-tool design
+approval is still pending.
+
+Independent review passed with no findings. Rechecked after this follow-up:
+`python -m unittest discover -s pipeline/tests -p 'test_*.py'` with UTF-8 output
+passed 231 tests; `python scripts/check_tickets.py` passed 39 tests with zero
+errors and the same six historical warnings. All 229 local Markdown links and
+`git diff --check -- docs tickets` passed.
