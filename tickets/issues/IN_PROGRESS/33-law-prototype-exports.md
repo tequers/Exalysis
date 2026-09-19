@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "eacee950678af37d9768e2f613c4fbda682437f2",
-    "checked_at": "2026-09-19T15:19:12+00:00",
+    "commit": "04030a4d13ff50d8d7a5e5e941489813840624fd",
+    "checked_at": "2026-09-19T22:27:07+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
-    "checker": "/root/review_prototype",
+    "checker": "Codex",
     "result": "still_valid",
     "evidence": [
-      "Independent review found no issues; 11 cumulative-taxonomy tests, 11 prototype tests, and all 242 pipeline tests pass without live model calls."
+      "Owner explicitly approved relaxing the Stage 2 Conn-to-unlocks consistency rejection for the MVP; Conn remains an integer from 1 through 3."
     ],
     "provisional": false
   },
@@ -55,6 +55,8 @@ The owner approved these three changes with "yes" on 2026-09-19 in the LAW portf
 
 The owner additionally approved relaxing Stage 2 dependency completeness for the MVP on 2026-09-19. A candidate must no longer be rejected when `prerequisites` or `unlocks` lack matching `connection_edges`; supplied edges remain validated and only validated edges contribute to the temporary taxonomy.
 
+On 2026-09-20, the owner also approved removing the requirement that `Conn` match the count of listed `unlocks`. Stage 2 still requires an integer `Conn` from 1 through 3; the temporary taxonomy recomputes its connection score from validated edges.
+
 ## Delivery and verification
 
 Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
@@ -70,6 +72,7 @@ Commands ran from the repository root with `PYTHONIOENCODING=utf-8`:
 - `python scripts/doc_dependencies.py discover --file docs/guides/run-law-prototype.md`, repeated for the output-format guide and specification: valid. Unresolved references are generated course paths, the ignored `.env`, and command text. These are not tracked dependency targets. The requirements file is covered through the linked development workflow. An earlier attempt to run discovery on Python code was rejected because discovery accepts document owners; it was rerun on these documents.
 - A dry run against the owner's LAW course selected only `exams/2025_june.pdf`, with no model configuration or AI calls. `rebuild --help` exposes the offline prototype option.
 - The approved Stage 2 relaxation is covered by `test_missing_edge_evidence_does_not_reject_mvp_candidate`: unmatched prerequisite and unlock lists remain in the candidate, do not block processing, and do not create unsupported taxonomy edges. The cumulative-taxonomy and prototype suites each pass 11 tests; the full suite still passes 242 tests.
+- The approved `Conn` relaxation is covered by `test_scores_accept_conn_that_does_not_match_unlock_count`. Candidate-validation tests pass 12 tests, cumulative-taxonomy and prototype tests each pass 11 tests, and the full suite passes 243 tests without live model calls.
 
 The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. It also reviewed the Stage 2 relaxation, reran all 11 cumulative-taxonomy tests, and confirmed supplied edges remain validated while unsupported labels do not enter the aggregated taxonomy. No remaining actionable findings were reported.
 

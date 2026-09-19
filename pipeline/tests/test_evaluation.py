@@ -136,7 +136,6 @@ class ContractTests(unittest.TestCase):
             lambda s: s["Topic"].update(prerequisites=["Absent topic"]),
             lambda s: s["Topic"].update(unlocks=["Topic"]),
             lambda s: s["Topic"].update(Conn=True),
-            lambda s: s["Topic"].update(Conn=3),
             lambda s: s["Topic"].update(connection_evidence=[]),
             lambda s: s["Topic"].update(question_difficulty=[]),
         ]

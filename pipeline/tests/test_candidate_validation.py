@@ -150,13 +150,20 @@ class ResponseValidationTests(unittest.TestCase):
             scores(level=None),
             scores(level=7),
             scores(level=2.5),
-            scores(conn=2),
+            scores(conn=0),
+            scores(conn=4),
             scores(conn=True),
             unsupported_topic,
             unsupported_evidence,
         ]:
             with self.subTest(candidate=candidate), self.assertRaises(ValueError):
                 validate_topic_scores(candidate, ["Equations"], tagged, ["Equations"])
+
+    def test_scores_accept_conn_that_does_not_match_unlock_count(self):
+        result = validate_topic_scores(
+            scores(conn=2), ["Equations"], [question()], ["Equations"])
+
+        self.assertEqual(result["Equations"]["Conn"], 2)
 
 
 class Stage2CorrectionTests(unittest.TestCase):

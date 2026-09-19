@@ -18,7 +18,7 @@ Prototype mode requires a finite positive explicit paper total. Before Stage 2, 
 
 Keep the existing one-or-two-topic assignments, equal mark shares, difficulty judgments, and ranking formula. Document these approximations rather than inventing finer mark allocations.
 
-For the MVP, Stage 2 may list `prerequisites` or `unlocks` without duplicating every relationship in `connection_edges`. Missing matching edges do not reject or prevent saving a candidate. Any supplied edge must still pass structural and citation validation, and the temporary taxonomy derives relationships only from validated edges.
+For the MVP, Stage 2 may list `prerequisites` or `unlocks` without duplicating every relationship in `connection_edges`. Missing matching edges do not reject or prevent saving a candidate. `Conn` must remain an integer from 1 through 3, but it does not have to match the number of listed `unlocks`. Any supplied edge must still pass structural and citation validation, and the temporary taxonomy derives relationships and its connection score only from validated edges.
 
 ## Acceptance and failure cases
 

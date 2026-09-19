@@ -302,9 +302,8 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
             if any(t == name or t not in allowed_topics for t in score[field]):
                 raise ValueError(f"{name}: invalid {field} reference")
         conn = score.get("Conn")
-        expected_conn = 1 if not score["unlocks"] else 2 if len(score["unlocks"]) <= 2 else 3
-        if type(conn) is not int or not 1 <= conn <= 3 or conn != expected_conn:
-            raise ValueError(f"{name}: Conn must match supported downstream labels")
+        if type(conn) is not int or not 1 <= conn <= 3:
+            raise ValueError(f"{name}: Conn must be an integer from 1 through 3")
         connections = score.get("connection_evidence")
         if not isinstance(connections, list) or not connections:
             raise ValueError(f"{name}: connection evidence is required")
