@@ -9,6 +9,11 @@ The ticket tool uses the Python standard library and does not call a model.
 
 ## Find work
 
+For an agent-led run in this repository, use
+[`$exam-next-ticket`](../../.agents/skills/exam-next-ticket/SKILL.md). The
+[development workflow](workflow.md#choose-and-verify-one-ticket) explains how to
+select the local copy. The commands below also work directly.
+
 ```text
 python scripts/tickets.py check
 python scripts/tickets.py search "candidate acceptance"

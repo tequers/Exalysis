@@ -88,9 +88,16 @@ Use `partially_resolved` when only part remains. Relevant uncommitted changes ma
 verification provisional; recheck the committed revision before treating it as
 current evidence. The [ticket workflow](ticket-workflow.md) explains other
 verification results and closure reasons. For agent work, confirm the ground truth
-before assignment unless the invoked `next-ticket` workflow handles that step.
-Installed personal skills may still search the former backlog path; see the
-[relocation note](../repository-structure.md#backlog-relocation-and-history).
+before assignment.
+
+For this repository, invoke `$exam-next-ticket` using the
+[project-local skill](../../.agents/skills/exam-next-ticket/SKILL.md). It uses the
+ticket CLI, checks that it is running in this project, and coordinates model
+selection and implementation. Select the entry with that exact name and local
+path; the personal `$next-ticket` skills remain unchanged for other projects.
+If the local entry is not available in the current session, start a new task in
+this checkout or explicitly ask the agent to read the linked `SKILL.md`. A
+request to only inspect or select a ticket does not authorize implementation.
 
 ## Choose the branch base
 
