@@ -1,4 +1,4 @@
-# 30: Implement the approved documentation dependency tool
+# 30: Implement documentation dependency graph core
 
 ```json
 {
@@ -23,15 +23,15 @@
     "scripts/tests/test_doc_dependency_graph.py"
   ],
   "verification": {
-    "commit": "8e099eb1ae64b042d5a67e76a03443de455ac1cd",
-    "checked_at": "2026-09-19T11:58:42+00:00",
-    "criteria_digest": "5602f7647a3b92741c108114e7bb7cc19431bc7efcc1b67a6ddd6fd21209c78a",
-    "checker": "Codex implementation audit",
-    "result": "still_valid",
+    "commit": "a75f7236c819fb7f90dbb9f631be550fcf6b6931",
+    "checked_at": "2026-09-19T12:23:01+00:00",
+    "criteria_digest": "c47a84ebdab9477f2fa7712bc58780eecbe3b4a76a2823d79634db0635191d24",
+    "checker": "GPT-5.6 Sol independent core review",
+    "result": "already_resolved",
     "evidence": [
-      "Owner approved specification29 and requested implementation. No doc_dependencies.py exists. Implement CLI and offline tests only; declaration rollout remains separate."
+      "Committed core implements the approved parsing, graph and discovery contract. Thirteen pure tests passed; independent review found no substantive core defect. CLI remains a separate ticket31 and is not part of this core completion."
     ],
-    "provisional": false
+    "provisional": true
   },
   "closure": null
 }
