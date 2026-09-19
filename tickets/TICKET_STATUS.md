@@ -36,3 +36,4 @@
 | 30 | [30](issues/DONE/30-doc-dependencies.md) | Implement documentation dependency graph core | P2 | DONE | None | already resolved | implemented |
 | 31 | [31](issues/DONE/31-doc-dependencies-cli.md) | Implement the documentation dependency CLI and Git integration | P2 | DONE | None | still valid | implemented |
 | 32 | [32](issues/DONE/32-doc-dependency-blocks.md) | Declare documentation dependencies | P2 | DONE | None | still valid | implemented |
+| 33 | [33](issues/OPEN/33-law-prototype-exports.md) | Export an unreviewed LAW prototype after two-stage analysis | P1 | OPEN | None | provisional still valid | None |
