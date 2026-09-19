@@ -1,6 +1,6 @@
 # Documentation dependency technical reference
 
-**Draft and unimplemented.** This is the detailed contract for the
+**Approved on 2026-09-19; implementation pending.** This is the detailed contract for the
 [human-facing specification](doc-dependencies.md). Read that page first for the workflow,
 coverage, ownership, review responsibilities, and vocabulary.
 
@@ -410,4 +410,4 @@ The later implementation agreement must verify these observable outcomes:
 
 - Implementation, initial declaration authoring, generated maps, hooks/CI, changes to `AGENTS.md` or skills, and enforcement rollout require later approved work.
 - Ticket 29 delivers this draft and its review evidence only.
-- Human approval of this design remains pending; no claim above substitutes for that approval.
+- The owner approved this design on 2026-09-19 and requested implementation.
