@@ -27,7 +27,10 @@ The [documentation index](README.md) is the entry point for human readers.
 `docs/specs/` contains approved or draft behavior contracts, including the
 [documentation dependency specification](specs/doc-dependencies.md). Add a
 specification when a substantial change needs a shared contract. Generated
-dependency maps stay under ignored `.scratch/doc-dependencies/`.
+working dependency maps stay under ignored `.scratch/doc-dependencies/`. The owner
+authorized [one published snapshot](development/dependency-map.md) under
+`docs/development/` for GitHub readers. Keep its source commit and refresh instructions
+visible; this exception does not permit tracking course data or other generated output.
 
 ## Root exceptions
 

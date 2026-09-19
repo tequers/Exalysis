@@ -101,7 +101,8 @@ cannot decide whether one document truly relies on another.
 | Code, tests, configuration, `AGENTS.md`, `CONTEXT.md`, and skills | No. | Yes, if tracked regular files. |
 | Runtime contracts under `pipeline/exam_roi/contracts/` | No. They are application resources. | Yes. |
 | Anything under `tickets/` | No. Existing ticket metadata owns these relationships. | No. Ordinary navigation links remain allowed. |
-| Untracked files, ignored material, generated output, course data, and scratch files | No. | Only tracked regular files can be targets; private and generated material stays untracked under repository policy. |
+| Published map under `docs/development/` | Yes, as tracked Markdown under docs. | Yes. Its generated snapshot is derived; its own block declares publication dependencies. |
+| Untracked files, ignored material, other generated output, course data, and scratch files | No. | Only tracked regular files can be targets; private material and working artifacts stay untracked. |
 
 Additional rules:
 
@@ -169,7 +170,10 @@ of the historical gap; the tool still reports it. See
 ## How do maps stay current, and what do they cost?
 
 - Declarations remain the source of truth. Saved maps are derived output.
-- Maps live locally in ignored `.scratch/doc-dependencies/` and are not committed.
+- Working maps live locally in ignored `.scratch/doc-dependencies/`.
+- The owner-approved [published map](../development/dependency-map.md) is a tracked
+  snapshot for GitHub readers. Its source commit and refresh instructions are explicit;
+  it is not a live map or a second source of declarations.
 - Rebuild after changes to document content, tracked membership, or format versions.
 - A freshness check compares source digests and expected map contents, not timestamps.
 - Impact always reads fresh sources and does not require a saved map.
