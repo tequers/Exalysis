@@ -30,5 +30,5 @@
 | 24 | [24](issues/DONE/24-print-effective-llm-settings.md) | Print effective LLM settings | P2 | DONE | None | already resolved | implemented |
 | 25 | [26](issues/DONE/26-consolidate-project-branches-around-the-two-stage-mvp.md) | Consolidate project branches around the two-stage MVP | P1 | DONE | None | still valid | implemented |
 | 26 | [25](issues/TO_REVIEW/25-publish-an-accurate-developer-onboarding-and-project-guide.md) | Publish an accurate developer onboarding and project guide | P1 | TO_REVIEW | None | criteria changed | None |
-| 27 | [27](issues/IN_PROGRESS/27-organize-repository-files-by-purpose.md) | Organize repository files by purpose | P2 | IN_PROGRESS | None | still valid | None |
+| 27 | [27](issues/TO_REVIEW/27-organize-repository-files-by-purpose.md) | Organize repository files by purpose | P2 | TO_REVIEW | None | still valid | None |
 | 28 | [28](issues/BLOCKED/28-update-personal-next-ticket-backlog-discovery.md) | Update personal next-ticket backlog discovery | P2 | BLOCKED | 27 | not recorded | None |
