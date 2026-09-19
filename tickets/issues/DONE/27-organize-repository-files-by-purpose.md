@@ -32,7 +32,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "e5a56ccaa6003abb999ed0eebf255f2ce1cb3a61",
+    "replacement": null,
+    "reviewed_by": "Repository owner",
+    "evidence": [
+      "Owner explicitly approved the repository organization and example-course removal and requested merging into codex/mvp-two-stage on 2026-09-19. Application and tooling checks passed with documented warnings; independent migration review found no actionable issues."
+    ]
+  }
 }
 ```
 
@@ -108,3 +116,10 @@ Follow-up checks: the same application and ticket commands listed above passed
 review warnings. `git diff --check` passed. The replacement course-path help
 command was executed successfully. Only historical ticket evidence still names
 the removed example folder.
+
+## Human review approved, 2026-09-19
+
+The repository owner approved this task after reviewing the organization and
+example-course removal, and requested merging it into `codex/mvp-two-stage`.
+The earlier `TO_REVIEW` statements describe the implementation handoffs.
+Ticket 27 is now `DONE`; ticket 28 is unblocked in `OPEN`.
