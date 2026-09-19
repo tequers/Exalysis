@@ -64,7 +64,7 @@
 
 - Do not change pipeline behavior, ticket semantics, scoring, acceptance policy, or provider configuration.
 - Do not run a live model or OCR service.
-- Do not move the existing backlog. A later ticket can change its location if the documented location remains confusing after this onboarding path exists.
+- Keep the permanent backlog in `tickets/`, as established by ticket 27.
 
 ## Evidence and history
 
@@ -77,3 +77,30 @@ This ticket is ready without ticket 08. It must document the present candidate-o
 Ticket 26 must consolidate the project branches before this documentation work starts. This guide should describe the branch model that remains after that reviewed cleanup.
 
 2026-09-19: The owner clarified that this portfolio MVP needs an internal development workflow, not a public contribution guide. Ticket 27 moves that guide to `docs/development/workflow.md` and the permanent backlog to `tickets/`. The earlier evidence above records the terminology and paths at the time of inspection. Ticket 25 remains in `TO_REVIEW` for human content review.
+
+## Approved remaining scope, 2026-09-19
+
+The owner approved extending this ticket into one clear internal workflow for a
+portfolio MVP. Existing onboarding and architecture documentation remain useful.
+The remaining problem is agreement before implementation: the agent previously
+built unnecessary features when the product vision, scope, and expected result
+were unclear. The owner explicitly approved the plan and requested implementation
+with appropriate subagents. That approval includes the narrow AGENTS.md alignment
+listed below. There is no public contributing section.
+
+- [ ] Make `docs/development/workflow.md` the human-readable route from an idea through clarified requirements, approval, implementation, verification, independent review, applicable human review, and merge. Include a small Mermaid overview.
+- [ ] Require a shared agreement before implementation: problem, intended behavior, inputs and outputs, examples or expected experience, constraints, acceptance criteria, exclusions, and unresolved questions. A short agreement in the ticket suffices for small changes; substantial features or behavior changes use a specification under `docs/specs/`.
+- [ ] Make human approval of that agreement explicit. Resolve questions affecting behavior or scope before implementation. Allow routine implementation choices within scope, but require approval before expanding it. Compare final results with the agreement and report unnecessary additions, missing behavior, or deviations.
+- [ ] Describe human, implementing-agent, and independent-reviewer responsibilities. State what tools enforce, what relies on agent instructions, what requires human judgment, and which proposed capabilities are not implemented.
+- [ ] Add `docs/development/glossary.md` for shared workflow terms, including specification, ADR, architecture, acceptance criteria, ground truth, and the distinctions between decided, implemented, and verified. Link application language to its existing glossary.
+- [ ] Add a concise skills table with triggers and instruction locations. Include the local `exam-next-ticket` and `graft` skills, and relevant optional installed skills such as `grill-with-docs` and `to-spec`. Adapt optional drafting guidance to this repository's concise local documents; do not publish external issues or introduce a global skill dependency.
+- [ ] Align AGENTS.md with the approved ground-truth rule and local skill reference without duplicating the full guide. Update the documentation index and only related links necessary for consistency. Preserve accurate setup, CLI, branch, test, and review instructions.
+- [ ] Distinguish reusable principles from repository-specific paths. Keep documentation proportionate; do not create an empty specs folder, a public contributor guide, an example feature, dependency tooling, or new application behavior.
+- [ ] Verify local links, documented commands and policy consistency, run the required offline checks, obtain an independent review, and leave human content approval in TO_REVIEW.
+
+Input: the owner's approved workflow plan, the current guide, AGENTS.md, the
+ticket CLI, local skills, and the existing documentation structure. Output: one
+updated workflow guide, one concise workflow glossary, aligned agent instructions
+and navigation, plus verification and review evidence. The dependency-tool
+specification remains a later task. Do not silently turn proposed automation
+into a claim of current enforcement.
