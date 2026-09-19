@@ -23,17 +23,25 @@
     "scripts/tests/test_doc_dependency_graph.py"
   ],
   "verification": {
-    "commit": "a75f7236c819fb7f90dbb9f631be550fcf6b6931",
-    "checked_at": "2026-09-19T12:23:01+00:00",
+    "commit": "c8b7386d55de418f360dfe7b9edbb112dd098211",
+    "checked_at": "2026-09-19T12:24:17+00:00",
     "criteria_digest": "c47a84ebdab9477f2fa7712bc58780eecbe3b4a76a2823d79634db0635191d24",
     "checker": "GPT-5.6 Sol independent core review",
     "result": "already_resolved",
     "evidence": [
-      "Committed core implements the approved parsing, graph and discovery contract. Thirteen pure tests passed; independent review found no substantive core defect. CLI remains a separate ticket31 and is not part of this core completion."
+      "Committed graph core passes 13 pure regression tests and independent review. No substantive core defect remains. CLI work is preserved outside this checkout and belongs to ticket31."
     ],
-    "provisional": true
+    "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "c8b7386d55de418f360dfe7b9edbb112dd098211",
+    "replacement": null,
+    "reviewed_by": "GPT-5.6 Sol independent reviewer",
+    "evidence": [
+      "Independent review passed the approved pure parser, graph, impact and discovery contract. Thirteen focused tests passed. The 231 application tests also passed; CLI integration is a separate dependent ticket."
+    ]
+  }
 }
 ```
 
