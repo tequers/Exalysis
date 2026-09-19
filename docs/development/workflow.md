@@ -314,10 +314,15 @@ records evidence; it does not itself merge a branch.
 | `AGENTS.md` and local skills | Instruct agents to seek agreement, stay within scope, use separate worktrees, and provide review evidence. | These are behavioral instructions, not automatic enforcement or a filesystem sandbox. |
 | Human and independent review | Compare the result with the approved agreement and assess defects, omissions, and unnecessary additions. | Record real decisions and evidence. An agent cannot supply the human's approval. |
 
-A documentation dependency checker is future work. There is no implemented tool
-that traces every document dependency or keeps specifications, ADRs, architecture,
-and code consistent. Review related claims manually. Do not treat a skill, ticket
-status, or this guide as proof that such automation exists.
+The [documentation dependency tool](../specs/doc-dependencies.md) provides
+`check`, `build`, `impact`, and `discover`. Declaration rollout is still pending:
+the current documents lack dependency blocks, so `check` reports coverage errors.
+The tool cannot yet produce a complete repository map. Review related claims
+manually until the declarations are authored and reviewed.
+
+The tool validates structure and reports review candidates. It cannot prove
+semantic consistency or human approval. There is no automatic completion gate
+or CI integration for documentation dependencies.
 
 ## Use skills for the task
 

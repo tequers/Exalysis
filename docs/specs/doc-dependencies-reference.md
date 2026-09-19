@@ -1,6 +1,6 @@
 # Documentation dependency technical reference
 
-**Approved on 2026-09-19; implementation pending.** This is the detailed contract for the
+**Approved on 2026-09-19; tool implemented in tickets 30 and 31.** This is the detailed contract for the
 [human-facing specification](doc-dependencies.md). Read that page first for the workflow,
 coverage, ownership, review responsibilities, and vocabulary.
 
@@ -54,7 +54,7 @@ Use this reference when implementing or checking a specific rule:
 
 ## Commands and exit status
 
-- These are proposed commands, not commands available in this checkout.
+- These commands are implemented. Existing documents still need declaration rollout.
 - Run from any directory inside the repository; all displayed and supplied file paths are relative to its root.
 - Git is required for tracked inventories and historical reads.
 - Git change detection is optional and runs only for a selected comparison.
@@ -198,7 +198,7 @@ python scripts/doc_dependencies.py discover [--file PATH ...] [--format text|jso
 
 ### Query examples
 
-Proposed before-edit commands:
+Before-edit commands:
 
 ```text
 python scripts/doc_dependencies.py impact --file pipeline/pipeline.py
@@ -269,7 +269,7 @@ flowchart LR
 - Version 1 requires the stated fields; nullable fields remain present.
 - Reject unsupported versions.
 - Shape changes require a version increment.
-- This task creates no JSON Schema file or implementation.
+- The CLI implements this contract without a separate JSON Schema file.
 
 ### Result envelope
 
@@ -391,7 +391,8 @@ Example edge and diagnostic values within their respective arrays:
 
 ### Acceptance checklist
 
-The later implementation agreement must verify these observable outcomes:
+Offline regression tests cover the tool behavior below. Recorded independent
+and human review provide the evidence for review responsibilities.
 
 | Case | Required evidence |
 |---|---|
@@ -408,6 +409,6 @@ The later implementation agreement must verify these observable outcomes:
 | Discovery | Links and path mentions produce evidence only; repeated references group; ticket/external/navigation-only references are handled as specified; semantic omissions still need review. |
 | Review | Independent review checks the agreement and relationship reasons; a human resolves outstanding content choices before ticket closure. |
 
-- Implementation, initial declaration authoring, generated maps, hooks/CI, changes to `AGENTS.md` or skills, and enforcement rollout require later approved work.
-- Ticket 29 delivers this draft and its review evidence only.
+- Initial declaration authoring, hooks/CI, changes to `AGENTS.md` or skills, and enforcement rollout require later approved work. Maps can be generated when declarations are valid and complete.
+- Ticket 29 delivered the approved specification. Tickets 30 and 31 implement and test the tool.
 - The owner approved this design on 2026-09-19 and requested implementation.
