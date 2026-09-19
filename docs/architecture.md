@@ -43,9 +43,17 @@ parsed/*.json plus taxonomy.json -> rebuild -> taxonomy aggregation and ranking
   -> Exam_ROI_Pipeline.xlsx and Exam_ROI_Pipeline.json
 ```
 
-There is currently no CLI transition between those two paths. Ticket 08 owns the
+There is currently no acceptance transition between those two paths. Ticket 08 owns the
 pending acceptance workflow. Copying a candidate into `parsed/` is not a documented
 substitute for that policy.
+
+An explicit prototype path is available for compulsory-question papers with a
+known total. `add-exam --prototype --total-marks N` validates the extracted mark
+sum before Stage 2, then exports all candidates to `prototype/Exam_ROI_Pipeline.xlsx`
+and `prototype/Exam_ROI_Pipeline.json` after a successful batch. These reports are
+unreviewed and do not change accepted state. `rebuild --prototype` regenerates them
+without model calls. See the [LAW run guide](guides/run-law-prototype.md) and
+[output format](guides/prototype-output-format.md).
 
 ## Accepted records produce reports
 
@@ -79,6 +87,7 @@ converts older accepted evidence. Contract versions retain their original meanin
 | [scoring.py](../pipeline/exam_roi/scoring.py) | Pure per-paper arithmetic, ranking, tiers, and report data. |
 | [storage.py](../pipeline/exam_roi/storage.py) | Course paths and snapshots, record loading, locks, guarded writes, and transaction recovery. |
 | [reports.py](../pipeline/exam_roi/reports.py) | Excel/JSON rendering and paper labels from supplied report data. |
+| [prototype.py](../pipeline/exam_roi/prototype.py) | Candidate-only prototype validation, temporary taxonomy, and export replacement with recovery. |
 | [review.py](../pipeline/exam_roi/review.py) | Retained independent reviewer and correction loop, tested through injected clients but disabled in the MVP CLI. |
 
 The CLI passes course paths and model clients explicitly. Reusable imports do not
@@ -140,6 +149,9 @@ and provider changes require their own reviewed work. OCR remains outside the MV
 | `pipeline/exam_roi/scoring.py` | Describes pure ranking and report-data calculation. | Scoring responsibilities or dependencies on storage and providers change. |
 | `pipeline/exam_roi/storage.py` | Describes isolated course state, locks, transactions, and recovery. | Stored state, session ownership, or transaction guarantees change. |
 | `pipeline/exam_roi/reports.py` | Describes report writers consuming supplied scoring data. | Writer inputs, export responsibilities, or acceptance behavior change. |
+| `pipeline/exam_roi/prototype.py` | Describes the unreviewed candidate export path. | Prototype validation, selection, destinations, or recovery change. |
+| `docs/guides/run-law-prototype.md` | Directs users to the opt-in workflow. | Prototype commands or recovery steps change. |
+| `docs/guides/prototype-output-format.md` | Identifies the unreviewed outputs. | Report fields or status meanings change. |
 | `pipeline/exam_roi/review.py` | Describes a retained reviewer separate from production CLI availability. | Reviewer responsibilities or integration boundaries change. |
 | `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Names the contract governing candidate evidence and judgments. | The active contract or its interpretation changes. |
 | `pipeline/staged_evaluation.py` | Separates evaluation capture and replay from course processing. | Evaluation entry points, production reuse, or approval boundaries change. |

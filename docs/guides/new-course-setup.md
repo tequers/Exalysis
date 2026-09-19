@@ -70,9 +70,14 @@ Inspect the candidate's questions and evidence against the paper. Check proposed
 topic names for duplicates and read any `needs-review` findings. Independent model
 review is disabled in this MVP; `--review` is unavailable.
 
-`add-exam` does not update `parsed/`, accepted `taxonomy.json`, or reports. Ticket
+Without `--prototype`, `add-exam` does not update `parsed/`, accepted `taxonomy.json`, or reports. Ticket
 08's acceptance workflow is pending. Do not treat a candidate as accepted or copy
 it into `parsed/` as an undocumented promotion step.
+
+For a first demonstration using compulsory-question papers, use
+`add-exam --prototype --total-marks N`. This writes separate unreviewed Excel and
+JSON reports under `prototype/`. It does not accept candidates. See the
+[LAW prototype run guide](run-law-prototype.md) for commands and checks.
 
 ## Inspect accepted state and rebuild reports
 
@@ -127,6 +132,7 @@ with this pipeline. Keep course-specific diagrams under `Courses/<Course>/assets
 | `docs/architecture.md` | Describes candidate creation separately from pending acceptance. | Candidate acceptance or other available workflow steps change. |
 | `docs/guides/course-state-recovery.md` | Directs failed setup and rebuilds to the recovery procedure. | Recovery actions or supported state repairs change. |
 | `pipeline/pipeline.py` | Provides the exact setup, analysis, status, rebuild, and override commands. | Arguments, defaults, validation, outcomes, or availability gates change. |
+| `docs/guides/run-law-prototype.md` | Supplies the optional first-demo path. | Prototype setup or outputs change. |
 | `pipeline/exam_roi/inputs.py` | Defines the supported sources and dry-run selection rules. | Input formats, discovery, exclusions, or extraction validation change. |
 | `pipeline/exam_roi/storage.py` | Defines the course artifacts and candidate-versus-accepted state. | Stored paths, write boundaries, or course initialization change. |
 <!-- doc-dependencies:end -->

@@ -1,0 +1,81 @@
+# 33: Export an unreviewed LAW prototype after two-stage analysis
+
+```json
+{
+  "schema_version": 1,
+  "id": "33",
+  "priority": "P1",
+  "queue_order": 33,
+  "areas": [
+    "extraction",
+    "reports",
+    "documentation"
+  ],
+  "depends_on": [],
+  "related_to": [
+    "03",
+    "08",
+    "16"
+  ],
+  "references": [
+    "docs/specs/law-prototype.md",
+    "pipeline/pipeline.py",
+    "pipeline/exam_roi/reports.py",
+    "pipeline/exam_roi/prototype.py",
+    "pipeline/tests/test_prototype.py",
+    "docs/guides/run-law-prototype.md",
+    "docs/guides/prototype-output-format.md"
+  ],
+  "verification": {
+    "commit": "59c1755d2a83a03cf90dc9cd35e6cb09328f915a",
+    "checked_at": "2026-09-19T14:35:09+00:00",
+    "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
+    "checker": "Codex",
+    "result": "still_valid",
+    "evidence": [
+      "Source audit confirms add-exam saves only candidates and rebuild reads accepted papers. Prototype export is absent; the user approved the recorded scope."
+    ],
+    "provisional": false
+  },
+  "closure": null
+}
+```
+
+**What to build:** The approved prototype export path in the linked specification.
+
+- [x] Run Stage 1 and Stage 2, save candidates, and export a matching unreviewed Excel and agent JSON pair with an explicit prototype option.
+- [x] Rebuild prototype reports from saved candidates without model calls or acceptance.
+- [x] Clarify extraction of spaced question numbers, answer-space pages, and shared mark allocations. Reconcile compulsory-question marks before Stage 2.
+- [x] Document the output format and exact LAW run commands. Verify offline with synthetic model responses and export failure recovery.
+- [x] Obtain independent review and leave actual model output and publication selection for the owner.
+
+## Agreement
+
+The owner approved these three changes with "yes" on 2026-09-19 in the LAW portfolio conversation. See the specification for boundaries and acceptance evidence. This is a separate prototype path, not completion of tickets 03, 08, or 16. No live model calls, OCR, private exam tracking, or README revision is authorized here.
+
+## Delivery and verification
+
+Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
+
+Commands ran from the repository root with `PYTHONIOENCODING=utf-8`:
+
+- `python -m unittest discover -s pipeline/tests -p 'test_prototype.py' -v`: 11 tests passed.
+- `python -m unittest discover -s pipeline/tests -p 'test_*.py'`: 242 tests passed. The invalid-PDF, missing-live-approval, and rejected-capture messages are expected negative-test output. The first full run caught changed historical replay prompts; restricting the new wording to prototype mode fixed that regression without changing captured evidence.
+- `python scripts/check_tickets.py`: 76 tooling tests passed, 33 ticket records valid, zero errors. Six existing unreviewed-closure warnings remain for tickets 01, 02, 05, 07, 10, and 18.
+- `git diff --check` and `git diff --cached --check`: passed. Git also warns about the inaccessible global ignore file and LF-to-CRLF conversion; these are environment notices, not hidden test failures.
+- `python scripts/doc_dependencies.py check`: complete and valid, 29 owners and 182 relationships.
+- `python scripts/doc_dependencies.py build` and `python scripts/doc_dependencies.py check --against-artifacts .scratch/doc-dependencies`: passed.
+- `python scripts/doc_dependencies.py discover --file docs/guides/run-law-prototype.md`, repeated for the output-format guide and specification: valid. Unresolved references are generated course paths, the ignored `.env`, and command text. These are not tracked dependency targets. The requirements file is covered through the linked development workflow. An earlier attempt to run discovery on Python code was rejected because discovery accepts document owners; it was rerun on these documents.
+- A dry run against the owner's LAW course selected only `exams/2025_june.pdf`, with no model configuration or AI calls. `rebuild --help` exposes the offline prototype option.
+
+The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. No remaining actionable findings were reported.
+
+Documentation now links the prototype implementation to its specification, glossary, architecture, run guide, and format reference. Existing default-workflow, reviewer, storage, and provider documentation remains applicable. README revision is deferred as requested. The local dependency maps were refreshed; no generated maps or course artifacts are committed.
+
+## Required owner review
+
+1. Run the analysis command in `docs/guides/run-law-prototype.md` using the configured provider. Expect a saved candidate and two output paths under `LAW_1/prototype/`.
+2. Compare `candidates/2025_june.json` with the paper. Expect Q1 through Q11 once each and marks `1, 1, 1, 1, 1, 5, 5, 10, 15, 30, 30`, totaling 100.
+3. Open both prototype reports. Confirm matching generation IDs and rankings, readable sheets, and sensible topic assignments for Q10 and Q11 before selecting portfolio material.
+
+The live run and content review remain pending. No model accuracy or publication readiness is claimed from offline tests alone.

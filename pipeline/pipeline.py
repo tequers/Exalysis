@@ -130,6 +130,7 @@ from exam_roi.question_context import (
 )
 from exam_roi.reports import exam_labels, weighted_fmt, write_json, write_xlsx
 from exam_roi.scoring import aggregate_paper_scores, build_ranked_report
+from exam_roi.prototype import candidate_taxonomy, export_prototype, validate_marks, validate_total
 from exam_roi.evaluation import (
     CONTRACT_TEXT, LEGACY_VERSION, CandidateValidationError, build_candidate_analysis,
     contract_metadata, difficulty_version, finalize_candidate_analysis,
@@ -547,9 +548,17 @@ _S1_SYSTEM = (
     "from the provided exam text. Output a single JSON object only — no prose, no markdown fences."
 ) + "\n\n" + CONTRACT_TEXT
 
-def _extraction_prompt(exam_text: str, total_marks) -> str:
+def _extraction_prompt(exam_text: str, total_marks, *, prototype=False) -> str:
     """Build the extraction prompt without provider or request-sizing mechanics."""
     tm_str = str(total_marks) if total_marks else "unknown — sum from questions if possible"
+    prototype_guidance = (
+        "Read spaced printed numbers such as '0 1' and '1 0' as Q1 and Q10. "
+        "Ignore page numbers, answer lines, examiner boxes, repeated marks on continuation "
+        "pages, and administrative instructions. Keep the complete scenario and all tasks "
+        "as ONE question when they share a single printed mark allocation; never duplicate "
+        "that total or invent subpart marks. Split subparts only when separately marked. "
+        "Use explain_derive for analytical essays and reasoned scenario answers.\n"
+    ) if prototype else ""
     user = (
         f"Total exam marks: {tm_str}\n\n"
         "Output one JSON object with exactly these two keys:\n\n"
@@ -568,20 +577,22 @@ def _extraction_prompt(exam_text: str, total_marks) -> str:
         "Keep printed question numbers as Q1, Q2, etc.; preserve subpart suffixes "
         "such as Q2a. Never restart numbering in a batch. Include parent instructions "
         "and shared passages needed to answer each subquestion.\n"
+        f"{prototype_guidance}"
         "Output only that JSON object. No other text.\n\n"
         f"EXAM TEXT:\n{exam_text}"
     )
     return user
 
 
-def stage1_extract(exam_text: str, total_marks, *, client=None, limits=None) -> tuple:
+def stage1_extract(exam_text: str, total_marks, *, client=None, limits=None, prototype=False) -> tuple:
     """Extract complete source units, then validate identity and coverage on merge."""
     client, limits = _stage_request(1, client, limits)
     prefix, units = source_questions(exam_text)
     questions, years = [], set()
 
     def prompt(batch):
-        user = _extraction_prompt(prefix + "".join(unit.text for unit in batch), total_marks)
+        user = _extraction_prompt(prefix + "".join(unit.text for unit in batch), total_marks,
+                                  prototype=prototype)
         related = [unit for unit in related_source_units(batch, units) if unit not in batch]
         if related:
             user += ("\n\nSUPPORTING SOURCE CONTEXT ONLY, do not extract these questions. "
@@ -974,7 +985,7 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
                       extraction_limits=None, analysis_limits=None,
                       review_enabled=False, reviewer_client=None, reviewer_limits=None,
                       max_corrections=0, reviewer_provider=None, reviewer_model=None,
-                      _store=None) -> ExamOutcome:
+                      _store=None, prototype=False) -> ExamOutcome:
     """
     Parse one exam, validate it, and save a candidate without changing accepted
     papers or taxonomy.
@@ -994,7 +1005,10 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
                 extraction_limits=extraction_limits, analysis_limits=analysis_limits,
                 review_enabled=review_enabled, reviewer_client=reviewer_client,
                 reviewer_limits=reviewer_limits, max_corrections=max_corrections,
-                reviewer_provider=reviewer_provider, reviewer_model=reviewer_model, _store=store)
+                reviewer_provider=reviewer_provider, reviewer_model=reviewer_model, _store=store,
+                prototype=prototype)
+    if prototype:
+        validate_total(total_marks)
     if not path.exists():
         # Vanished between selection and processing (or a caller-supplied path
         # that never existed) — an input problem, not a model or export one.
@@ -1039,10 +1053,14 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
         print("🤖 Stage 1 : Extracting questions…")
         extraction_dependencies = ({"client": extraction_client, "limits": extraction_limits}
             if extraction_client is not None or extraction_limits is not None else {})
+        if prototype:
+            extraction_dependencies["prototype"] = True
         if feedback is not None:
             extraction_dependencies = _with_review_feedback(
                 1, extraction_client, extraction_limits, feedback)
         questions, year_from_model = stage1_extract(exam_text, total_marks, **extraction_dependencies)
+        if prototype:
+            validate_marks(questions, total_marks)
         print(f"   → {len(questions)} questions extracted")
 
         if not year and year_from_model:
@@ -1061,7 +1079,8 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
             print(f"   → Total marks : {total_marks} (summed from questions)")
 
         # ── Stage 2 ──
-        taxonomy = snapshot.taxonomy
+        taxonomy = (candidate_taxonomy(snapshot, exclude_id=exam_id)
+                    if prototype else snapshot.taxonomy)
         print("🤖 Stage 2 : Tagging topics and scoring parameters…")
         analysis_dependencies = ({"client": analysis_client, "limits": analysis_limits}
             if analysis_client is not None or analysis_limits is not None else {})
@@ -1100,7 +1119,8 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
         # accepted records or saving a candidate, including forced reprocessing.
         exam_record_path(course.folder, "parsed", exam_id, expected_path=accepted_file)
         exam_record_path(course.folder, "candidates", exam_id, expected_path=candidate_file)
-        accepted_exams = _store.load().papers
+        latest = _store.load()
+        accepted_exams = latest.candidates if prototype else latest.papers
         proposed_exams = dict(accepted_exams)
         proposed_exams[exam_id] = candidate  # A forced reparse replaces this paper's contribution.
         proposed_taxonomy = aggregate_taxonomy(taxonomy, proposed_exams)
@@ -1130,6 +1150,9 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
 
 
 def cmd_add_exam(args, course: CoursePaths, *, _store=None, **clients):
+    prototype = getattr(args, "prototype", False)
+    if prototype and not getattr(args, "dry_run", False):
+        validate_total(args.total_marks)
     if _store is None and not getattr(args, "dry_run", False):
         with CourseStore(course) as store:
             return cmd_add_exam(args, course, _store=store, **clients)
@@ -1175,6 +1198,7 @@ def cmd_add_exam(args, course: CoursePaths, *, _store=None, **clients):
                 force=args.force,
                 review_enabled=getattr(args, "review", False),
                 max_corrections=getattr(args, "review_corrections", 0),
+                prototype=prototype,
             )
             counts[outcome] += 1
         except (ModelConfigurationError, StorageError):
@@ -1214,13 +1238,19 @@ def cmd_add_exam(args, course: CoursePaths, *, _store=None, **clients):
     elif failures:
         print(f"   All {len(failures)} requested paper(s) failed — nothing was added; "
               "outputs left unchanged. See the recovery notes above.")
-    elif processed:
+    elif processed and not prototype:
         review_note = f" ({pending_review} pending review)" if pending_review else ""
         print(f"   {processed} candidate(s) await acceptance or review{review_note}; "
               "accepted outputs are unchanged.")
-    else:
+    elif not prototype:
         print("   Nothing new to add — outputs left unchanged (use --force to reprocess).")
 
+    if prototype:
+        if failures:
+            print("   Prototype reports were not refreshed. Successful candidates are saved; "
+                  "retry failed papers or use rebuild --prototype to export the saved subset.")
+        else:
+            return cmd_rebuild(args, course, _store=_store)
     return EXIT_PAPER_FAILURE if failures else EXIT_OK
 
 
@@ -1230,6 +1260,18 @@ def cmd_rebuild(_args, course: CoursePaths, *, _store=None):
             return cmd_rebuild(_args, course, _store=store)
     print("\n📊 Rebuilding spreadsheet…")
     snapshot = _store.load()
+    if getattr(_args, "prototype", False):
+        try:
+            paths = export_prototype(snapshot, course.folder)
+        except Exception as exc:
+            print(f"   Prototype export failed: {exc}")
+            print("   Candidates are saved. Close open reports, fix the reported issue, "
+                  "then run rebuild --prototype. No AI calls are needed for that command.")
+            return EXIT_EXPORT_FAILURE
+        for path in paths:
+            print(f"   Saved unreviewed prototype: {path}")
+        print(f"   {len(snapshot.candidates)} candidate paper(s); no acceptance performed.")
+        return EXIT_OK
     taxonomy, all_exams = snapshot.taxonomy, snapshot.papers
     updated_taxonomy = aggregate_taxonomy(taxonomy, all_exams)
     if updated_taxonomy != taxonomy:
@@ -1356,8 +1398,10 @@ COMMANDS
   add-exam [FILE|FOLDER ...]  Read past papers and save validated candidate analyses.
                               No argument: reads .txt/.pdf in COURSE_FOLDER and exams/.
                               --dry-run lists selected paths without AI calls.
+                              --prototype --total-marks N also exports unreviewed reports.
   status                      Show what the folder holds so far.
   rebuild                     Redo the ranking from papers already read (no AI calls).
+                              --prototype reads candidates and writes into prototype/.
   edit-topic TOPIC            Correct a topic's scores by hand, then rebuild.
 
 EXAMPLES
@@ -1390,6 +1434,7 @@ RESULTS, written into COURSE_FOLDER
   taxonomy.json            each topic's difficulty and connection - edit to correct
   parsed/                  one JSON per accepted paper
   candidates/              validated analyses and proposed taxonomy changes
+  prototype/               unreviewed Excel and ranked JSON when --prototype is used
 
 BEFORE THE FIRST RUN
   pip install -r requirements.txt
@@ -1476,8 +1521,13 @@ def main():
                     help="Search subfolders; excludes course candidates/ and parsed/ state")
     pa.add_argument("--dry-run", action="store_true",
                     help="List selected resolved .txt/.pdf paths and stop before processing")
+    pa.add_argument("--prototype", action="store_true",
+                    help="Export unreviewed candidates to prototype/ after analysis; requires "
+                         "--total-marks and compulsory questions")
 
-    sub.add_parser("rebuild", help="Rebuild the spreadsheet and JSON from the papers already parsed")
+    pr = sub.add_parser("rebuild", help="Rebuild the spreadsheet and JSON from saved analyses")
+    pr.add_argument("--prototype", action="store_true",
+                    help="Export all saved candidates to prototype/ without AI calls or acceptance")
     sub.add_parser("status",  help="Show what this course folder currently holds")
 
     pe = sub.add_parser("edit-topic", help="Override the AI's scores for one topic and rebuild")
@@ -1524,6 +1574,8 @@ def main():
     try:
         clients = {}
         if args.cmd == "add-exam" and not args.dry_run:
+            if args.prototype:
+                validate_total(args.total_marks)
             load_dotenv(DOTENV_FILE)
             clients = configure_model_clients(
                 dict(os.environ), review=args.review, progress=print)

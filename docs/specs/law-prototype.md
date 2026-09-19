@@ -12,7 +12,7 @@ Add `rebuild --prototype` to regenerate both files from candidates without model
 
 ## Extraction and scoring
 
-Clarify Stage 1 instructions for spaced question numbers such as `0 1`, page furniture, complete scenarios, and questions with one shared mark allocation. Keep an unsplit question when its tasks share a single printed total. Use the existing `explain_derive` format for analytical essays.
+In prototype mode, clarify Stage 1 instructions for spaced question numbers such as `0 1`, page furniture, complete scenarios, and questions with one shared mark allocation. Keep an unsplit question when its tasks share a single printed total. Use the existing `explain_derive` format for analytical essays. Preserve the default prompt and its historical replay evidence.
 
 Prototype mode requires a finite positive explicit paper total. Before Stage 2, require finite nonnegative marks on every extracted question and require their sum to match that total. Saved candidates must meet the same rule before export. This limited check does not implement optional questions, marking schemes, or general score reconciliation from ticket 03.
 
@@ -39,4 +39,6 @@ No live or paid model calls, OCR, acceptance/reviewer implementation, scoring re
 |---|---|---|
 | `pipeline/pipeline.py` | Specifies opt-in commands and extraction behavior. | Command flags, validation timing, or prompt behavior change. |
 | `pipeline/exam_roi/reports.py` | Reuses the workbook and ranked JSON formats. | Output fields, sheets, or labels change. |
+| `pipeline/exam_roi/prototype.py` | Implements candidate selection, mark checks, and export recovery. | Prototype behavior changes. |
+| `pipeline/tests/test_prototype.py` | Verifies the approved behavior offline. | Test coverage or acceptance criteria change. |
 <!-- doc-dependencies:end -->

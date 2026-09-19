@@ -51,6 +51,11 @@ from supporting papers. Human overrides take precedence over `model_estimate`.
 Reprocessing an older record creates a candidate; promotion into accepted state
 remains pending in ticket 08. See the [current architecture](architecture.md).
 
+**Prototype report**:
+A study-priority report built from unreviewed candidate analyses. It uses their
+observed topics and estimated scores without declaring the papers accepted.
+Its rankings and topic mark shares remain estimates for the owner to inspect.
+
 ## Dependencies
 
 <!-- doc-dependencies:start -->
@@ -60,4 +65,5 @@ remains pending in ticket 08. See the [current architecture](architecture.md).
 | `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Defines evaluation, difficulty, connectivity, and evidence terms. | Contract meanings, scales, or provenance requirements change. |
 | `pipeline/exam_roi/scoring.py` | Defines Priority using the implemented formula. | Ranking arithmetic or metric interpretation changes. |
 | `pipeline/exam_roi/taxonomy.py` | Describes paper judgments, cumulative summaries, and human overrides. | Evidence aggregation or override semantics change. |
+| `pipeline/exam_roi/prototype.py` | Defines the unreviewed report boundary. | Candidate selection or acceptance meaning changes. |
 <!-- doc-dependencies:end -->

@@ -97,7 +97,7 @@ def write_json(rows: list, destination) -> None:
 
 # ── Excel writer ───────────────────────────────────────────────────────────────
 
-def write_xlsx(rows: list, exam_list: list, taxonomy: dict, destination) -> None:
+def write_xlsx(rows: list, exam_list: list, taxonomy: dict, destination, *, report_note=None) -> None:
     """
     rows      : list of topic dicts, sorted by priority desc, each containing:
                 topic, Freq, G_Marks, Conn, Diff, Fmt, priority, rank, tier,
@@ -409,5 +409,15 @@ def write_xlsx(rows: list, exam_list: list, taxonomy: dict, destination) -> None
             c.alignment = al(align, "center")
             c.border    = bd(color="DDDDDD")
         ws3.row_dimensions[r].height = 18
+
+    if report_note:
+        ws2["A1"] = "Topic Taxonomy | Candidate estimates; spreadsheet edits are not imported"
+        for sheet in wb.worksheets:
+            cell = sheet.cell(1, 1)
+            cell.value = report_note + "\n" + cell.value
+            cell.font = fn(11, bold=True, color=P["brown"])
+            cell.fill = fl("FFF2CC")
+            cell.alignment = al("left", "center")
+            sheet.row_dimensions[1].height = 42
 
     wb.save(str(destination))
