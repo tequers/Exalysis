@@ -93,3 +93,18 @@ the separate installed personal-skill update, blocked by review of this ticket.
 3. Run `python scripts/tickets.py show 27` and `python scripts/tickets.py show 28`. Expect ticket 27 in `TO_REVIEW` and ticket 28 blocked by 27; installed personal skills remain unchanged.
 
 No human review approval is recorded by this implementation handoff.
+
+## Owner-requested follow-up, 2026-09-19
+
+Removed `Courses/Example_Course/` and its contents at the owner's request.
+Updated current README, location policy, setup guide, workflow commands, and
+ignore-rule commentary to stop describing a bundled course. `Courses/` remains
+an optional local location. The earlier example-course impact warning above
+records the migration before this follow-up; the course is now removed.
+Ticket 27 remains in `TO_REVIEW` for the broader layout review.
+
+Follow-up checks: the same application and ticket commands listed above passed
+231 and 39 tests respectively, with zero ticket errors and the same seven
+review warnings. `git diff --check` passed. The replacement course-path help
+command was executed successfully. Only historical ticket evidence still names
+the removed example folder.

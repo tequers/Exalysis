@@ -91,8 +91,7 @@ replaces only the candidate after a successful analysis.
 ## Example output
 
 Running `rebuild` on accepted papers produces a ranked list like this. This is an
-illustrative excerpt. The empty `Courses/Example_Course/` folder does not contain
-accepted sample data.
+illustrative excerpt. The repository does not include accepted sample course data.
 
 | Rank | Topic                  | Priority | Freq | G_Marks | Conn | Diff |  Fmt | Tier   |
 | ---: | ---------------------- | -------: | ---: | ------: | ---: | ---: | ---: | ------ |
@@ -298,7 +297,7 @@ recovery rules and filesystem requirements.
 |   |-- adr/           decisions, including SUPPRESSED/ history
 |   `-- research/      maintained investigations and evidence
 |-- tickets/           permanent backlog and generated status table
-|-- Courses/           local course data; one tracked synthetic scaffold
+|-- Courses/           optional local course data; not included in a fresh clone
 `-- .scratch/          ignored temporary local work
 ```
 

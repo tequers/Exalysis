@@ -110,8 +110,7 @@ interrupted writes, or locked course state.
 - [ ] If accepted records existed, `rebuild` wrote `Exam_ROI_Pipeline.xlsx` and
       `Exam_ROI_Pipeline.json`, or reported a specific recovery action.
 
-The repository's `Courses/Example_Course/` is an empty scaffold, not an accepted
-sample dataset. A separate optional project,
+The repository does not include a sample course dataset. A separate optional project,
 [exam-prep-prompt](https://github.com/tequers/exam-prep-prompt), can use generated
 reports for study sessions. It shares no code or state-management implementation
 with this pipeline. Keep course-specific diagrams under `Courses/<Course>/assets/`.

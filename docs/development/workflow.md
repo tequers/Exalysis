@@ -53,13 +53,13 @@ Inspect the CLI without a provider:
 
 ```text
 python pipeline/pipeline.py --help
-python pipeline/pipeline.py Courses/Example_Course add-exam --help
-python pipeline/pipeline.py Courses/Example_Course add-exam --dry-run
+python pipeline/pipeline.py "path/to/your/course" add-exam --help
 ```
 
-The dry run lists selected paths and performs no analysis. The example course is
-an empty scaffold. Use [new course setup](../guides/new-course-setup.md) for input
-selection and the limits of the current candidate-only workflow.
+Use [new course setup](../guides/new-course-setup.md) to prepare your own course
+folder and run `add-exam --dry-run`. The dry run lists selected paths and performs
+no analysis. That guide also explains input selection and the limits of the
+current candidate-only workflow.
 
 ## Choose and verify one ticket
 
