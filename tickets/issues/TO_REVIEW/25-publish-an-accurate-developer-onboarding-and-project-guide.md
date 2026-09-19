@@ -16,7 +16,9 @@
     "08",
     "18",
     "19",
-    "20"
+    "20",
+    "27",
+    "28"
   ],
   "references": [
     "README.md",
@@ -26,18 +28,20 @@
     "docs/research/git-and-pull-requests-for-ai-development.md",
     "docs/guides/new-course-setup.md",
     "docs/development/ticket-workflow.md",
-    "pipeline/pipeline.py"
+    "pipeline/pipeline.py",
+    "docs/development/workflow.md",
+    "docs/development/glossary.md",
+    "docs/README.md",
+    ".agents/skills/exam-next-ticket/SKILL.md"
   ],
   "verification": {
-    "commit": "7d57f897563e62b7c6a77ccee633a7925dd50054",
-    "checked_at": "2026-09-17T18:14:31+00:00",
-    "criteria_digest": "8eeb95d0c768e37cbe35260301d445f3f2b4970858f54bc93c78bf518b9e737d",
-    "checker": "Codex next-ticket, 2026-09-17",
+    "commit": "a4d3c464e8dbcb03dfa72c7796096cbaeff6a113",
+    "checked_at": "2026-09-19T10:36:44+00:00",
+    "criteria_digest": "bdd74c1ff7c55e32d662447d8532c8376ecbb194cf03d2799b88e0abeaf4da59",
+    "checker": "Codex shared-workflow audit",
     "result": "still_valid",
     "evidence": [
-      "pipeline.py help confirms the current two-stage add-exam command saves validated candidates and leaves independent review unavailable in the MVP.",
-      "README.md and docs/solid/new-course-setup.md still need one contributor route, consistent candidate-only reporting guidance, and a task-based documentation index.",
-      "docs/adr/0008-modular-pipeline-architecture.md requires a current implementation-status update while preserving the original decision history."
+      "Current guide covers setup, ticket commands, branches and review but lacks a complete approved-agreement-first route, workflow glossary, skills map and explicit enforcement boundaries. AGENTS.md permits features after sharing ground truth while also requiring ticket confirmation. Owner approved the specific documentation plan, narrow AGENTS alignment and subagent implementation. Existing product documentation remains in scope for preservation; no application changes are needed."
     ],
     "provisional": false
   },
@@ -104,3 +108,53 @@ updated workflow guide, one concise workflow glossary, aligned agent instruction
 and navigation, plus verification and review evidence. The dependency-tool
 specification remains a later task. Do not silently turn proposed automation
 into a claim of current enforcement.
+
+## Unified workflow implementation and review, 2026-09-19
+
+Branch `codex/25-shared-workflow` starts at `origin/codex/mvp-two-stage`
+commit `c6618ac554f49e49c32b0b25ba225dbcd7796903`. Scope approval is recorded
+in `a4d3c46`. The human-readable workflow now starts with an approved agreement,
+includes a Mermaid route and roles, and states which checks are enforced by tools.
+The workflow glossary distinguishes agreed intent, current implementation, and
+verified claims. AGENTS.md points to the same approval rule; the old permission
+to implement features after merely sharing ground truth is removed. Existing
+approval of a concrete scope counts, and routine implementation choices remain
+with the implementer.
+
+Document relationships added or clarified:
+
+- AGENTS.md and the ticket workflow link to the shared-agreement section because ticket eligibility is not human approval of scope.
+- The documentation index links to the workflow glossary, approval steps, skills, and enforcement limits so humans and agents can find the same definitions.
+- The workflow links to its glossary and the local ticket skill. The skills table distinguishes repository-local instructions from optional personal installations.
+- Ticket 25 now relates to 27 because it uses the approved folder layout, and to 28 because it aligns the project-local next-ticket workflow. These are related-work links, not new prerequisites.
+
+The obsolete assertion that next-ticket always ends in TO_REVIEW was replaced
+with the actual conditional closure policy. No pipeline code, ticket-tool code,
+local or personal skill files, runtime contracts, dependency checker, public
+contributor guide, or empty specs directory changed.
+
+Verification:
+
+- `$env:PYTHONIOENCODING='utf-8'`; `python -m unittest discover -s pipeline/tests -p 'test_*.py'`: 231 tests passed.
+- `python scripts/check_tickets.py`: 39 tests passed; 28 records, zero errors, six existing missing-review warnings for tickets 01, 02, 05, 07, 10, and 18.
+- Local Markdown path and heading audit: 210 links passed across tracked Markdown plus the new glossary, before this evidence section was added.
+- `python scripts/tickets.py verify --help`, `move --help`, and `impact --help`, plus `python pipeline/pipeline.py --help` and `python pipeline/pipeline.py "path/to/your/course" add-exam --help`: documented forms checked successfully.
+- `git diff --check`: passed. The generated index retains Git's Windows line-ending warning.
+- Compared `pipeline/`, `scripts/`, and `.agents/skills/` with base `c6618ac`: unchanged.
+
+GPT-6 Astra at high effort drafted the five documentation/instruction files.
+GPT-5.6 Sol at high effort independently audited actual ticket-tool enforcement
+and reviewed the draft. It found two wording issues: inaccurate example terms
+in the application-glossary pointer, and ambiguous ordering of selection and
+approval in the skills table. Both were corrected as recommended. The reviewer
+found no agreement, scope-control, or enforcement defect. The parent also read
+the full diff and independently checked all 210 local Markdown links.
+
+## Human review of the unified workflow
+
+1. Read `docs/development/workflow.md#agree-before-building`. Confirm the agreement includes what you need to recognize the intended result, and that approval precedes implementation without repeated approval for unchanged scope.
+2. Read the roles, review steps, skills table, and enforcement limits. Confirm independent review and human judgment are distinct, and proposed automation is not presented as implemented.
+3. Read `docs/development/glossary.md` and the AGENTS.md diff. Confirm the vocabulary and agent rules express the same workflow.
+
+Ticket 25 remains TO_REVIEW until the owner approves this content. Technical
+checks and an independent consistency review do not substitute for that judgment.
