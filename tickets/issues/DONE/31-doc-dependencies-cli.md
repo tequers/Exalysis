@@ -33,7 +33,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "8f7ce55ce042aef65b6ab52a42f38e05b9630a92",
+    "replacement": null,
+    "reviewed_by": "Project owner and GPT-5.6 Sol independent reviewer",
+    "evidence": [
+      "Owner passed the completed CLI and output review on 2026-09-19 and requested declaration rollout. Independent review passed; 76 tooling and 231 application tests passed. Missing repository declarations were explicitly reported."
+    ]
+  }
 }
 ```
 
@@ -79,11 +87,12 @@ that the tool exists and declaration rollout remains pending. The workflow links
 specification because developers need its command and review contract. No dependency
 blocks were added or removed. No implementation or enforcement claim was added to an ADR.
 
-## Human review before closure
+## Human review passed on 2026-09-19
 
 1. Run `python scripts/doc_dependencies.py --help`. Confirm that `check`, `build`, `impact`, and `discover` are listed.
 2. Run `python scripts/doc_dependencies.py check --format json`. Confirm that missing declarations produce `valid: false`, `complete: false`, and exit code 1. The current expected count is 25.
 3. Read the command table and workflow in `docs/specs/doc-dependencies.md`. Confirm that the output and review responsibilities match the approved workflow. Declaration rollout and semantic review are still required.
 
-The independent technical review passed. Human output review remains pending, so this ticket
-must stay in `TO_REVIEW` until the owner passes that review.
+The independent technical review passed. The owner then passed the output review and
+requested declaration rollout. The 25 missing blocks above describe the reviewed tool
+implementation before that rollout, not an expected permanent repository state.
