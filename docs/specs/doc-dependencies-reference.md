@@ -54,7 +54,7 @@ Use this reference when implementing or checking a specific rule:
 
 ## Commands and exit status
 
-- These commands are implemented. Existing documents still need declaration rollout.
+- These commands and initial declarations are implemented. Semantic review remains separate from structural coverage.
 - Run from any directory inside the repository; all displayed and supplied file paths are relative to its root.
 - Git is required for tracked inventories and historical reads.
 - Git change detection is optional and runs only for a selected comparison.
@@ -240,7 +240,12 @@ flowchart LR
 - Render both fully and write temporary files before replacing each output.
 - An I/O failure or interruption may leave one new and one old file; never report success then.
 - The next check rejects mismatched digests or bytes.
-- No generated map is committed.
+- Working artifacts remain ignored. The owner authorized one tracked, commit-pinned
+  publication at `docs/development/dependency-map.md`. It wraps the generated snapshot
+  with refresh instructions and its own dependency block; it remains in owner coverage.
+- The CLI still writes only to ignored directories. Publish by copying the generated
+  content as described on that page. The artifact freshness check covers the local
+  artifact pair, not the wrapped publication.
 
 ### Source digest
 
@@ -409,6 +414,20 @@ and human review provide the evidence for review responsibilities.
 | Discovery | Links and path mentions produce evidence only; repeated references group; ticket/external/navigation-only references are handled as specified; semantic omissions still need review. |
 | Review | Independent review checks the agreement and relationship reasons; a human resolves outstanding content choices before ticket closure. |
 
-- Initial declaration authoring, hooks/CI, changes to `AGENTS.md` or skills, and enforcement rollout require later approved work. Maps can be generated when declarations are valid and complete.
+- The owner approved ticket 32's initial declarations and published map on 2026-09-19, including the reported historical gap. Future relationship changes still require semantic review.
+- Hooks/CI, changes to `AGENTS.md` or skills, and automatic enforcement require later approved work. Maps can be generated from valid, structurally complete declarations.
 - Ticket 29 delivered the approved specification. Tickets 30 and 31 implement and test the tool.
 - The owner approved this design on 2026-09-19 and requested implementation.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `scripts/doc_dependencies.py` | Implements the exact Git, CLI, artifact, JSON, and failure contract. | Snapshot selection, flags, schema, rendering, or exit precedence changes. |
+| `scripts/doc_dependency_graph.py` | Implements the exact declaration grammar and graph rules. | Coverage, parsing, ownership validation, traversal, digest, or discovery changes. |
+| `scripts/tests/test_doc_dependencies.py` | Verifies Git snapshots, CLI results, and artifact safety against this contract. | Acceptance requirements or integration regression coverage change. |
+| `scripts/tests/test_doc_dependency_graph.py` | Verifies pure declaration, history, traversal, and discovery behavior. | Grammar, graph semantics, or pure regression coverage change. |
+| `docs/repository-structure.md` | Uses the repository policy for ignored generated map locations. | Generated-output locations or tracking rules change. |
+| `docs/specs/doc-dependencies.md` | Both documents form one contract; this path owns their mutual relationship by Unicode order. | Coverage, ownership, commands, outputs, or acceptance rules change. |
+<!-- doc-dependencies:end -->

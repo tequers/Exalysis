@@ -2,7 +2,9 @@
 
 **Approved by the owner on 2026-09-19.** Ticket 29 covers this specification only.
 The Python tool is implemented in tickets 30 and 31. Offline tests verify the
-covered tool behavior. Declaration rollout and automatic enforcement remain pending.
+covered tool behavior. The owner approved ticket 32's initial declarations and
+published map on 2026-09-19, including the reported historical coverage gap.
+Automatic enforcement remains pending.
 
 This page explains the proposed workflow. The linked
 [technical reference](doc-dependencies-reference.md) defines the exact implementation contract.
@@ -26,8 +28,10 @@ matches code, that every relationship was found, or that a human approved a chan
 
 ## The workflow at a glance
 
-The commands below are available. Until declaration rollout, this repository
-reports missing blocks rather than a complete dependency graph.
+The commands below are available. Every currently covered document has a block,
+so current checks can pass and maps can be generated. This proves structural
+coverage, not that every meaningful relationship has been found. Comparisons
+against commits before this rollout still report unknown historical relationships.
 
 1. **Before editing:** query the files you intend to change with `impact --file`.
    Read the related declarations and claims. Use `discover` to find possible omissions.
@@ -60,7 +64,7 @@ A declaration is one row with three fields:
 | Reason | Why the two files must stay consistent. |
 | Review when | The concrete changes that require a consistency review. |
 
-Example declaration block for the later rollout:
+Example declaration block:
 
 ```markdown
 <!-- doc-dependencies:start -->
@@ -98,7 +102,8 @@ cannot decide whether one document truly relies on another.
 | Code, tests, configuration, `AGENTS.md`, `CONTEXT.md`, and skills | No. | Yes, if tracked regular files. |
 | Runtime contracts under `pipeline/exam_roi/contracts/` | No. They are application resources. | Yes. |
 | Anything under `tickets/` | No. Existing ticket metadata owns these relationships. | No. Ordinary navigation links remain allowed. |
-| Untracked files, ignored material, generated output, course data, and scratch files | No. | Only tracked regular files can be targets; private and generated material stays untracked under repository policy. |
+| Published map under `docs/development/` | Yes, as tracked Markdown under docs. | Yes. Its generated snapshot is derived; its own block declares publication dependencies. |
+| Untracked files, ignored material, other generated output, course data, and scratch files | No. | Only tracked regular files can be targets; private material and working artifacts stay untracked. |
 
 Additional rules:
 
@@ -108,8 +113,8 @@ Additional rules:
 - Targets cannot be directories, globs, URLs, symlinks, or Git submodules.
 - New documents enter coverage after staging. Every worktree result states that
   untracked content was excluded.
-- Coverage changes require a specification change. A later rollout must review
-  these exclusions and author the real declarations.
+- Coverage changes require a specification change. The initial rollout retains
+  these exclusions; later documents must follow the same rules.
 
 ## What commands are available?
 
@@ -166,7 +171,10 @@ of the historical gap; the tool still reports it. See
 ## How do maps stay current, and what do they cost?
 
 - Declarations remain the source of truth. Saved maps are derived output.
-- Maps live locally in ignored `.scratch/doc-dependencies/` and are not committed.
+- Working maps live locally in ignored `.scratch/doc-dependencies/`.
+- The owner-approved [published map](../development/dependency-map.md) is a tracked
+  snapshot for GitHub readers. Its source commit and refresh instructions are explicit;
+  it is not a live map or a second source of declarations.
 - Rebuild after changes to document content, tracked membership, or format versions.
 - A freshness check compares source digests and expected map contents, not timestamps.
 - Impact always reads fresh sources and does not require a saved map.
@@ -210,3 +218,14 @@ approved work; this specification does not enforce them.
 Use the [workflow glossary](../development/glossary.md) for decided, implemented,
 verified, specification, ADR, and review. The [development workflow](../development/workflow.md#agree-before-building)
 controls approval; the [repository structure](../repository-structure.md) controls placement.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `scripts/doc_dependencies.py` | Implements the documented commands, Git modes, and local maps. | CLI behavior, output, exit codes, or artifact handling change. |
+| `scripts/doc_dependency_graph.py` | Implements declaration validation, reverse lookup, impact, and discovery. | Parsing, coverage, graph selection, or discovery semantics change. |
+| `docs/repository-structure.md` | Places maintained declarations and ignored generated maps. | Documentation coverage locations or generated-output policy changes. |
+| `docs/development/glossary.md` | Uses decided, implemented, verified, and shared-agreement meanings. | Approval or verification terminology changes. |
+<!-- doc-dependencies:end -->

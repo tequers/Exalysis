@@ -198,3 +198,15 @@ python scripts/tickets.py --root PATH --backlog RELATIVE_PATH check
 
 The tool can find stale records and enforce structure. A developer or reviewer
 still needs to establish whether the remaining requirement is satisfied.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `scripts/tickets.py` | Documents authoritative ticket metadata, commands, and lifecycle rules. | Metadata schema, command behavior, evidence freshness, or state rules change. |
+| `scripts/ticket_history.py` | Describes commit-based impact and verification against historical state. | Comparison, rename, historical lookup, or change classification rules change. |
+| `scripts/check_tickets.py` | Describes the combined offline test and backlog validation command. | Test discovery or validation execution changes. |
+| `.github/workflows/tickets.yml` | Describes the ticket CI matrix and advisory impact step. | Platforms, Python versions, check gates, or impact handling change. |
+| `.agents/skills/exam-next-ticket/SKILL.md` | Routes agent-led work to the scoped ticket workflow. | Selection, approval, verification, or handoff instructions change. |
+<!-- doc-dependencies:end -->

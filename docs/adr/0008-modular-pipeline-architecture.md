@@ -79,3 +79,23 @@ flows.
 The repository contains more files than a single-file application, so developers
 must follow module boundaries when making changes. In return, the pipeline has
 clear ownership, focused tests, and smaller areas of change.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `pipeline/pipeline.py` | Coordinates the focused modules while retaining CLI, prompts, and workflow code. | Coordination absorbs domain logic or a responsibility moves between modules. |
+| `pipeline/exam_roi/scoring.py` | Implements the decision that scoring has no model or filesystem access. | Scoring inputs, side effects, or module boundaries change. |
+| `pipeline/exam_roi/storage.py` | Implements the single ownership boundary for guarded state and recovery. | Storage ownership or separation from acceptance policy changes. |
+| `pipeline/exam_roi/reports.py` | Implements rendering from supplied data without acceptance decisions. | Report inputs, side effects, or responsibility boundaries change. |
+| `pipeline/exam_roi/review.py` | Implements the retained review module described as disabled in the CLI. | Reviewer responsibilities or production integration change. |
+| `pipeline/exam_roi/inputs.py` | Lists input discovery and extraction as a focused module responsibility. | Input responsibilities move or the module interface changes. |
+| `pipeline/exam_roi/identity.py` | Lists safe exam IDs and contained paths as the identity responsibility. | Identity responsibilities move or the module interface changes. |
+| `pipeline/exam_roi/question_context.py` | Lists evidence context and question groups as a focused responsibility. | Context responsibilities move or the module interface changes. |
+| `pipeline/exam_roi/llm.py` | Lists model clients, budgets, batching, and retries as the model-access boundary. | Model-access responsibilities move or its interface changes. |
+| `pipeline/exam_roi/evaluation.py` | Lists candidate construction and validation as the evaluation boundary. | Validation responsibilities move or the candidate interface changes. |
+| `pipeline/exam_roi/taxonomy.py` | Lists cumulative topic summaries and protected overrides as the taxonomy boundary. | Aggregation responsibilities move or taxonomy inputs change. |
+| `pipeline/staged_evaluation.py` | Separates evaluation execution from normal course processing. | Evaluation entry points or production integration boundaries change. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Implements the listed versioned runtime-contract responsibility. | The active contract, its location, or the runtime-resource boundary changes. |
+<!-- doc-dependencies:end -->

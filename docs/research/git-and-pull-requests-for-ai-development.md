@@ -274,3 +274,12 @@ Track these for a month:
 - Percentage of pull requests with ticket, test, risk, and human-review evidence completed.
 
 The goal is not the fewest commits. The goal is that every commit and pull request states one intent, contains evidence for that intent, and can be reviewed or reverted without reconstructing a long AI session.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/research/branch-consolidation-2026-09-17.md` | Uses the dated consolidation record to distinguish retained history from proposals. | Corrections to historical branch evidence change the research context. |
+| `.github/workflows/tickets.yml` | Distinguishes existing ticket CI from proposed additional checks. | CI gains pipeline tests or changes its current verification scope. |
+<!-- doc-dependencies:end -->

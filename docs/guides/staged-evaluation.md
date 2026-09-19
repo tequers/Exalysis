@@ -178,3 +178,18 @@ approved case. Keep the GPT reference file unchanged. Do not promote the GLM
 output automatically. This prototype supplies Ticket 09 with a portable case,
 raw transcripts, validated outcomes, separate error categories, and a human
 approval record; broader calibration still belongs to that ticket.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `pipeline/staged_evaluation.py` | Documents exchange, live, audit, approval, replay, and exit semantics. | Commands, report schema, hashes, approval, or replay behavior change. |
+| `pipeline/pipeline.py` | Reuses production extraction, tagging, scoring, and prompts. | Stage interfaces, prompt contents, or production outputs change. |
+| `pipeline/exam_roi/evaluation.py` | Defines candidate validation used by capture and replay. | Candidate schema, evidence matching, or deterministic validation change. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Defines the contract embedded in evaluation requests and evidence. | Active contract version or captured evaluation requirements change. |
+| `pipeline/tests/fixtures/staged_evaluation/equations-case.json` | Describes the synthetic source and frozen expectations. | Source facts, frozen extraction, or accepted judgment choices change. |
+| `pipeline/tests/fixtures/staged_evaluation/astra-evidence.json` | Interprets the saved responses and unapproved representation disagreements. | Captured responses, outcomes, provenance, or approval status change. |
+| `pipeline/tests/test_staged_evaluation.py` | Cites offline audit, replay, and approval regression evidence. | Verified protocol behavior or network-isolation checks change. |
+| `docs/development/workflow.md` | Uses the same live-call approval and private-data boundaries. | Provider approval, permitted inputs, or evidence handling changes. |
+<!-- doc-dependencies:end -->

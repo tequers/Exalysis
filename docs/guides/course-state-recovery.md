@@ -136,3 +136,15 @@ It also interrupts six recovery boundaries, runs competing processes, checks
 stale metadata, rejects corrupt records and journals, and distinguishes state
 failures from export failures. Existing identity tests still check redirected
 directories, file links, and destination changes during analysis.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `pipeline/exam_roi/storage.py` | Specifies the storage session, lock, journal, and recovery procedure. | Transaction phases, integrity checks, supported state versions, or recovery actions change. |
+| `pipeline/exam_roi/identity.py` | Relies on contained record paths and rejection of redirected files. | Path guards, supported IDs, symlink, or hard-link handling change. |
+| `pipeline/pipeline.py` | Documents state and export exit codes and recovery commands. | Lock ownership, command recovery, exit codes, or candidate writes change. |
+| `pipeline/exam_roi/taxonomy.py` | Describes compatible evidence and legacy-record exclusions on rebuild. | Contract compatibility or aggregation behavior changes. |
+| `pipeline/tests/test_storage.py` | Cites process-interruption, competing-writer, and recovery evidence. | Tested failure boundaries or the guarantees established by tests change. |
+<!-- doc-dependencies:end -->
