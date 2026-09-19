@@ -62,11 +62,15 @@ the files at the recorded commit. Current Markdown links point to the moved file
 Retained migration and implementation reports are evidence, not current setup
 instructions.
 
-Installed personal `next-ticket` skills that search `.scratch/*/TICKET_STATUS.md`
-need a separate update to discover `tickets/TICKET_STATUS.md` or call the ticket
-CLI. This repository change does not edit installed skills. Until those skills
-are updated, use `python scripts/tickets.py next`, `show`, and `preflight` as
-specified in [the ticket workflow](development/ticket-workflow.md).
+Use the repository-local
+[`exam-next-ticket` skill](../.agents/skills/exam-next-ticket/SKILL.md) for agent
+selection and implementation of the next ticket. Its instructions verify this
+project before running the ticket CLI. The distinct name avoids relying on
+precedence over the personal `next-ticket` skills, which remain unchanged and
+may still use `.scratch/` in other projects. The local skill is tracked only in
+this repository. The [ticket workflow](development/ticket-workflow.md) also
+provides the direct CLI commands. Skill instructions guide agent behavior;
+they do not provide filesystem access controls.
 
 ## Maintain the layout
 
