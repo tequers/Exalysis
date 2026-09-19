@@ -414,7 +414,7 @@ and human review provide the evidence for review responsibilities.
 | Discovery | Links and path mentions produce evidence only; repeated references group; ticket/external/navigation-only references are handled as specified; semantic omissions still need review. |
 | Review | Independent review checks the agreement and relationship reasons; a human resolves outstanding content choices before ticket closure. |
 
-- Ticket 32 authors initial declarations under the owner-approved rollout. Human semantic review and historical-gap acknowledgment remain required.
+- The owner approved ticket 32's initial declarations and published map on 2026-09-19, including the reported historical gap. Future relationship changes still require semantic review.
 - Hooks/CI, changes to `AGENTS.md` or skills, and automatic enforcement require later approved work. Maps can be generated from valid, structurally complete declarations.
 - Ticket 29 delivered the approved specification. Tickets 30 and 31 implement and test the tool.
 - The owner approved this design on 2026-09-19 and requested implementation.
