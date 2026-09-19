@@ -1,6 +1,6 @@
 # Documentation dependency checking
 
-**Draft for human approval.** Ticket 29 covers this specification only.
+**Approved by the owner on 2026-09-19.** Ticket 29 covers this specification only.
 The Python tool, declarations, maps, and enforcement are not implemented or verified.
 
 This page explains the proposed workflow. The linked

@@ -35,7 +35,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "a097ea8dd8835bd4430b567bb97de7745245b343",
+    "replacement": null,
+    "reviewed_by": "Repository owner",
+    "evidence": [
+      "Owner passed the specification, readability revision, and required writing skills, and explicitly requested implementing the approved dependency specification."
+    ]
+  }
 }
 ```
 
@@ -152,3 +160,9 @@ Independent review passed with no findings. Rechecked after this follow-up:
 passed 231 tests; `python scripts/check_tickets.py` passed 39 tests with zero
 errors and the same six historical warnings. All 229 local Markdown links and
 `git diff --check -- docs tickets` passed.
+
+## Owner approval
+
+2026-09-19: The owner passed the changes and requested implementation of the
+documentation dependency specification. This closes specification review only.
+Earlier pending-review entries remain historical evidence.
