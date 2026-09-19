@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "aa6949df91f8c54e896b69e8c247aed3ca453b9e",
-    "checked_at": "2026-09-19T15:12:40+00:00",
+    "commit": "eacee950678af37d9768e2f613c4fbda682437f2",
+    "checked_at": "2026-09-19T15:19:12+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
-    "checker": "Codex",
+    "checker": "/root/review_prototype",
     "result": "still_valid",
     "evidence": [
-      "Owner explicitly approved relaxing Stage 2 prerequisite and unlock edge-coverage rejection for the MVP; existing prototype scope and outputs remain unchanged."
+      "Independent review found no issues; 11 cumulative-taxonomy tests, 11 prototype tests, and all 242 pipeline tests pass without live model calls."
     ],
     "provisional": false
   },
