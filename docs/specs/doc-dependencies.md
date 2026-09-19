@@ -2,8 +2,9 @@
 
 **Approved by the owner on 2026-09-19.** Ticket 29 covers this specification only.
 The Python tool is implemented in tickets 30 and 31. Offline tests verify the
-covered tool behavior. Initial declarations are authored in ticket 32; their semantic
-review and historical-gap acknowledgment remain subject to human review. Automatic enforcement remains pending.
+covered tool behavior. The owner approved ticket 32's initial declarations and
+published map on 2026-09-19, including the reported historical coverage gap.
+Automatic enforcement remains pending.
 
 This page explains the proposed workflow. The linked
 [technical reference](doc-dependencies-reference.md) defines the exact implementation contract.

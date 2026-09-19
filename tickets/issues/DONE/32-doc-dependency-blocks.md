@@ -32,7 +32,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "0e8b57f1e4f8f0aab3edd8e01fbdbc6619243090",
+    "replacement": null,
+    "reviewed_by": "Project owner and GPT-5.6 Sol independent reviewer",
+    "evidence": [
+      "Independent review passed. Owner explicitly approved the changes and requested merge into mvp-two-stage on 2026-09-19 after disclosure of the historical coverage gap and ADR0007 mismatch. 231 application tests and 76 tooling tests passed."
+    ]
+  }
 }
 ```
 
@@ -118,7 +126,7 @@ specification ownership and narrowed dependency-installation triggers.
 `impact --staged --format json` returned exit 3, valid true, complete false, and
 all 25 historical owners without blocks. It reported exactly 162 added pairs and
 no removed relationships. That is the expected first-rollout result, not a passing
-historical coverage check. Human acknowledgment remains pending.
+historical coverage check. The owner approved the changes and authorized merging on 2026-09-19 after the historical gap and ADR mismatch were reported.
 
 ## Owner-requested publication follow-up
 
@@ -144,3 +152,13 @@ the Mermaid diagram renders and the snapshot label and refresh steps are clear.
 
 Independent publication review passed after adding the map-to-repository-policy
 relationship. This makes the tracking exception visible in direct reverse lookup.
+
+
+## Owner approval, 2026-09-19
+
+The owner stated, "I approve the changes, merge into the mvp two stage."
+This approves the declarations and published snapshot reviewed above and authorizes
+integration into codex/mvp-two-stage. The historical coverage gap remains visible
+in tool results. ADR 0007's unimplemented naming decision remains follow-up work
+in ticket 13; this approval does not change application behavior or that decision.
+The record does not claim that the owner personally ran the verification commands.
