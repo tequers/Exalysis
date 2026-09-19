@@ -10,7 +10,7 @@ setup, agreement and approval, ticket selection, implementation, checks, review,
 | Understand workflow terms such as spec, ADR, and verified | [Development workflow glossary](development/glossary.md) |
 | Agree on a change before implementation | [Shared agreement and approval](development/workflow.md#agree-before-building) |
 | Review the proposed documentation dependency checker | [Draft specification](specs/doc-dependencies.md), not approved or implemented |
-| Choose an agent skill or check what tools enforce | [Skills](development/workflow.md#use-skills-when-they-help) and [enforcement limits](development/workflow.md#know-what-enforces-the-workflow) |
+| Choose an agent skill or check what tools enforce | [Skills](development/workflow.md#use-skills-for-the-task) and [enforcement limits](development/workflow.md#know-what-enforces-the-workflow) |
 | Trace the current two-stage pipeline and find its modules | [Current architecture](architecture.md) |
 | Set up a course and inspect a candidate | [New course setup](guides/new-course-setup.md) |
 | Understand the ranking's purpose and limits | [Scoring methodology](guides/scoring-methodology.md) |

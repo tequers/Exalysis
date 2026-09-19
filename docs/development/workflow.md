@@ -213,6 +213,20 @@ above. For example, CLI changes can use:
 python -m unittest discover -s pipeline/tests -p 'test_cli_outcomes.py' -v
 ```
 
+When agents create or edit files containing human-readable text, they must use
+both `technical-writing` and `unslop`. This includes guides, specifications, ADRs,
+READMEs, tickets, reports, and agent instructions, plus prose comments in code.
+Apply the same writing checks to pull request descriptions and commit messages.
+
+- Read the installed `technical-writing/SKILL.md` before drafting. Organize the
+  content for its reader, keep sections focused, and use bullets, numbered steps,
+  or tables when they make the information easier to follow.
+- Read and apply `unslop/SKILL.md` before handoff. Remove filler and awkward
+  phrasing while preserving requirements, technical meaning, and code syntax.
+- Have the independent reviewer check readability as well as correctness.
+- If either skill is unavailable, report which one is missing. Do not claim that
+  the required writing check is complete without applying both skills.
+
 For documentation, compare commands with `--help`, resolve local links relative
 to each document, and check behavior claims against production code and tests.
 Use synthetic data for new fixtures. Never commit real papers, extracted text,
@@ -305,11 +319,13 @@ that traces every document dependency or keeps specifications, ADRs, architectur
 and code consistent. Review related claims manually. Do not treat a skill, ticket
 status, or this guide as proof that such automation exists.
 
-## Use skills when they help
+## Use skills for the task
 
 Skills are instructions for agents. Human developers can follow this guide and
-use the CLI directly. The first two entries are repository-local. Optional entries
-are personal installations and are not prerequisites for this workflow.
+use the CLI directly. The first two entries are repository-local. The writing
+skills are required for agent-authored prose. Other skills follow the triggers
+in the table; entries marked optional remain optional. Find installed skill
+locations in the active skill catalog.
 
 | Skill | Use it when | Instruction location |
 |---|---|---|
@@ -317,7 +333,7 @@ are personal installations and are not prerequisites for this workflow.
 | `graft` | Find relevant implementation, callers, or change impact before reading source. | [Local skill](../../.agents/skills/graft/SKILL.md) |
 | `grill-with-docs`, optional | Product choices or terminology need clarification before agreement. | Installed `grill-with-docs/SKILL.md`, for example `~/.agents/skills/grill-with-docs/SKILL.md` |
 | `to-spec`, optional | The conversation is clear enough to draft a substantial feature's specification. | Installed `to-spec/SKILL.md`, for example `~/.agents/skills/to-spec/SKILL.md` |
-| `technical-writing` and `unslop`, optional | Draft or review documentation for clarity and plain language. | Installed `technical-writing/SKILL.md` and `unslop/SKILL.md` in the active skill catalog |
+| `technical-writing` and `unslop`, required for agent-authored prose | Create, edit, or review human-readable text using the writing checks above. | Installed `technical-writing/SKILL.md` and `unslop/SKILL.md` in the active skill catalog |
 
 Read the exact installed skill before using it. If an optional skill is absent,
 use the agreement checklist above. For this repository, ask `to-spec` to draft a
