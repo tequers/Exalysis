@@ -29,6 +29,10 @@ match suggests a relationship; it does not establish that two problems are the s
 `next` chooses by queue order among tickets without unresolved prerequisites.
 It distinguishes work needing verification from work ready to start. `preflight`
 explains what invalidates a previous check. Neither command starts work.
+Before implementation or assignment, obtain human approval of the
+[shared agreement](workflow.md#agree-before-building). Preflight readiness does
+not replace that approval.
+
 If `next` finds no available ticket, run `audit` to find outstanding reviews and
 missing historical evidence. Do not remove a dependency just to make work appear ready.
 

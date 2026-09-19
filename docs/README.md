@@ -1,12 +1,15 @@
 # Documentation by task
 
 Use the [development workflow](development/workflow.md) for a complete route through offline
-setup, ticket selection, implementation, checks, and review.
+setup, agreement and approval, ticket selection, implementation, checks, review, and merge.
 
 | I want to... | Read |
 |---|---|
 | Decide where a file belongs | [Repository structure](repository-structure.md) |
-| Understand the project vocabulary | [Glossary](glossary.md) |
+| Understand the application vocabulary | [Application glossary](glossary.md) |
+| Understand workflow terms such as spec, ADR, and verified | [Development workflow glossary](development/glossary.md) |
+| Agree on a change before implementation | [Shared agreement and approval](development/workflow.md#agree-before-building) |
+| Choose an agent skill or check what tools enforce | [Skills](development/workflow.md#use-skills-when-they-help) and [enforcement limits](development/workflow.md#know-what-enforces-the-workflow) |
 | Trace the current two-stage pipeline and find its modules | [Current architecture](architecture.md) |
 | Set up a course and inspect a candidate | [New course setup](guides/new-course-setup.md) |
 | Understand the ranking's purpose and limits | [Scoring methodology](guides/scoring-methodology.md) |

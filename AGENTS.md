@@ -16,8 +16,8 @@
 ## Start one bounded task
 
 1. Run `git status --short --branch` before editing.
-2. Select one ticket when the task maps to the backlog. Use `python scripts/tickets.py next`, `python scripts/tickets.py show ID`, and `python scripts/tickets.py preflight ID`.
-3. Establish and share ground truth with the developer: current behavior, intended outcome, likely files, acceptance checks, and non-goals. If any part is unclear, use `grill-me` or `grill-with-docs`. Feature work may proceed after sharing the ground truth and does not require separate confirmation. Before starting or assigning a ticket, wait for the developer to confirm the ground truth. When `next-ticket` is used, follow that skill's instructions instead.
+2. Select one ticket when the task maps to the backlog. Use `python scripts/tickets.py next`, `python scripts/tickets.py show ID`, and `python scripts/tickets.py preflight ID`. For an agent-led next-ticket request here, use the [project-local exam-next-ticket skill](.agents/skills/exam-next-ticket/SKILL.md).
+3. Before implementation or assignment, establish ground truth and obtain explicit human approval of the shared agreement in the [development workflow](docs/development/workflow.md#agree-before-building). Existing approval of that scope counts. Resolve questions affecting behavior or scope first. Routine implementation choices within the agreement need no new approval; proposed scope expansion does. Keep a small agreement in the ticket and a substantial feature specification under `docs/specs/`. The local ticket skill follows this same rule.
 4. Run `git fetch origin --prune`, then verify the remote base. Do not assume that the local `main` is current or tracks `origin/main`.
 5. Decide whether a separate branch adds clear isolation, review, or recovery value. Keep small administrative changes and closely related follow-ups on the current suitable non-`main` branch. Create a short-lived branch when the work needs its own pull request, a different base, protection from unrelated changes, or a separate worktree. Do not implement changes directly on `main`.
 6. Move the selected ticket to `IN_PROGRESS` with `python scripts/tickets.py move ID IN_PROGRESS`. Do not edit `TICKET_STATUS.md` by hand.
@@ -77,7 +77,7 @@ Use `docs/research/git-and-pull-requests-for-ai-development.md` when planning a 
 
 Store tickets in `OPEN`, `IN_PROGRESS`, `BLOCKED`, `TO_REVIEW`, or `DONE` according to their current state. Use the ticket tool to move them.
 
-When implementation and checks finish, decide whether the user must review anything.
+When implementation and checks finish, obtain an independent review against the approved agreement. Report missing behavior, deviations, and unnecessary additions. Then decide whether the user must review anything.
 
 - If automated checks prove the result and no human judgment is needed, move the ticket to `DONE`.
 - If a person must check behavior, output, content, or environment-specific results, move the ticket to `TO_REVIEW`.
