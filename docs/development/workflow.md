@@ -4,10 +4,75 @@ This guide records how the developer maintains this portfolio MVP, with or witho
 AI assistance. It also gives future developers the context to continue the work.
 Keep changes focused on a useful, working product that can be demonstrated.
 
-Start with the [glossary](../glossary.md) and [current architecture](../architecture.md),
+Start with the [application glossary](../glossary.md) and [current architecture](../architecture.md),
 then use this guide to set up a checkout and complete one ticket. The
 [documentation index](../README.md) groups the other guides by task. This route
 needs neither an AI agent nor provider credentials.
+
+## Agree before building
+
+Use this cycle for human or agent implementation. The principles apply to other
+projects too: establish the facts, agree on the result, build within that agreement,
+and compare the delivered result with it. The sections below map the cycle to this
+repository's files and commands. See the [workflow glossary](glossary.md) for terms.
+
+```mermaid
+flowchart LR
+    A[Idea and current evidence] --> B[Clarify and draft agreement]
+    B --> C{Human approves?}
+    C -->|Revise| B
+    C -->|Yes| D[Implement within scope]
+    D --> E[Verify and review independently]
+    E -->|Missing behavior or defects| D
+    E -->|Scope change needed| B
+    E -->|Checks and required human review pass| F[Merge]
+```
+
+Before implementation or assignment, the human developer and implementer must
+agree on the following. Record enough detail to distinguish a correct result
+from a plausible but unwanted one.
+
+- The problem and current behavior, with evidence from the checkout or a reproduction.
+- The intended behavior, inputs, and outputs.
+- Concrete examples or the expected user experience, including relevant failure cases.
+- Constraints, acceptance criteria, and how each criterion will be checked.
+- Included scope, explicit exclusions, and unresolved questions.
+
+For a small change, keep the agreement in its ticket. For a substantial feature or
+behavior change, write a concise specification under `docs/specs/` and link it from
+the ticket. Create that directory when the first specification is needed. Use the
+same points above, with sections only where they help. Do not copy the agreement
+into several documents or add a specification for every edit.
+
+Label a specification as draft until the human approves it. Record the approval,
+its date, and the agreed scope in the ticket or specification, referring to the
+approval conversation where available. Approval of a concrete agreement already
+given in the conversation counts; do not ask again for the same scope. A request
+to investigate, a ticket's existence, or passing preflight does not approve a build.
+
+Resolve questions that affect behavior, scope, inputs, outputs, or acceptance
+before implementation. State minor assumptions that do not affect the agreement.
+The implementer can choose routine code structure and test details within scope.
+If new evidence requires more behavior or changes an approved constraint, explain
+the proposed change and obtain approval before implementing that expansion.
+
+Use an ADR when a lasting design choice needs its alternatives, reasoning, and
+consequences recorded. Update the architecture overview when the implementation
+changes. A specification describes the agreed result; an ADR explains a decision;
+the architecture overview describes the current system. Mark what is decided,
+implemented, and verified separately. Preserve decision history when plans change.
+
+### Assign responsibilities
+
+| Role | Responsibility |
+|---|---|
+| Human developer | Explain the goal and constraints, resolve product choices, approve the agreement and scope changes, and judge content or behavior that automated checks cannot prove. |
+| Implementer, human or agent | Inspect the current state, draft the agreement, implement approved scope, keep related documentation accurate, and provide check results and known gaps. |
+| Independent reviewer, another person or agent | Read the agreement, inspect the actual diff and evidence, and report defects, omissions, unnecessary additions, and deviations. Do not treat the implementer's summary as proof. |
+
+An independent agent review does not replace required human product or content
+judgment. For concurrent work, give each writer a separate branch and worktree.
+A reviewer can inspect the implementation checkout read-only.
 
 ## Set up offline development
 
@@ -75,9 +140,8 @@ The permanent backlog is in `tickets/issues/`; the
 [status table](../../tickets/TICKET_STATUS.md) is generated from
 those records. Do not edit the table or remove dependencies to start blocked work.
 
-Establish the current behavior, intended outcome, likely files, acceptance checks,
-and non-goals with the developer. Reproduce the problem or inspect relevant code
-and tests, then record actual evidence when preflight requests verification:
+Reproduce the problem or inspect relevant code and tests. Identify likely files
+and record actual evidence when preflight requests verification:
 
 ```text
 python scripts/tickets.py verify ID --result still_valid --checker "Your name" --evidence "The check performed and the remaining problem"
@@ -87,8 +151,10 @@ python scripts/tickets.py preflight ID
 Use `partially_resolved` when only part remains. Relevant uncommitted changes make
 verification provisional; recheck the committed revision before treating it as
 current evidence. The [ticket workflow](ticket-workflow.md) explains other
-verification results and closure reasons. For agent work, confirm the ground truth
-before assignment.
+verification results and closure reasons. Complete the
+[shared agreement and human approval](#agree-before-building) before starting or
+assigning implementation. Preflight readiness establishes ticket eligibility,
+not approval of its proposed scope.
 
 For this repository, invoke `$exam-next-ticket` using the
 [project-local skill](../../.agents/skills/exam-next-ticket/SKILL.md). It uses the
@@ -137,8 +203,11 @@ agents edit the same working tree. Preserve recovery branches and worktrees.
 
 ## Implement and verify the change
 
-Keep one reviewable outcome in scope. Use focused checks for its behavior while
-developing, then run the full checks above. For example, CLI changes can use:
+Implement one reviewable outcome from the approved agreement. Keep examples,
+acceptance criteria, and exclusions available while working. Record new work in
+a follow-up ticket or ask for an approved scope change before building it.
+Use focused checks for the behavior while developing, then run the full checks
+above. For example, CLI changes can use:
 
 ```text
 python -m unittest discover -s pipeline/tests -p 'test_cli_outcomes.py' -v
@@ -178,6 +247,14 @@ is resolved. Push completed commits with `git push -u origin YOUR_BRANCH`.
 
 ## Hand off for review or completion
 
+Have an independent reviewer compare the actual product and diff with the approved
+agreement. Check each acceptance criterion against evidence, and report missing
+behavior, deviations, and unnecessary additions. Re-run affected checks after
+fixes. Return to agreement if a fix needs new scope. Update any documentation whose
+claims changed, including relevant specifications, ADR status, and architecture.
+Report added or removed relationships between documents and code, and newly found
+affected files, with the reason each needs review.
+
 Open one pull request for the ticket, with its actual source branch as the base.
 Use a draft when early feedback can change the design. Explain the change,
 included and excluded scope, exact checks and results, risks, rollback, AI
@@ -204,8 +281,50 @@ python scripts/tickets.py move ID DONE --reason implemented --commit COMMIT --re
 If automated checks fully prove the outcome and no human judgment is needed,
 project policy allows completion with the required closure evidence. Do not invent
 review approval. Implemented prerequisites need recorded review evidence before
-they unblock dependents. The `next-ticket` workflow always hands implementation
-off in `TO_REVIEW` and leaves completion to review.
+they unblock dependents. The project-local `exam-next-ticket` skill follows these
+same closure rules.
+
+Merge into the stated base after checks, independent review, and any required
+human review pass, within the developer's merge authorization. Review impact
+against the current base before merging. For stacked pull requests, use the branch
+directly below as each base and merge from the bottom upward. Ticket completion
+records evidence; it does not itself merge a branch.
+
+## Know what enforces the workflow
+
+| Mechanism | What it does now | What still needs judgment or instructions |
+|---|---|---|
+| Ticket CLI and `scripts/check_tickets.py` | Validate ticket structure, references, transitions, prerequisites, and recorded verification and closure evidence. | They cannot prove that a written account is true or that the human approved the product scope. |
+| Ticket `impact` and `audit` | Flag affected tickets and recorded evidence that needs review. | A matching path is not proof that a requirement is satisfied. The reports do not detect every contradictory document. |
+| Offline tests and Git diff checks | Exercise covered behavior and detect reported test or whitespace failures. | Passing checks do not establish that the product is useful or stays within scope. |
+| `AGENTS.md` and local skills | Instruct agents to seek agreement, stay within scope, use separate worktrees, and provide review evidence. | These are behavioral instructions, not automatic enforcement or a filesystem sandbox. |
+| Human and independent review | Compare the result with the approved agreement and assess defects, omissions, and unnecessary additions. | Record real decisions and evidence. An agent cannot supply the human's approval. |
+
+A documentation dependency checker is future work. There is no implemented tool
+that traces every document dependency or keeps specifications, ADRs, architecture,
+and code consistent. Review related claims manually. Do not treat a skill, ticket
+status, or this guide as proof that such automation exists.
+
+## Use skills when they help
+
+Skills are instructions for agents. Human developers can follow this guide and
+use the CLI directly. The first two entries are repository-local. Optional entries
+are personal installations and are not prerequisites for this workflow.
+
+| Skill | Use it when | Instruction location |
+|---|---|---|
+| `exam-next-ticket` | Select the next eligible ticket and, after scope approval, implement it through the project CLI. | [Local skill](../../.agents/skills/exam-next-ticket/SKILL.md) |
+| `graft` | Find relevant implementation, callers, or change impact before reading source. | [Local skill](../../.agents/skills/graft/SKILL.md) |
+| `grill-with-docs`, optional | Product choices or terminology need clarification before agreement. | Installed `grill-with-docs/SKILL.md`, for example `~/.agents/skills/grill-with-docs/SKILL.md` |
+| `to-spec`, optional | The conversation is clear enough to draft a substantial feature's specification. | Installed `to-spec/SKILL.md`, for example `~/.agents/skills/to-spec/SKILL.md` |
+| `technical-writing` and `unslop`, optional | Draft or review documentation for clarity and plain language. | Installed `technical-writing/SKILL.md` and `unslop/SKILL.md` in the active skill catalog |
+
+Read the exact installed skill before using it. If an optional skill is absent,
+use the agreement checklist above. For this repository, ask `to-spec` to draft a
+concise local document. Its general publishing instructions do not authorize
+external issue publication or automatic readiness here. Keep the draft subject to
+human approval. Use clarification skills for unresolved decisions, not to repeat
+questions already answered. Skills do not expand the approved scope.
 
 ## Optional live-provider setup
 
