@@ -1,7 +1,8 @@
 # Documentation dependency checking
 
 **Approved by the owner on 2026-09-19.** Ticket 29 covers this specification only.
-The Python tool, declarations, maps, and enforcement are not implemented or verified.
+The Python tool is implemented in tickets 30 and 31. Offline tests verify the
+covered tool behavior. Declaration rollout and automatic enforcement remain pending.
 
 This page explains the proposed workflow. The linked
 [technical reference](doc-dependencies-reference.md) defines the exact implementation contract.
@@ -25,7 +26,8 @@ matches code, that every relationship was found, or that a human approved a chan
 
 ## The workflow at a glance
 
-All commands below are proposed. They will become available after implementation.
+The commands below are available. Until declaration rollout, this repository
+reports missing blocks rather than a complete dependency graph.
 
 1. **Before editing:** query the files you intend to change with `impact --file`.
    Read the related declarations and claims. Use `discover` to find possible omissions.
@@ -58,7 +60,7 @@ A declaration is one row with three fields:
 | Reason | Why the two files must stay consistent. |
 | Review when | The concrete changes that require a consistency review. |
 
-Example of a future declaration block:
+Example declaration block for the later rollout:
 
 ```markdown
 <!-- doc-dependencies:start -->
@@ -109,7 +111,7 @@ Additional rules:
 - Coverage changes require a specification change. A later rollout must review
   these exclusions and author the real declarations.
 
-## What commands will it have?
+## What commands are available?
 
 | Command | Purpose | Result |
 |---|---|---|
