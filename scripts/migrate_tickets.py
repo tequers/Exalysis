@@ -20,7 +20,7 @@ from typing import Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_BACKLOG = ".scratch/reliable-exam-analysis"
+DEFAULT_BACKLOG = "tickets"
 BACKLOG = REPO_ROOT / DEFAULT_BACKLOG
 ISSUES = BACKLOG / "issues"
 STATUS_FILE = BACKLOG / "TICKET_STATUS.md"
@@ -106,20 +106,20 @@ TICKET_REFERENCES = {
     ],
     "05": [
         "docs/adr/0008-modular-pipeline-architecture.md",
-        "pipeline/docs/model-request-limits.md",
+        "docs/guides/model-request-limits.md",
         "pipeline/exam_roi/llm.py",
         "pipeline/exam_roi/question_context.py",
         "pipeline/tests/test_request_limits.py",
     ],
     "06": [
         "docs/adr/0008-modular-pipeline-architecture.md",
-        "pipeline/docs/independent-review.md",
+        "docs/guides/independent-review.md",
         "pipeline/exam_roi/review.py",
         "pipeline/tests/test_independent_review.py",
     ],
     "07": [
         "docs/adr/0008-modular-pipeline-architecture.md",
-        "docs/course-state-recovery.md",
+        "docs/guides/course-state-recovery.md",
         "pipeline/exam_roi/storage.py",
         "pipeline/tests/test_storage.py",
     ],
@@ -175,7 +175,7 @@ TICKET_REFERENCES = {
     "17": [
         "README.md",
         "docs/adr/0008-modular-pipeline-architecture.md",
-        "pipeline/docs/Topic_ROI_Exam_Analysis_System.md",
+        "docs/guides/scoring-methodology.md",
         "pipeline/exam_roi/contracts/evaluation-v1.2.0.md",
         "pipeline/exam_roi/scoring.py",
         "pipeline/tests/test_scoring.py",
@@ -206,15 +206,17 @@ TICKET_REFERENCES = {
 }
 
 AREAS = {
+    "documentation": ["docs/**"],
     "*": [
-        ".scratch/reliable-exam-analysis/areas.json",
+        "tickets/areas.json",
         "AGENTS.md",
         "CONTEXT.md",
+        "docs/glossary.md",
         "README.md",
         ".github/workflows/tickets.yml",
         "docs/adr/**",
-        "docs/ticket-ground-truth-plan.md",
-        "docs/ticket-workflow.md",
+        "docs/development/ticket-ground-truth-plan.md",
+        "docs/development/ticket-workflow.md",
         "pipeline/exam_roi/contracts/**",
         "pipeline/pipeline.py",
         "pipeline/tests/fixtures/**",
@@ -232,7 +234,7 @@ AREAS = {
         "pipeline/tests/test_storage.py",
     ],
     "configuration": [
-        "HOW_TO_USE_PIPELINE_WITH_GLM_API.md",
+        "docs/guides/glm-testing.md",
         "pipeline/exam_roi/llm.py",
         "pipeline/requirements.txt",
         "pipeline/tests/test_cli_outcomes.py",
