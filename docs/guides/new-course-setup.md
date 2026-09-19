@@ -114,3 +114,19 @@ The repository does not include a sample course dataset. A separate optional pro
 [exam-prep-prompt](https://github.com/tequers/exam-prep-prompt), can use generated
 reports for study sessions. It shares no code or state-management implementation
 with this pipeline. Keep course-specific diagrams under `Courses/<Course>/assets/`.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `README.md` | Relies on the detailed paper-ID and replacement rules. | Custom IDs, collisions, force behavior, or the linked section changes. |
+| `docs/glossary.md` | Uses Course and Exam to define independent setup folders. | Course, exam, or state-boundary definitions change. |
+| `docs/adr/0006-course-folder-as-cli-argument.md` | Applies the explicit course-folder command decision. | Course argument or destination policy changes. |
+| `docs/development/workflow.md` | Requires offline setup and separate live-provider approval. | Setup, credentials, approval, or offline verification steps change. |
+| `docs/architecture.md` | Describes candidate creation separately from pending acceptance. | Candidate acceptance or other available workflow steps change. |
+| `docs/guides/course-state-recovery.md` | Directs failed setup and rebuilds to the recovery procedure. | Recovery actions or supported state repairs change. |
+| `pipeline/pipeline.py` | Provides the exact setup, analysis, status, rebuild, and override commands. | Arguments, defaults, validation, outcomes, or availability gates change. |
+| `pipeline/exam_roi/inputs.py` | Defines the supported sources and dry-run selection rules. | Input formats, discovery, exclusions, or extraction validation change. |
+| `pipeline/exam_roi/storage.py` | Defines the course artifacts and candidate-versus-accepted state. | Stored paths, write boundaries, or course initialization change. |
+<!-- doc-dependencies:end -->

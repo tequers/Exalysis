@@ -102,3 +102,16 @@ or acceptance decisions.
 Offline tests use fake reviewers to verify routing and failure behavior. They do
 not measure a live model's ability to detect defects. Ticket 03's deterministic
 mark/scoring checks remain separate work and are not replaced by model review.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/architecture.md` | Separates retained review behavior from current MVP availability. | Independent review becomes available or production boundaries change. |
+| `pipeline/exam_roi/review.py` | Documents review assessments, correction history, and failure handling. | Review schema, validation, correction limits, or failure outcomes change. |
+| `pipeline/pipeline.py` | Documents the disabled review flags and saved candidate review status. | CLI gates, review configuration, or process interfaces change. |
+| `pipeline/exam_roi/llm.py` | Supplies reviewer clients, token limits, and transport behavior. | Client protocol, request budgets, retries, or response checks change. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Supplies the evaluation rules against which candidates are reviewed. | Active contract, rubric, or evidence interpretation changes. |
+| `pipeline/tests/test_independent_review.py` | Establishes retained review behavior through injected clients. | Protocol, routing, correction, or failure regression coverage changes. |
+<!-- doc-dependencies:end -->

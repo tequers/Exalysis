@@ -36,3 +36,12 @@
 - [ ] Test history-question dates, conflicting filename/header years, academic-year ranges, undated papers, and cached corrections.
 
 **Architecture:** Follow [ADR 0008](../../../docs/adr/0008-modular-pipeline-architecture.md). Keep evidence-based sitting resolution in inputs and commit corrections through the accepted-revision workflow.
+
+## Dependency rollout finding, 2026-09-19
+
+Ticket 32 found that accepted ADR 0007 requires YEAR_name filenames and prefix-only
+year selection, while the current CLI still infers years and accepts --year.
+The precedence policy proposed above also differs from that ADR. Before approving
+implementation of this ticket, the owner must decide whether to enforce ADR 0007
+or replace it with an explicitly approved policy. Preserve the current blockers;
+this finding neither approves a different policy nor starts implementation.

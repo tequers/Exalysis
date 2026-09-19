@@ -1,5 +1,8 @@
 # Branch consolidation on 17 September 2026
 
+This is a dated execution record. Branch counts, ticket states, paths, and commands
+below describe that event, not the current checkout. Preserve them as evidence.
+
 This is the evidence for ticket 26. Commit `673b5547b4205c1de3420ed8cfa6e50924e5151e` recorded the decisions before branch deletion. This revision adds the observed result. Ticket 25 remains blocked until a person reviews this evidence and ticket 26 is complete.
 
 The working branch is `codex/mvp-two-stage`, in `C:/Users/alber/Claude/Projects/0_Projects/Exams_Analysis_AI_pipeline-mvp-two-stage`. Its original creation entry is `codex/mvp-two-stage <- codex/developer-tooling @ 97d4451846eeb8e30f0f071776e7ed8894d1c104`. This cleanup starts at `a8b364ba66b0c6f7c9ec743e726511a7d51a687c`, including the prerequisite ticket-reference repair and ticket-26 start commits. Another implementation branch would not isolate work on the integration branch itself.
@@ -259,3 +262,13 @@ a819798 a81979843565cb10d8424b1667ba88428209f5ea
 a8b364b a8b364ba66b0c6f7c9ec743e726511a7d51a687c
 e771c1b e771c1b5ad8ba9d058bd64612c024abcccddcded
 ```
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+<!-- doc-dependencies:end -->
+
+This dated branch audit has no maintained runtime contract. Its recorded paths and
+commands remain historical evidence; changes to current code do not rewrite that evidence.

@@ -50,3 +50,14 @@ Dependency edges are counted once per distinct dependent topic, with citations
 from supporting papers. Human overrides take precedence over `model_estimate`.
 Reprocessing an older record creates a candidate; promotion into accepted state
 remains pending in ticket 08. See the [current architecture](architecture.md).
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/adr/0001-course-exam-hierarchy.md` | Defines Course and Exam around the accepted independent state boundary. | Course hierarchy or sharing between exam types changes. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Defines evaluation, difficulty, connectivity, and evidence terms. | Contract meanings, scales, or provenance requirements change. |
+| `pipeline/exam_roi/scoring.py` | Defines Priority using the implemented formula. | Ranking arithmetic or metric interpretation changes. |
+| `pipeline/exam_roi/taxonomy.py` | Describes paper judgments, cumulative summaries, and human overrides. | Evidence aggregation or override semantics change. |
+<!-- doc-dependencies:end -->

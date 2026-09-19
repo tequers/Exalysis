@@ -47,3 +47,15 @@ Separate Course folders isolate different exam types. Each folder can contain mu
 - Auto-detecting one Course folder was rejected because the destination changed when another folder appeared and because folders outside the repository were unavailable.
 - An optional `--folder` flag was rejected because the Course folder is required for every command.
 - A persistent active-folder file was rejected because it could become stale and send work to the wrong Course.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/adr/0001-course-exam-hierarchy.md` | Uses the course folder as the independent exam state boundary. | The course hierarchy or state-sharing decision changes. |
+| `pipeline/pipeline.py` | Implements the required first positional course-folder argument. | Argument order, folder creation, or destination selection changes. |
+| `pipeline/exam_roi/storage.py` | Implements the managed state and report paths within a course folder. | CoursePaths, managed filenames, or state containment change. |
+| `pipeline/exam_roi/inputs.py` | Implements default course input discovery and explicit external inputs. | Default search folders or explicit path handling change. |
+| `docs/adr/SUPPRESSED/0003-active-exam-resolution.md` | Records which earlier active-folder decision this decision supersedes. | The supersession relationship or historical decision status is corrected. |
+<!-- doc-dependencies:end -->

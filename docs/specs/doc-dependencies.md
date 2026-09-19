@@ -2,7 +2,8 @@
 
 **Approved by the owner on 2026-09-19.** Ticket 29 covers this specification only.
 The Python tool is implemented in tickets 30 and 31. Offline tests verify the
-covered tool behavior. Declaration rollout and automatic enforcement remain pending.
+covered tool behavior. Initial declarations are authored in ticket 32; their semantic
+review and historical-gap acknowledgment remain subject to human review. Automatic enforcement remains pending.
 
 This page explains the proposed workflow. The linked
 [technical reference](doc-dependencies-reference.md) defines the exact implementation contract.
@@ -26,8 +27,10 @@ matches code, that every relationship was found, or that a human approved a chan
 
 ## The workflow at a glance
 
-The commands below are available. Until declaration rollout, this repository
-reports missing blocks rather than a complete dependency graph.
+The commands below are available. Every currently covered document has a block,
+so current checks can pass and maps can be generated. This proves structural
+coverage, not that every meaningful relationship has been found. Comparisons
+against commits before this rollout still report unknown historical relationships.
 
 1. **Before editing:** query the files you intend to change with `impact --file`.
    Read the related declarations and claims. Use `discover` to find possible omissions.
@@ -60,7 +63,7 @@ A declaration is one row with three fields:
 | Reason | Why the two files must stay consistent. |
 | Review when | The concrete changes that require a consistency review. |
 
-Example declaration block for the later rollout:
+Example declaration block:
 
 ```markdown
 <!-- doc-dependencies:start -->
@@ -108,8 +111,8 @@ Additional rules:
 - Targets cannot be directories, globs, URLs, symlinks, or Git submodules.
 - New documents enter coverage after staging. Every worktree result states that
   untracked content was excluded.
-- Coverage changes require a specification change. A later rollout must review
-  these exclusions and author the real declarations.
+- Coverage changes require a specification change. The initial rollout retains
+  these exclusions; later documents must follow the same rules.
 
 ## What commands are available?
 
@@ -210,3 +213,14 @@ approved work; this specification does not enforce them.
 Use the [workflow glossary](../development/glossary.md) for decided, implemented,
 verified, specification, ADR, and review. The [development workflow](../development/workflow.md#agree-before-building)
 controls approval; the [repository structure](../repository-structure.md) controls placement.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `scripts/doc_dependencies.py` | Implements the documented commands, Git modes, and local maps. | CLI behavior, output, exit codes, or artifact handling change. |
+| `scripts/doc_dependency_graph.py` | Implements declaration validation, reverse lookup, impact, and discovery. | Parsing, coverage, graph selection, or discovery semantics change. |
+| `docs/repository-structure.md` | Places maintained declarations and ignored generated maps. | Documentation coverage locations or generated-output policy changes. |
+| `docs/development/glossary.md` | Uses decided, implemented, verified, and shared-agreement meanings. | Approval or verification terminology changes. |
+<!-- doc-dependencies:end -->

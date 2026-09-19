@@ -24,10 +24,10 @@ The [documentation index](README.md) is the entry point for human readers.
 | `.agents/`, `.claude/`, `.codex/`, `.github/` | Tool-defined agent instructions, shared settings and hooks, and CI workflows. | Keep shared configuration at the location its tool expects. Ignore local overrides and secrets. | Document human workflow in `docs/development/`; change shared tool behavior deliberately. |
 | `graft/` | Regenerable local code graph. | Ignore the graph cache. `.ignore` allows searches of its cards. | Regenerate using the graft tool when needed; do not commit generated cards. |
 
-Create `docs/specs/` only when an actual maintained specification needs it. The
-folder is reserved by purpose and is not created empty. This reorganization adds
-no dependency checker, review automation, application behavior, or new workflow
-policy.
+`docs/specs/` contains approved or draft behavior contracts, including the
+[documentation dependency specification](specs/doc-dependencies.md). Add a
+specification when a substantial change needs a shared contract. Generated
+dependency maps stay under ignored `.scratch/doc-dependencies/`.
 
 ## Root exceptions
 
@@ -87,3 +87,17 @@ Run the [offline development checks](development/workflow.md#set-up-offline-deve
 check local Markdown links and anchors, and inspect ticket impact against the
 actual review base. Review `git status --short` and the staged diff before
 committing to catch private or generated files.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `.gitignore` | States which course data, scratch files, and generated artifacts stay local. | Ignore rules or tracking policy change. |
+| `CONTEXT.md` | Assigns the root context file a glossary-discovery role. | The pointer location or authoritative vocabulary home changes. |
+| `docs/development/workflow.md` | Assigns this file the maintained development-instructions role. | The workflow file location or assigned documentation role changes. |
+| `docs/development/ticket-workflow.md` | Assigns this file the maintained ticket-procedure role. | The ticket guide location or assigned documentation role changes. |
+| `.agents/skills/exam-next-ticket/SKILL.md` | Identifies the repository-scoped ticket skill and its discovery path. | Skill name, location, scope checks, or backlog discovery change. |
+| `scripts/tickets.py` | Documents the permanent backlog default and supported operations. | Default backlog location or path-resolution behavior changes. |
+| `scripts/ticket_history.py` | Describes recognition of current and historical backlog paths. | Historical location detection or fallback rules change. |
+<!-- doc-dependencies:end -->

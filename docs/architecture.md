@@ -122,3 +122,26 @@ calibration in ticket 09 remains pending; prototype captures do not settle it.
 The additional architecture boundaries proposed in ADR 0008 are a direction, not
 an inventory of modules already present. New acceptance policy, scoring changes,
 and provider changes require their own reviewed work. OCR remains outside the MVP.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/adr/0008-modular-pipeline-architecture.md` | Describes the implemented form of the accepted module boundaries. | Responsibilities, boundaries, or implementation status change. |
+| `docs/glossary.md` | Uses shared course, exam, topic, and accepted-state terms. | Domain meanings or state boundaries change. |
+| `pipeline/pipeline.py` | Describes CLI coordination, stage order, enabled features, and rebuild behavior. | Commands, orchestration, candidate acceptance, or startup configuration change. |
+| `pipeline/exam_roi/inputs.py` | Assigns discovery, extraction, and source provenance to the input module. | Input responsibilities or supported extraction behavior change. |
+| `pipeline/exam_roi/identity.py` | Assigns exam-ID and contained-path validation to the identity module. | Identity responsibilities or path validation change. |
+| `pipeline/exam_roi/question_context.py` | Assigns retained evidence and question grouping to the context module. | Context construction or module responsibilities change. |
+| `pipeline/exam_roi/llm.py` | Describes explicit clients, request budgets, batching, and transport handling. | Client interfaces or model-access responsibilities change. |
+| `pipeline/exam_roi/evaluation.py` | Describes validation, candidate construction, and review classification. | Candidate schema, validation boundaries, or classification change. |
+| `pipeline/exam_roi/taxonomy.py` | Describes aggregation from compatible accepted evidence and protected overrides. | Aggregation inputs, compatibility, or override behavior change. |
+| `pipeline/exam_roi/scoring.py` | Describes pure ranking and report-data calculation. | Scoring responsibilities or dependencies on storage and providers change. |
+| `pipeline/exam_roi/storage.py` | Describes isolated course state, locks, transactions, and recovery. | Stored state, session ownership, or transaction guarantees change. |
+| `pipeline/exam_roi/reports.py` | Describes report writers consuming supplied scoring data. | Writer inputs, export responsibilities, or acceptance behavior change. |
+| `pipeline/exam_roi/review.py` | Describes a retained reviewer separate from production CLI availability. | Reviewer responsibilities or integration boundaries change. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Names the contract governing candidate evidence and judgments. | The active contract or its interpretation changes. |
+| `pipeline/staged_evaluation.py` | Separates evaluation capture and replay from course processing. | Evaluation entry points, production reuse, or approval boundaries change. |
+| `docs/guides/staged-evaluation.md` | Summarizes the calibration limits and unapproved captured evidence. | Capture approval, evaluation capabilities, or calibration status changes. |
+<!-- doc-dependencies:end -->
