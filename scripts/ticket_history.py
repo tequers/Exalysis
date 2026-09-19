@@ -23,6 +23,7 @@ KNOWN_BACKLOG_SUPPORT = {
     "README.md",
     "TEMPLATE.md",
     "TICKET_STATUS.md",
+    "TICKET_07_IMPLEMENTATION_REPORT.md",
     "areas.json",
 }
 ID_FILENAME_RE = re.compile(r"^(?P<id>\d+)-.+\.md$", re.IGNORECASE)
@@ -152,8 +153,26 @@ def _valid_string_list(value: object) -> bool:
     )
 
 
+def backlog_path_at_commit(root: Path, backlog_path: str, revision: str) -> str:
+    """Follow only the repository's known backlog relocation when a path is absent.
+
+    An existing path wins even if its contents are malformed. Custom backlogs
+    never inherit the repository default's history.
+    """
+    normalized = PurePosixPath(backlog_path).as_posix().rstrip("/")
+    locations = ("tickets", ".scratch/reliable-exam-analysis")
+    if normalized not in locations:
+        return normalized
+    if _git_bytes(root, ["ls-tree", "-z", revision, "--", normalized]):
+        return normalized
+    previous = next(path for path in locations if path != normalized)
+    if _git_bytes(root, ["ls-tree", "-z", revision, "--", previous]):
+        return previous
+    return normalized
+
+
 def snapshot_at_commit(root: Path, backlog_path: str, revision: str) -> HistorySnapshot:
-    normalized_backlog = PurePosixPath(backlog_path).as_posix().rstrip("/")
+    normalized_backlog = backlog_path_at_commit(root, backlog_path, revision)
     areas_path = f"{normalized_backlog}/areas.json"
     issues_path = f"{normalized_backlog}/issues"
     blobs = _committed_blobs(root, revision, [areas_path, issues_path])
@@ -262,6 +281,9 @@ def _is_known_support_path(path: str, backlog_path: str) -> bool:
     if not path.startswith(prefix):
         return False
     relative = path[len(prefix) :]
+    parts = PurePosixPath(relative).parts
+    if len(parts) == 3 and parts[0] == "issues" and parts[1] in STATES and parts[2] == ".gitkeep":
+        return True
     return "/" not in relative and relative in KNOWN_BACKLOG_SUPPORT
 
 

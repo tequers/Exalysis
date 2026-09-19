@@ -5,7 +5,7 @@
 This document preserves the earlier workflow proposal and checkout observations.
 Its examples that start from local `main`, require a new branch for every task,
 or describe the old dirty tree are historical. Use the
-[contributor guide](../../CONTRIBUTING.md) for the current branch and review
+[development workflow](../development/workflow.md) for the current branch and review
 workflow, and the [branch consolidation record](branch-consolidation-2026-09-17.md)
 for the retained histories. Repository controls proposed below are not claims
 that those protections are configured today.

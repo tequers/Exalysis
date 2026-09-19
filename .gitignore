@@ -49,8 +49,7 @@ Courses/**/anki/
 Courses/**/candidates/
 Courses/**/parsed/
 
-# Real personal courses (kept locally for actual studying, not part of the portfolio repo —
-# the repo ships one synthetic example course instead; see Courses/Example_Course/).
+# Real personal courses kept locally for studying, outside the portfolio repository.
 Courses/Computer Vision/
 Courses/Introduction_to_quantum_computers/
 Courses/STUDY_PLAN_FINALS_AUG2026.md
@@ -79,8 +78,7 @@ node_modules/
 
 # Local agent settings, downloaded runtimes, and smoke-test output
 .claude/settings.local.json
-.scratch/runtime-deps/
-.scratch/glm-pipeline-smoke/
+.scratch/
 
 # Personal exam inputs and results stored under pipeline/
 /pipeline/EXAMS_SO/
