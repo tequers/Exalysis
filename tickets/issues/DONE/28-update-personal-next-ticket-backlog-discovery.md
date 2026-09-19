@@ -31,7 +31,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "6fa67c24a2ab621f3159373a3a79039560df78ec",
+    "replacement": null,
+    "reviewed_by": "Repository owner",
+    "evidence": [
+      "Owner passed ticket 28 review and explicitly requested merging into mvp-two-stage on 2026-09-19. The active Codex skill catalog now includes the repository-local exam-next-ticket skill. Implementation checks and independent read-only review are recorded in the ticket; no end-to-end delegated implementation is claimed."
+    ]
+  }
 }
 ```
 
@@ -95,3 +103,10 @@ Ticket 28 remains TO_REVIEW until this app discovery and workflow review passes.
 The skill's scope checks are instructions to the agent, not operating-system
 access controls. No claim of live UI discovery is made by the static validator
 or the read-only reviewer.
+
+## Human review approved, 2026-09-19
+
+The owner passed this task and requested merging into `codex/mvp-two-stage`.
+The current Codex skill catalog also lists the repository-local `exam-next-ticket`
+skill. Ticket 28 is now DONE; the earlier TO_REVIEW statement records the prior
+handoff. No additional end-to-end implementation test is claimed by this approval.
