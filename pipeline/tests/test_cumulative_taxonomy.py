@@ -108,11 +108,18 @@ class CumulativeTests(unittest.TestCase):
         self.assertEqual(topic["Diff"], 2)
         self.assertEqual(topic["excluded_legacy_exam_ids"], ["old"])
 
-    def test_missing_edge_evidence_is_rejected(self):
-        broken = paper("B", "A")
-        broken["topic_judgments"]["B"]["connection_edges"] = []
-        with self.assertRaisesRegex(ValueError, "matching edge evidence"):
-            aggregate_taxonomy({"topics": {}}, {"a": paper("A"), "b": broken})
+    def test_missing_edge_evidence_does_not_reject_mvp_candidate(self):
+        source = paper("A")
+        source["topic_judgments"]["A"].update(Conn=2, unlocks=["B"])
+        dependent = paper("B", "A")
+        dependent["topic_judgments"]["B"]["connection_edges"] = []
+
+        taxonomy = aggregate_taxonomy({"topics": {}}, {"a": source, "b": dependent})
+
+        self.assertEqual(taxonomy["topics"]["A"]["unlocks"], [])
+        self.assertEqual(taxonomy["topics"]["B"]["prerequisites"], [])
+        self.assertEqual(source["topic_judgments"]["A"]["unlocks"], ["B"])
+        self.assertEqual(dependent["topic_judgments"]["B"]["prerequisites"], ["A"])
 
     def test_process_keeps_candidate_separate_from_accepted_taxonomy(self):
         with tempfile.TemporaryDirectory() as folder:

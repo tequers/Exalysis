@@ -318,10 +318,6 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
             _validate_connection_edge(edge, by_id, allowed_topics, topic_name=name)
             for edge in edges
         ]
-        if {e["dependent"] for e in edges if e["prerequisite"] == name} != set(score["unlocks"]):
-            raise ValueError(f"{name}: every unlock requires matching edge evidence")
-        if {e["prerequisite"] for e in edges if e["dependent"] == name} != set(score["prerequisites"]):
-            raise ValueError(f"{name}: every prerequisite requires matching edge evidence")
         judgments = score.get("question_difficulty")
         if not isinstance(judgments, list) or not judgments:
             raise ValueError(f"{name}: question difficulty evidence is required")

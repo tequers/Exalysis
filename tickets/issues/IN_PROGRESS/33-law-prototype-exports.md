@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "59c1755d2a83a03cf90dc9cd35e6cb09328f915a",
-    "checked_at": "2026-09-19T14:35:09+00:00",
+    "commit": "aa6949df91f8c54e896b69e8c247aed3ca453b9e",
+    "checked_at": "2026-09-19T15:12:40+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
     "checker": "Codex",
     "result": "still_valid",
     "evidence": [
-      "Source audit confirms add-exam saves only candidates and rebuild reads accepted papers. Prototype export is absent; the user approved the recorded scope."
+      "Owner explicitly approved relaxing Stage 2 prerequisite and unlock edge-coverage rejection for the MVP; existing prototype scope and outputs remain unchanged."
     ],
     "provisional": false
   },
@@ -53,6 +53,8 @@
 
 The owner approved these three changes with "yes" on 2026-09-19 in the LAW portfolio conversation. See the specification for boundaries and acceptance evidence. This is a separate prototype path, not completion of tickets 03, 08, or 16. No live model calls, OCR, private exam tracking, or README revision is authorized here.
 
+The owner additionally approved relaxing Stage 2 dependency completeness for the MVP on 2026-09-19. A candidate must no longer be rejected when `prerequisites` or `unlocks` lack matching `connection_edges`; supplied edges remain validated and only validated edges contribute to the temporary taxonomy.
+
 ## Delivery and verification
 
 Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
@@ -67,8 +69,9 @@ Commands ran from the repository root with `PYTHONIOENCODING=utf-8`:
 - `python scripts/doc_dependencies.py build` and `python scripts/doc_dependencies.py check --against-artifacts .scratch/doc-dependencies`: passed.
 - `python scripts/doc_dependencies.py discover --file docs/guides/run-law-prototype.md`, repeated for the output-format guide and specification: valid. Unresolved references are generated course paths, the ignored `.env`, and command text. These are not tracked dependency targets. The requirements file is covered through the linked development workflow. An earlier attempt to run discovery on Python code was rejected because discovery accepts document owners; it was rerun on these documents.
 - A dry run against the owner's LAW course selected only `exams/2025_june.pdf`, with no model configuration or AI calls. `rebuild --help` exposes the offline prototype option.
+- The approved Stage 2 relaxation is covered by `test_missing_edge_evidence_does_not_reject_mvp_candidate`: unmatched prerequisite and unlock lists remain in the candidate, do not block processing, and do not create unsupported taxonomy edges. The cumulative-taxonomy and prototype suites each pass 11 tests; the full suite still passes 242 tests.
 
-The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. No remaining actionable findings were reported.
+The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. It also reviewed the Stage 2 relaxation, reran all 11 cumulative-taxonomy tests, and confirmed supplied edges remain validated while unsupported labels do not enter the aggregated taxonomy. No remaining actionable findings were reported.
 
 Documentation now links the prototype implementation to its specification, glossary, architecture, run guide, and format reference. Existing default-workflow, reviewer, storage, and provider documentation remains applicable. README revision is deferred as requested. The local dependency maps were refreshed; no generated maps or course artifacts are committed.
 
