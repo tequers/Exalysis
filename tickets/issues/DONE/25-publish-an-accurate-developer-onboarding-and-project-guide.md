@@ -45,7 +45,15 @@
     ],
     "provisional": false
   },
-  "closure": null
+  "closure": {
+    "reason": "implemented",
+    "commit": "fcb5a7a535bee939f7477f1e4d2aed578a9c4ec6",
+    "replacement": null,
+    "reviewed_by": "Repository owner",
+    "evidence": [
+      "Owner passed the unified workflow review and explicitly requested merging into mvp-two-stage. The agreement-first workflow, glossary, agent instructions and scope controls passed independent review; validation and remaining historical warnings are recorded in the ticket."
+    ]
+  }
 }
 ```
 
@@ -158,3 +166,9 @@ the full diff and independently checked all 210 local Markdown links.
 
 Ticket 25 remains TO_REVIEW until the owner approves this content. Technical
 checks and an independent consistency review do not substitute for that judgment.
+
+## Human review approved
+
+The owner passed the unified workflow and requested merging into
+`codex/mvp-two-stage`. Ticket 25 is now DONE. Earlier TO_REVIEW statements record
+prior handoffs; the closure metadata records the completed human review.
