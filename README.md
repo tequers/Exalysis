@@ -7,10 +7,8 @@ A Python CLI that reads past exam papers and ranks topics by relative study prio
 It accepts text files and PDFs with a text layer, keeps each course's state in one
 folder, and writes the ranking as Excel and JSON.
 
-Use these documents to work on the project:
+Use these documents to understand and run the project:
 
-- [Contributor guide](CONTRIBUTING.md). Set up the offline environment, run checks,
-  and follow the branch and review workflow.
 - [Documentation index](docs/README.md). Find a guide by task.
 - [Current architecture](docs/architecture.md). Trace the two-stage MVP from input
   selection to candidate storage and accepted-record reports.
@@ -48,7 +46,7 @@ The score uses these inputs:
 The score answers "where should I start?" It does not predict marks, estimate study
 time, teach the material, or evaluate a student's understanding. Difficulty is
 independent of marks and response format. See the
-[ranking methodology](pipeline/docs/Topic_ROI_Exam_Analysis_System.md) for the supported
+[ranking methodology](docs/guides/scoring-methodology.md) for the supported
 formula and its limits.
 
 The authoritative [evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md)
@@ -64,7 +62,7 @@ After the model stages:
 
 - Python validates both responses and calculates the deterministic metrics.
 - Independent model review stays disabled in the MVP CLI. The
-  [independent review reference](pipeline/docs/independent-review.md) describes the
+  [independent review reference](docs/guides/independent-review.md) describes the
   retained implementation for later work.
 
 Each candidate contains:
@@ -112,12 +110,12 @@ the JSON without a spreadsheet library.
 
 Before you run a command:
 
-- Complete the [offline environment setup](CONTRIBUTING.md#set-up-offline-development).
+- Complete the [offline environment setup](docs/development/workflow.md#set-up-offline-development).
 - Run commands from the repository root.
 - You do not need provider credentials for tests, help, `status`, dry runs, or
   rebuilding accepted records.
 - Before live analysis, complete the
-  [provider setup and approval](CONTRIBUTING.md#optional-live-provider-setup).
+  [provider setup and approval](docs/development/workflow.md#optional-live-provider-setup).
   The provider receives the extracted exam text. Approve the provider, exact models,
   and expected cost before you run `add-exam` without `--dry-run`.
 
@@ -240,11 +238,11 @@ paper identity and sitting-year decision.
 
 - `LLM_PROVIDER` selects Anthropic, DeepSeek, OpenAI, OpenRouter, or UnoRouter.
   Anthropic is the default. See the
-  [provider setup](CONTRIBUTING.md#optional-live-provider-setup).
+  [provider setup](docs/development/workflow.md#optional-live-provider-setup).
 - One course folder contains one exam's papers, state, and reports. State is never
   shared between course folders. See [ADR 0006](docs/adr/0006-course-folder-as-cli-argument.md).
 - To create a course folder, follow the
-  [new course setup](docs/solid/new-course-setup.md).
+  [new course setup](docs/guides/new-course-setup.md).
 
 ### Paper IDs and replacement
 
@@ -282,45 +280,38 @@ The storage layer protects course state:
 - A transaction journal restores either the complete old state or the complete new
   state after an interrupted write.
 
-See [course state and interruption recovery](docs/course-state-recovery.md) for the
+See [course state and interruption recovery](docs/guides/course-state-recovery.md) for the
 recovery rules and filesystem requirements.
 
 ## Repository map
 
-```
+```text
 .
-├── pipeline/
-│   ├── pipeline.py              main course CLI
-│   ├── staged_evaluation.py     model evaluation and replay CLI
-│   ├── requirements.txt
-│   ├── exam_roi/                inputs, model clients, validation, storage, scoring, reports
-│   │   └── contracts/           versioned evaluation contracts
-│   ├── tests/                   offline regression tests and synthetic fixtures
-│   └── docs/                    methodology, request limits, and review behavior
-│
-├── Courses/                     optional home for local course folders
-│   ├── Example_Course/          empty synthetic scaffold
-│   └── <Course>/<type>_<date>/  one self-contained COURSE_FOLDER
-│       ├── <past papers>.pdf    source files, optionally under exams/
-│       ├── candidates/          validated analyses awaiting acceptance or review
-│       ├── parsed/              accepted analyses, one JSON file per paper
-│       ├── taxonomy.json        topic difficulty, connections, and prerequisites
-│       └── Exam_ROI_Pipeline.{xlsx,json}
-│
-├── docs/
-│   ├── adr/                     architecture decisions
-│   └── solid/                   setup and usage guides
-│
-├── scripts/                     ticket backlog validation and maintenance
-└── CONTEXT.md                   project glossary
+|-- pipeline/          application CLIs, package, runtime contracts, and tests
+|-- scripts/           repository development tools and their tests
+|-- docs/
+|   |-- README.md      documentation index
+|   |-- architecture.md
+|   |-- glossary.md
+|   |-- guides/        setup, usage, providers, and recovery
+|   |-- development/   internal development and ticket workflow
+|   |-- adr/           decisions, including SUPPRESSED/ history
+|   `-- research/      maintained investigations and evidence
+|-- tickets/           permanent backlog and generated status table
+|-- Courses/           local course data; one tracked synthetic scaffold
+`-- .scratch/          ignored temporary local work
 ```
+
+The [repository structure policy](docs/repository-structure.md) defines each
+location, tracking rules, root exceptions, and how to maintain the layout.
+Tool configuration stays in its required location.
 
 The production CLI now delegates input handling, model access, evaluation, storage,
 scoring, and report generation to `exam_roi` modules. [ADR 0008](docs/adr/0008-modular-pipeline-architecture.md)
 explains the intended module boundaries. The current backlog is in
-[Ticket status](.scratch/reliable-exam-analysis/TICKET_STATUS.md).
+[Ticket status](tickets/TICKET_STATUS.md).
 
-The [ticket workflow](docs/ticket-workflow.md) explains how to choose, update, and
+The [ticket workflow](docs/development/ticket-workflow.md) explains how to choose, update, and
 verify project work. Ticket files are the source of truth, and the status table is
 generated from them. Run `python scripts/check_tickets.py` to check the files and run
 the ticket tests.
@@ -329,12 +320,12 @@ the ticket tests.
 
 | Document                                                                      | Use it for                                                     |
 | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [New course setup](docs/solid/new-course-setup.md)                            | Course folder conventions and the per-course workflow.         |
+| [New course setup](docs/guides/new-course-setup.md)                            | Course folder conventions and the per-course workflow.         |
 | [Evaluation contract 1.2.0](pipeline/exam_roi/contracts/evaluation-v1.2.0.md) | Required evidence, difficulty anchors, and ambiguity rules.    |
-| [Independent review](pipeline/docs/independent-review.md)                     | Retained reviewer implementation, disabled in the MVP CLI.     |
-| [Model request limits](pipeline/docs/model-request-limits.md)                 | Context and output token budgets for both model stages.        |
-| [Course state recovery](docs/course-state-recovery.md)                        | Locking, transaction recovery, and damaged-state handling.     |
-| [Staged evaluation](docs/staged-evaluation.md)                                | Capture, audit, approve, and replay model evaluation fixtures. |
+| [Independent review](docs/guides/independent-review.md)                     | Retained reviewer implementation, disabled in the MVP CLI.     |
+| [Model request limits](docs/guides/model-request-limits.md)                 | Context and output token budgets for both model stages.        |
+| [Course state recovery](docs/guides/course-state-recovery.md)                        | Locking, transaction recovery, and damaged-state handling.     |
+| [Staged evaluation](docs/guides/staged-evaluation.md)                                | Capture, audit, approve, and replay model evaluation fixtures. |
 
 ## Studying with the output
 
@@ -347,7 +338,7 @@ and shares no code with this repo. The generated files are the only link between
 
 - **One course folder is the atomic state boundary.** Each holds one exam's past-paper corpus,
   taxonomy, and ROI sheet. Nothing is shared across folders, even for the same subject. See
-  [`CONTEXT.md`](CONTEXT.md) and
+  [`docs/glossary.md`](docs/glossary.md) and
   [`docs/adr/0001-course-exam-hierarchy.md`](docs/adr/0001-course-exam-hierarchy.md).
 - **Exam folder names are `<type>_<date>`.** Examples include `final_26_08_2026`
   and `theory_20_08_2026`.

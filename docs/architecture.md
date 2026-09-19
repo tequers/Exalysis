@@ -1,10 +1,10 @@
 # Current architecture
 
 This describes the checked-out two-stage MVP after the September 2026 branch
-consolidation. The [contributor guide](../CONTRIBUTING.md) explains how to obtain
+consolidation. The [development workflow](development/workflow.md) explains how to obtain
 the appropriate branch and run its offline checks. [ADR 0008](adr/0008-modular-pipeline-architecture.md)
 records the modularization direction and progress. The
-[glossary](../CONTEXT.md) defines Course, Exam, and Topic.
+[glossary](glossary.md) defines Course, Exam, and Topic.
 
 ## Two stages produce a candidate
 
@@ -31,7 +31,7 @@ Its `process_exam_file` function coordinates these steps:
    review as disabled. It rejects `--review` and nonzero `--review-corrections`.
 
 Two model stages do not mean exactly two network requests. Batching and retries
-can add requests. The [limits guide](../pipeline/docs/model-request-limits.md)
+can add requests. The [limits guide](guides/model-request-limits.md)
 describes budgeting. With `--dry-run`, input selection stops before analysis and
 requires no model configuration.
 
@@ -92,7 +92,7 @@ Each course folder is an independent state boundary. A course lock serializes
 commands that use `CourseStore`; its journal recovers interrupted state commits.
 Bad or incompatible saved records stop processing rather than disappearing from
 the calculation. Generated reports can be recreated with `rebuild`; follow the
-[state recovery guide](course-state-recovery.md) for lock and record errors.
+[state recovery guide](guides/course-state-recovery.md) for lock and record errors.
 
 ## Offline evidence and evaluation
 
@@ -105,15 +105,15 @@ not a live model's accuracy.
 CLI. It captures or replays the production extraction and analysis functions with
 synthetic cases. A human must approve reference evidence before it becomes a
 trusted replay reference. The checked-in Astra capture remains unapproved evidence
-with documented representation disagreements. See [staged evaluation](staged-evaluation.md).
+with documented representation disagreements. See [staged evaluation](guides/staged-evaluation.md).
 
-[Ticket tooling](ticket-workflow.md) is separate from course processing. It uses
+[Ticket tooling](development/ticket-workflow.md) is separate from course processing. It uses
 standard-library scripts and authoritative Markdown ticket records, then generates
 the shared status table. It does not analyze papers or call providers.
 
 ## Pending work
 
-The [backlog](../.scratch/reliable-exam-analysis/TICKET_STATUS.md) is the authority
+The [backlog](../tickets/TICKET_STATUS.md) is the authority
 for current ticket states. In this MVP, candidate acceptance, withdrawal, and the
 associated CLI lifecycle from ticket 08 remain pending. Independent model review
 exists as a tested module but is unavailable in normal CLI processing. Broader
