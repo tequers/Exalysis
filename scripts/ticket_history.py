@@ -281,6 +281,9 @@ def _is_known_support_path(path: str, backlog_path: str) -> bool:
     if not path.startswith(prefix):
         return False
     relative = path[len(prefix) :]
+    parts = PurePosixPath(relative).parts
+    if len(parts) == 3 and parts[0] == "issues" and parts[1] in STATES and parts[2] == ".gitkeep":
+        return True
     return "/" not in relative and relative in KNOWN_BACKLOG_SUPPORT
 
 
