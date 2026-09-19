@@ -33,3 +33,4 @@
 | 27 | [27](issues/DONE/27-organize-repository-files-by-purpose.md) | Organize repository files by purpose | P2 | DONE | None | still valid | implemented |
 | 28 | [28](issues/DONE/28-update-personal-next-ticket-backlog-discovery.md) | Add a project-local next-ticket skill | P2 | DONE | None | still valid | implemented |
 | 29 | [29](issues/DONE/29-doc-dependency-spec.md) | Specify documentation dependency checking | P2 | DONE | None | still valid | implemented |
+| 30 | [30](issues/OPEN/30-doc-dependencies.md) | Implement the approved documentation dependency tool | P2 | OPEN | None | not recorded | None |
