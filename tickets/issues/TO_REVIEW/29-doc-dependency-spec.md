@@ -21,7 +21,8 @@
     "docs/development/glossary.md",
     "docs/repository-structure.md",
     "docs/README.md",
-    "docs/specs/doc-dependencies.md"
+    "docs/specs/doc-dependencies.md",
+    "docs/specs/doc-dependencies-reference.md"
   ],
   "verification": {
     "commit": "a7b83a56109329513687635ffb04cbc503381e47",
@@ -107,3 +108,30 @@ Verification on this branch:
 3. Confirm the acceptance criteria and implementation boundary. Approval here
    accepts the design; the Python implementation and declaration rollout require
    their own approved work. This ticket remains TO_REVIEW pending your judgment.
+
+## Readability revision requested by the owner
+
+The owner found the draft too long and paragraph-heavy. The main specification
+now presents the workflow, example, coverage, commands, and review duties with
+short sections, bullets, and tables. Detailed parsing, Git, JSON, artifact, and
+acceptance rules moved to `docs/specs/doc-dependencies-reference.md`. The two
+files form one specification and link to each other. This split changes how the
+proposal is presented, not its intended behavior or implementation scope.
+
+The overview is about two-thirds shorter by word count. The new reference link
+exists so implementers can find the complete contract without putting every
+technical rule in the human overview. Existing policy links remain intact.
+No dependency declaration or application relationship changed.
+
+Validation of this revision:
+
+- `python -m unittest discover -s pipeline/tests -p 'test_*.py'` with `PYTHONIOENCODING=utf-8`: 231 passed.
+- `python scripts/check_tickets.py`: 39 passed; zero errors and the same six historical review-evidence warnings listed above.
+- Local Markdown path/anchor audit: 229 links, zero errors. Original command and JSON example blocks are retained exactly; the JSON example parses.
+- `git diff --check -- docs/specs tickets`: passed.
+- Independent review compared both files with the committed draft. It identified a malformed glossary-table separator and a missing explicit reviewer checklist; both were restored. No tool behavior was changed.
+
+For human review, start with `docs/specs/doc-dependencies.md`. The expected result
+is that the workflow and proposed policy can be understood without reading the
+technical reference. Use the reference to check exact implementation rules.
+The original design approval remains pending; this ticket stays TO_REVIEW.
