@@ -100,3 +100,16 @@ python -m unittest discover -s pipeline/tests -q
 context persistence, page continuations, cross-question references, input and
 output budgets, large topic sets, merge coverage, and truncated responses. It uses
 fake clients and makes no live API calls.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `pipeline/exam_roi/llm.py` | Explains request budgets, token counting, completion checks, and injected clients. | Limit defaults, interfaces, retries, or truncation handling change. |
+| `pipeline/exam_roi/question_context.py` | Explains complete question groups and retained evidence context. | Heading recognition, cross-references, or context construction changes. |
+| `pipeline/pipeline.py` | Explains per-stage limits, batching, and configuration integration. | Stage signatures, environment defaults, or splitting behavior change. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Preserves the difficulty baseline and evidence requirements during batching. | Contract text, evidence rules, or background-assumption requirements change. |
+| `pipeline/tests/test_request_limits.py` | Cites offline coverage of limits, context retention, and batch recovery. | Regression cases or the behavior those checks establish change. |
+| `.env.example` | Exposes the documented per-stage request budget settings. | Budget variable names, examples, or defaults change. |
+<!-- doc-dependencies:end -->

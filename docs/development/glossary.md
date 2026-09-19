@@ -27,3 +27,11 @@ Use decided, implemented, and verified as separate claims. For example, a decisi
 can be approved while its implementation is pending, and an implemented change
 can pass offline tests while its content still awaits human review. Record the
 revision, checks, and remaining judgments instead of calling all three complete.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `scripts/tickets.py` | Defines implemented ticket states, preflight, and closure evidence. | State transitions or meanings of verification and completion change. |
+<!-- doc-dependencies:end -->

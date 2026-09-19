@@ -230,8 +230,9 @@ The pipeline stores each paper as a separate record and a separate report column
 - An academic year such as `2021-2022` uses the later year, `2022`.
 - `--year` overrides the detected year for one paper.
 
-See [ADR 0007](docs/adr/0007-one-record-per-paper-and-the-sitting-year.md) for the
-paper identity and sitting-year decision.
+[ADR 0007](docs/adr/0007-one-record-per-paper-and-the-sitting-year.md) accepts a
+stricter year-prefixed filename rule. The CLI does not yet enforce that decision;
+the rules above describe current behavior.
 
 ### Course folders and providers
 
@@ -346,7 +347,7 @@ and shares no code with this repo. The generated files are the only link between
 - **Course materials are never committed.** Lecture slides, exam papers, exercise sheets, and
   the pipeline's verbatim text extractions (`candidates/*.json` and `parsed/*.json`) are
   copyrighted or personal. See `.gitignore`. The pipeline reads them locally. The repository
-  contains only the processing code and one synthetic example.
+  contains processing code and synthetic test fixtures.
 
 See [`docs/adr/`](docs/adr/) for the reasoning behind these decisions, in particular
 [ADR 0005](docs/adr/SUPPRESSED/0005-portfolio-cleanup-and-repo-split.md) for why the repo looks the way it
@@ -355,3 +356,31 @@ does today.
 ## License
 
 [MIT](LICENSE) © 2026 Alberto Antequera Fernandez Palacios
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/architecture.md` | Summarizes the available two-stage workflow and its limits. | Command availability, candidate acceptance, or module boundaries change. |
+| `docs/glossary.md` | Uses Course, Exam, Topic, and Priority with their shared meanings. | Domain definitions or course isolation rules change. |
+| `docs/guides/scoring-methodology.md` | Summarizes ranking arithmetic and evidence limits. | Formula, score interpretation, or aggregation rules change. |
+| `docs/adr/0007-one-record-per-paper-and-the-sitting-year.md` | Describes current paper identity and year behavior beside the accepted naming decision. | The decision, its implementation status, or runtime identity rules change. |
+| `docs/repository-structure.md` | Publishes a condensed repository map and tracking rules. | Maintained file locations or root exceptions change. |
+| `docs/development/workflow.md` | Directs setup, offline checks, and approval before live analysis. | Setup commands, provider approval, or required checks change. |
+| `pipeline/pipeline.py` | Documents commands, flags, exit codes, and candidate-only writes. | CLI arguments, outcomes, defaults, or acceptance behavior change. |
+| `pipeline/exam_roi/inputs.py` | Documents input selection, extraction checks, and provenance. | Supported files, discovery order, exclusions, or text validation change. |
+| `pipeline/exam_roi/identity.py` | Documents safe paper IDs and record paths. | ID validation, filename limits, or path guards change. |
+| `pipeline/exam_roi/storage.py` | Summarizes locking, state validation, and recovery guarantees. | Locks, transactions, state versions, or recovery behavior change. |
+| `pipeline/exam_roi/reports.py` | Describes report formats, fields, and paper labels. | Export schema, filenames, labels, or rendering behavior change. |
+| `pipeline/requirements.txt` | Supplies the dependencies for documented installation. | Dependency lists, pins, or installation requirements change. |
+| `docs/adr/0001-course-exam-hierarchy.md` | Applies the one-exam state boundary to course folder conventions. | Course hierarchy or sharing between exam types changes. |
+| `docs/adr/0006-course-folder-as-cli-argument.md` | Documents the decided course-folder argument and independent destination. | Course selection or output-location policy changes. |
+| `docs/adr/0008-modular-pipeline-architecture.md` | Summarizes the current division into focused pipeline modules. | Module boundaries or their implementation status change. |
+| `docs/development/ticket-workflow.md` | Describes authoritative ticket records and the validation command. | Ticket authority, workflow entry points, or validation instructions change. |
+| `docs/guides/course-state-recovery.md` | Summarizes storage protections and directs users to recovery procedures. | Lock, transaction, or recovery guarantees change. |
+| `docs/guides/independent-review.md` | Summarizes the retained reviewer and disabled production integration. | Review availability or the meaning of review outcomes changes. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Summarizes difficulty anchors, evidence requirements, and versioned judgments. | Active contract version, rubric, or evidence requirements change. |
+| `LICENSE` | Displays the project license badge. | The license terms or declared license change. |
+| `.gitignore` | Supports the policy that private course data and generated outputs stay out of Git. | Ignore rules or documented data-tracking boundaries change. |
+<!-- doc-dependencies:end -->

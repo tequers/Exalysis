@@ -214,3 +214,12 @@ preserves the reconciliation decisions and historical unknowns.
 - `impact` needs an area configuration at both compared commits. A revision from
   before this migration requires a new committed baseline. `audit` covers recorded
   age and structural findings; `preflight` checks current checkout freshness.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/development/ticket-workflow.md` | Directs readers of the historical plan to current ticket procedures. | Current workflow location or the historical-versus-current distinction changes. |
+| `docs/repository-structure.md` | Directs readers of old backlog paths to the maintained location policy. | Backlog locations or historical-path guidance change. |
+<!-- doc-dependencies:end -->

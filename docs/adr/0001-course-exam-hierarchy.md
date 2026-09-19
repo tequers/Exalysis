@@ -19,3 +19,11 @@ The pipeline never combines state from separate Course folders. If a subject has
 The MVP needs no nested exam-type hierarchy or active-exam selection rule. Course setup and pipeline commands always refer to one folder and one exam type.
 
 A future architecture decision may add multiple exam types to one Course. Until then, separate Course folders provide the same isolation without extra state or selection logic.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `pipeline/exam_roi/storage.py` | Isolated course storage implements the decided exam state boundary. | State becomes shared, split, or merged across course folders. |
+<!-- doc-dependencies:end -->

@@ -18,3 +18,14 @@ When testing the exam pipeline:
 The normal smoke-test command is:
 
 `python pipeline/pipeline.py ".scratch/glm-pipeline-smoke" add-exam "exam_2026.txt"`
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/development/workflow.md` | Requires provider, exact model, cost, and data-sharing approval. | Live-run approval or provider setup steps change. |
+| `pipeline/pipeline.py` | Supplies the production smoke command and saved model provenance. | Environment loading, CLI invocation, or provenance fields change. |
+| `pipeline/exam_roi/llm.py` | Supplies UnoRouter configuration and credential aliases. | Provider identifiers, credential aliases, or SDK configuration change. |
+| `.env.example` | Shows the provider and model variables checked before the smoke test. | UnoRouter variable names, model settings, or credential examples change. |
+<!-- doc-dependencies:end -->

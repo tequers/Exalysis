@@ -2,6 +2,12 @@
 
 **Status:** accepted
 
+**Implementation status, 2026-09-19:** the current CLI does not enforce this
+decision. It accepts other safe paper IDs, infers the year from filenames or
+paper/model output, and permits `--year`. The decision below remains accepted;
+implementing it or superseding it requires separate approved work. The
+[README](../../README.md#identify-sittings-and-years) describes current behavior.
+
 ## Context
 
 The MVP needs one predictable way to identify an exam and determine its year. Supporting several
@@ -50,3 +56,13 @@ part of the filename, the containing folder, the document contents, or the curre
   support. The MVP does not impose a language, letter case, or naming vocabulary.
 - Two files with the same complete filename stem represent the same exam identifier, even if they
   are stored in different folders or use different supported file extensions.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `pipeline/pipeline.py` | Selects paper IDs and years but does not yet enforce the accepted filename decision. | Prefix enforcement, year inference, overrides, or ID collision handling change. |
+| `pipeline/exam_roi/identity.py` | Validates paper IDs without enforcing the decided year prefix. | Safe-ID rules or year-prefix validation change. |
+| `pipeline/tests/test_exam_identity.py` | Records the currently supported ID and replacement behavior. | Naming enforcement or its regression expectations change. |
+<!-- doc-dependencies:end -->

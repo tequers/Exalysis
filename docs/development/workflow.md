@@ -315,10 +315,11 @@ records evidence; it does not itself merge a branch.
 | Human and independent review | Compare the result with the approved agreement and assess defects, omissions, and unnecessary additions. | Record real decisions and evidence. An agent cannot supply the human's approval. |
 
 The [documentation dependency tool](../specs/doc-dependencies.md) provides
-`check`, `build`, `impact`, and `discover`. Declaration rollout is still pending:
-the current documents lack dependency blocks, so `check` reports coverage errors.
-The tool cannot yet produce a complete repository map. Review related claims
-manually until the declarations are authored and reviewed.
+`check`, `build`, `impact`, and `discover`. Covered documents now contain initial
+dependency blocks. Use the specification's before-edit and before-review commands
+to query related files and refresh local Mermaid and JSON maps. A current passing
+check establishes structural coverage. It does not establish semantic completeness.
+Comparisons with commits before the rollout retain explicit historical coverage gaps.
 
 The tool validates structure and reports review candidates. It cannot prove
 semantic consistency or human approval. There is no automatic completion gate
@@ -370,3 +371,26 @@ Set request budgets to the selected models' actual limits using the
 follow [new course setup](../guides/new-course-setup.md) to save a candidate.
 Independent review and candidate promotion remain unavailable in the MVP CLI.
 OCR is outside the MVP and needs a separate approved change with an expected cost.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `AGENTS.md` | Explains the repository instructions for agreement, implementation, and review. | Approval, branch, verification, review, or completion rules change. |
+| `docs/development/glossary.md` | Uses the agreed meanings of scope, specification, decision, and verification. | Workflow terminology or evidence distinctions change. |
+| `docs/development/ticket-workflow.md` | Summarizes ticket selection, verification, state transitions, and closure. | Ticket commands or lifecycle procedures change. |
+| `docs/specs/doc-dependencies.md` | Describes how dependency checks support documentation review. | Commands, coverage, review duties, or enforcement status change. |
+| `docs/research/branch-consolidation-2026-09-17.md` | Uses recorded branch lineage to explain the MVP base and retained main history. | A correction to the recorded lineage changes branch-selection guidance. |
+| `docs/research/git-and-pull-requests-for-ai-development.md` | Applies the research conclusions about reviewable changes and recovery. | Adopted Git practices or the boundary between proposals and current rules changes. |
+| `.agents/skills/exam-next-ticket/SKILL.md` | Explains when the local ticket skill runs and what it requires. | Skill trigger, approval, delegation, or closure instructions change. |
+| `.agents/skills/graft/SKILL.md` | Identifies the local code-discovery skill and when to use it. | Skill trigger, location, or retrieval instructions change. |
+| `scripts/tickets.py` | Publishes ticket commands and their enforcement limits. | CLI arguments, preflight, transitions, or verification behavior change. |
+| `scripts/check_tickets.py` | Defines the local tooling check developers must run. | Tests executed, validation behavior, or exit handling change. |
+| `.github/workflows/tickets.yml` | States the CI platforms, Python versions, and limits of automation. | CI matrix, required checks, or impact reporting change. |
+| `pipeline/requirements.txt` | Supplies the dependencies used by the setup instructions. | Dependency lists, pins, or installation requirements change. |
+| `.env.example` | Supplies the provider configuration template used in live setup. | Environment variable names, providers, or defaults change. |
+| `pipeline/pipeline.py` | Documents offline commands, live startup, and disabled MVP features. | CLI help, environment loading, provider setup, or availability gates change. |
+| `pipeline/exam_roi/llm.py` | Documents supported providers, credentials, and model configuration. | Providers, credential aliases, model setup, or request budgeting change. |
+| `docs/guides/model-request-limits.md` | Directs live setup to the request-budget rules. | Budget variables, defaults, or setup requirements change. |
+<!-- doc-dependencies:end -->

@@ -3,20 +3,30 @@
 The pipeline works from exam papers alone. Its authoritative rules are the
 [evaluation contract 1.2.0](../../pipeline/exam_roi/contracts/evaluation-v1.2.0.md).
 
+## Current MVP status
+
+`add-exam` saves observations and proposed taxonomy changes to a candidate.
+It does not promote that candidate into accepted state. The retained
+`refresh_connections` helper is not called by the production workflow, so new
+topic names do not trigger review of earlier papers. `rebuild` uses already
+accepted records without model calls. See the [current architecture](../architecture.md).
+
 ## Each paper adds evidence
 
 1. Extract questions and reuse the course folder's established topic names.
 2. Judge every tested topic, including existing topics, using this paper's evidence.
    Infer background assumptions from the paper; no manual prerequisites are used.
-3. Store the independent observations in `parsed/<paper>.json`, under
+3. Store the independent observations in `candidates/<paper>.json`, under
    `topic_judgments`. Quotes, question IDs, reasoning, and the contract version are retained.
-4. When new names appear, review connections in earlier current-contract papers using
-   the expanded vocabulary. Store the latest edges under `connection_review`, preserving
-   the original judgments. This adds model calls when the taxonomy grows.
-5. Recompute taxonomy.json from the accumulated evidence, then export the ranking.
+   Promotion into `parsed/` remains pending acceptance work.
+4. The retained connection-refresh helper can review earlier current-contract papers
+   using expanded topic names and save replacement edges under `connection_review`.
+   Production does not call this helper. Wiring it in would add model calls.
+5. For already accepted papers, `rebuild` recomputes taxonomy.json and exports the ranking.
 
 The taxonomy is a summary, not a permanent copy of the first paper's scores.
-Reparsing an existing paper replaces its contribution, including obsolete edges.
+Reprocessing an existing paper replaces only its candidate. Replacing the accepted
+contribution, including obsolete edges, requires the pending acceptance workflow.
 Rebuild repeats the summary calculation without calling the model. Paper observations
 and human overrides remain separate from automatically calculated estimates.
 
@@ -36,8 +46,9 @@ per-paper Conn scores. A later paper with no edge does not erase evidence in ano
 paper. Correcting the source paper can remove an edge. Cyclic dependencies are kept
 as conflicts for review and excluded from the count until corrected.
 
-Earlier papers are reviewed when the topic vocabulary expands. This allows an old
-question to support A → B even if A received its canonical name only in a later paper.
+The retained connection-refresh design allows an old question to support A → B
+even if A received its canonical name only in a later paper. This refresh is not
+part of current production processing.
 The newest connection review replaces that paper's active edges. It does not alter
 its original difficulty observations. More data can improve coverage; it does not
 by itself prove the judgments are correct.
@@ -70,8 +81,9 @@ Spreadsheet edits are not read back into canonical state.
 Contract 1.2.0 introduces per-paper connection edges and cumulative summaries.
 Earlier contracts and records remain intact. Older papers are listed in
 `excluded_legacy_exam_ids`; their old numeric scores are not treated as new evidence.
-Reprocess their source papers once with `add-exam --force` to bring them into the
-current analysis. This calls the model. `rebuild` alone cannot infer missing evidence.
+Reprocess their source papers with `add-exam --force` to create current-contract
+candidates. This calls the model but does not replace accepted legacy records.
+`rebuild` alone cannot infer missing evidence.
 Old duration fields are ignored and omitted from exports.
 
 New analyses record `evaluation_contract_version` and `evaluation_contract_sha256`.
@@ -113,7 +125,23 @@ updates, discovery order, repeated edges, replacement, cycles, assumption groups
 overrides, exports, and legacy compatibility. They do not measure live-model accuracy;
 independent human calibration remains ticket 9.
 
-Judgments and refreshed edges are validated before writes. Rebuild can reconstruct an
-outdated taxonomy from saved observations. Multi-file transactional recovery and
-concurrent writers remain ticket 7; independent review and acceptance gating remain
-later tickets. These are not implemented merely by refreshing the taxonomy.
+Judgments are validated before candidate writes. Rebuild can reconstruct an outdated
+taxonomy from accepted observations. Course locking and transaction-journal recovery
+are implemented; see [state recovery](course-state-recovery.md). Candidate acceptance,
+vocabulary-growth refresh of earlier papers, and production independent review
+remain pending. The aggregation rules above do not implement those workflow steps.
+
+## Dependencies
+
+<!-- doc-dependencies:start -->
+| File | Reason | Review when |
+|---|---|---|
+| `docs/architecture.md` | Distinguishes available candidate analysis and rebuild from pending acceptance. | Production workflow or acceptance availability changes. |
+| `docs/guides/course-state-recovery.md` | Supplies current transaction and concurrency guarantees. | Storage guarantees or recovery limitations change. |
+| `pipeline/exam_roi/contracts/evaluation-v1.2.0.md` | Explains the authoritative evaluation rubric and evidence rules. | Contract version, scales, ambiguity, or evidence requirements change. |
+| `pipeline/exam_roi/scoring.py` | Explains ranking arithmetic, format weights, and tiers. | Formula, weights, allocation, or tier selection changes. |
+| `pipeline/exam_roi/taxonomy.py` | Explains cumulative connections, difficulty groups, and human overrides. | Aggregation, edge replacement, compatibility, or override rules change. |
+| `pipeline/pipeline.py` | Distinguishes active analysis and rebuild from retained connection-review behavior. | Acceptance, reprocessing, connection refresh, or rebuild integration changes. |
+| `pipeline/exam_roi/reports.py` | Describes the exported evidence and review notes. | Export fields or XLSX and JSON representations change. |
+| `pipeline/tests/test_cumulative_taxonomy.py` | Supplies regression evidence for cumulative judgments and overrides. | Tested aggregation, replacement, or conflict behavior changes. |
+<!-- doc-dependencies:end -->
