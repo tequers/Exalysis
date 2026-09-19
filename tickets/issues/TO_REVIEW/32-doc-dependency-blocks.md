@@ -119,3 +119,28 @@ specification ownership and narrowed dependency-installation triggers.
 all 25 historical owners without blocks. It reported exactly 162 added pairs and
 no removed relationships. That is the expected first-rollout result, not a passing
 historical coverage check. Human acknowledgment remains pending.
+
+## Owner-requested publication follow-up
+
+The owner requested the graph in docs for GitHub readers. The map now lives at
+`docs/development/dependency-map.md`, linked from the index and specification.
+It publishes the 64-node, 162-relationship snapshot from commit 1cdedd48abc3b41b66aa4c4fa4f20fe748c176bd.
+It includes provenance, refresh instructions, and its own dependency block. This
+is an explicit exception to the earlier ignored-artifact-only publication policy;
+working JSON and Markdown artifacts remain ignored, and CLI behavior is unchanged.
+Current coverage becomes 26 owners with 165 relationships. Earlier counts and
+discovery evidence above describe the initial rollout before this follow-up.
+
+
+Publication verification: the content between the publication markers matches the
+generated snapshot from the named commit exactly, with 64 nodes and 162 edges.
+The same full commands listed above passed again: 231 application tests, 76 tooling
+tests, 0 ticket errors, and six existing historical-closure warnings. Current
+`check` passes with 26 owners, 65 nodes, and 165 relationships. The pinned
+`check --ref 1cdedd48abc3b41b66aa4c4fa4f20fe748c176bd --against-artifacts .scratch/doc-dependencies-published`
+also passes. All 55 local link targets in the five publication documents exist.
+For human review, open the published dependency-map.md on GitHub and confirm that
+the Mermaid diagram renders and the snapshot label and refresh steps are clear.
+
+Independent publication review passed after adding the map-to-repository-policy
+relationship. This makes the tracking exception visible in direct reverse lookup.

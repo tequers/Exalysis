@@ -240,7 +240,12 @@ flowchart LR
 - Render both fully and write temporary files before replacing each output.
 - An I/O failure or interruption may leave one new and one old file; never report success then.
 - The next check rejects mismatched digests or bytes.
-- No generated map is committed.
+- Working artifacts remain ignored. The owner authorized one tracked, commit-pinned
+  publication at `docs/development/dependency-map.md`. It wraps the generated snapshot
+  with refresh instructions and its own dependency block; it remains in owner coverage.
+- The CLI still writes only to ignored directories. Publish by copying the generated
+  content as described on that page. The artifact freshness check covers the local
+  artifact pair, not the wrapped publication.
 
 ### Source digest
 
