@@ -23,12 +23,12 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 try:
-    from .ticket_history import HistoryError, select_impact, snapshot_at_commit
+    from .ticket_history import HistoryError, backlog_path_at_commit, select_impact, snapshot_at_commit
 except ImportError:  # Direct execution: scripts/ is the import root.
-    from ticket_history import HistoryError, select_impact, snapshot_at_commit
+    from ticket_history import HistoryError, backlog_path_at_commit, select_impact, snapshot_at_commit
 
 
-DEFAULT_BACKLOG = ".scratch/reliable-exam-analysis"
+DEFAULT_BACKLOG = "tickets"
 STATES = ("OPEN", "BLOCKED", "IN_PROGRESS", "TO_REVIEW", "DONE")
 PRIORITIES = ("P1", "P2", "P3")
 CLOSURE_REASONS = (
@@ -723,6 +723,10 @@ def _has_git_history(root: Path) -> bool:
 def _ticket_metadata_at_commit(backlog: Backlog, ticket: Ticket, commit: str) -> Optional[Dict[str, Any]]:
     """Read the ticket's metadata at a commit without assuming its old folder."""
     backlog_rel = backlog.path.relative_to(backlog.root).as_posix()
+    try:
+        backlog_rel = backlog_path_at_commit(backlog.root, backlog_rel, commit)
+    except HistoryError:
+        return None
     listing = _run_git(
         backlog.root,
         ["ls-tree", "-r", "--name-only", commit, "--", f"{backlog_rel}/issues"],
@@ -751,6 +755,10 @@ def _ticket_metadata_at_commit(backlog: Backlog, ticket: Ticket, commit: str) ->
 def _ticket_body_at_commit(backlog: Backlog, ticket: Ticket, commit: str) -> Optional[str]:
     """Read the historical ticket body, resolving its state folder by ID."""
     backlog_rel = backlog.path.relative_to(backlog.root).as_posix()
+    try:
+        backlog_rel = backlog_path_at_commit(backlog.root, backlog_rel, commit)
+    except HistoryError:
+        return None
     listing = _run_git(
         backlog.root,
         ["ls-tree", "-r", "--name-only", commit, "--", f"{backlog_rel}/issues"],

@@ -21,7 +21,7 @@ from pathlib import Path
 REPOSITORY = Path(__file__).resolve().parents[2]
 SCRIPT = REPOSITORY / "scripts" / "tickets.py"
 MIGRATION = REPOSITORY / "scripts" / "migrate_tickets.py"
-BACKLOG = ".scratch/reliable-exam-analysis"
+BACKLOG = "tickets"
 
 
 def metadata(

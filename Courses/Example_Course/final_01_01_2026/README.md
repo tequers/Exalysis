@@ -2,7 +2,7 @@
 
 This is the one example `Course/Exam` shipped in the repo, meant to give a first-time reader
 something to point the pipeline at without needing their own past exams (real course material is
-never committed — see the repo root `.gitignore` and [`CONTEXT.md`](../../../CONTEXT.md)).
+never committed — see the repo root `.gitignore` and [`docs/glossary.md`](../../../docs/glossary.md)).
 
 It's currently empty scaffolding, not a filled-in example yet. To populate it and try the
 pipeline end-to-end:

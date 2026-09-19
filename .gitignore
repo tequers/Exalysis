@@ -79,8 +79,7 @@ node_modules/
 
 # Local agent settings, downloaded runtimes, and smoke-test output
 .claude/settings.local.json
-.scratch/runtime-deps/
-.scratch/glm-pipeline-smoke/
+.scratch/
 
 # Personal exam inputs and results stored under pipeline/
 /pipeline/EXAMS_SO/
