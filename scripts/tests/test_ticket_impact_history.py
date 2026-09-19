@@ -72,13 +72,21 @@ class ImpactHistorySelectionTests(unittest.TestCase):
             [
                 ".scratch/reliable-exam-analysis/issues/OPEN/notes.md",
                 ".scratch/reliable-exam-analysis/TICKET_STATUS.md",
+                ".scratch/reliable-exam-analysis/TICKET_07_IMPLEMENTATION_REPORT.md",
+                ".scratch/reliable-exam-analysis/issues/FUTURE/.gitkeep",
+                ".scratch/reliable-exam-analysis/issues/OPEN/.gitkeep",
+                ".scratch/reliable-exam-analysis/issues/IN_PROGRESS/.gitkeep",
             ],
             base,
             head,
         )
 
         self.assertEqual(
-            [".scratch/reliable-exam-analysis/issues/OPEN/notes.md"], result.unknown_paths
+            [
+                ".scratch/reliable-exam-analysis/issues/FUTURE/.gitkeep",
+                ".scratch/reliable-exam-analysis/issues/OPEN/notes.md",
+            ],
+            result.unknown_paths,
         )
 
 
