@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "b17ff4717bfcb2562fbdcbe60adf6f1df7eeea75",
-    "checked_at": "2026-09-20T17:36:09+00:00",
+    "commit": "8eb061478824601929967676544d22b9a69c94c6",
+    "checked_at": "2026-09-20T17:51:43+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
-    "checker": "/root",
+    "checker": "/root/review_prototype",
     "result": "still_valid",
     "evidence": [
-      "Reopened for the owner-approved fresh-clone follow-up. Inspection confirms changes since the prior independent review are the separately approved license update; the LAW prototype behavior and existing run instructions remain valid."
+      "Independent review passed the fresh-clone follow-up: the root wrapper delegates to the authoritative dependency list, README commands and paths are consistent, the documentation graph is valid, and no PDFs or generated course data are tracked. All 245 pipeline tests and 76 ticket-tool tests pass; pip dry-run resolves all dependencies."
     ],
     "provisional": false
   },
