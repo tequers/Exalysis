@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "7b11cab8c450cc7c4c3fd7de88ed8774f1cf40c3",
-    "checked_at": "2026-09-20T09:46:36+00:00",
+    "commit": "ad5f3a60c1fcd05040105422ac6cf6fb362864b6",
+    "checked_at": "2026-09-20T17:10:54+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
     "checker": "/root/review_prototype",
     "result": "still_valid",
     "evidence": [
-      "Independent review verified the README against the real three-exam LAW JSON: 32 topics, years 2023-2025, and the displayed ranks, priorities, and appearance counts all match. The section is concise, clearly unreviewed, and makes no unsupported accuracy claim. All 245 offline pipeline tests pass; ticket and documentation checks pass."
+      "Independent review confirmed the UnoRouter environment variable names, relative exams/ resolution, and prototype output paths match the implementation. The README now also tells readers to supply the ignored LAW PDFs. All 245 offline pipeline tests pass; ticket and documentation checks pass."
     ],
     "provisional": false
   },
