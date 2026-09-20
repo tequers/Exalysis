@@ -1,7 +1,7 @@
 # Exam ROI Pipeline
 
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pipeline/requirements.txt)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](requirements.txt)
 
 A Python CLI that reads past exam papers and ranks topics by relative study priority.
 It accepts text files and PDFs with a text layer, keeps each course's state in one
@@ -118,10 +118,38 @@ judgments. Python then calculated the ranking and produced two views of the same
 3 LAW exam PDFs -> question extraction -> topic analysis -> Excel + agent JSON
 ```
 
-Create `Courses/LAW_1/exams/` and place the three LAW PDFs there first; exam files
-are intentionally not included in the repository. Run the example from the
-repository root in PowerShell and replace the API key placeholder with your own
-UnoRouter key:
+The commands below use Windows PowerShell. Clone the repository, create an isolated
+Python environment, and install the dependencies:
+
+```powershell
+git clone --branch codex/mvp-two-stage --single-branch https://github.com/tequers/exam-roi-pipeline.git
+cd exam-roi-pipeline
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Dependency installation is not automatic after a clone. The root
+`requirements.txt` is the standard install entry point and delegates to the
+application list in `pipeline/requirements.txt`.
+
+Create the input folder, then download the three exact prototype inputs and save
+them with these filenames:
+
+```powershell
+New-Item -ItemType Directory -Force -Path "Courses/LAW_1/exams"
+```
+
+| Year | Paper | Download | Save as |
+| ---: | ----- | -------- | ------- |
+| 2023 | AQA A-level Law Paper 2, 7162/2 | [PDF](https://filestore.aqa.org.uk/sample-papers-and-mark-schemes/2023/june/AQA-71622-QP-JUN23.PDF) | `2023_june_2.pdf` |
+| 2024 | AQA A-level Law Paper 1, 7162/1 | [PDF](https://cdn.sanity.io/files/p28bar15/green/4cff369e127824d15c8bc708e9492a4e2e16a60d.pdf) | `2024_may.pdf` |
+| 2025 | AQA A-level Law Paper 1, 7162/1 | [PDF](https://revisionworld.com/sites/default/files/revisionworld/documents/AALA251.PDF) | `2025_june.pdf` |
+
+The links were verified against the files used for the displayed result. The PDFs
+remain external because exam files are intentionally not included in the repository.
+
+Run the example from the repository root and replace the API key placeholder with
+your own UnoRouter key:
 
 ```powershell
 $env:LLM_PROVIDER = "unorouter"
@@ -134,7 +162,7 @@ $env:LLM_CONTEXT_TOKENS_STAGE2 = "1000000"
 $env:LLM_MAX_OUTPUT_TOKENS_STAGE1 = "655536"
 $env:LLM_MAX_OUTPUT_TOKENS_STAGE2 = "655536"
 
-python -X utf8 pipeline/pipeline.py "Courses/LAW_1" add-exam exams/ --prototype --total-marks 100
+.\.venv\Scripts\python.exe -X utf8 pipeline/pipeline.py "Courses/LAW_1" add-exam exams/ --prototype --total-marks 100
 ```
 
 `Courses/LAW_1` is relative to the repository root. For an explicit input such as
@@ -432,6 +460,7 @@ Copyright © 2026 Alberto Antequera Fernandez Palacios.
 | `pipeline/exam_roi/identity.py` | Documents safe paper IDs and record paths. | ID validation, filename limits, or path guards change. |
 | `pipeline/exam_roi/storage.py` | Summarizes locking, state validation, and recovery guarantees. | Locks, transactions, state versions, or recovery behavior change. |
 | `pipeline/exam_roi/reports.py` | Describes report formats, fields, and paper labels. | Export schema, filenames, labels, or rendering behavior change. |
+| `requirements.txt` | Gives fresh clones a standard dependency-install entry point. | The public install command or dependency-file location changes. |
 | `pipeline/requirements.txt` | Supplies the dependencies for documented installation. | Dependency lists, pins, or installation requirements change. |
 | `docs/adr/0001-course-exam-hierarchy.md` | Applies the one-exam state boundary to course folder conventions. | Course hierarchy or sharing between exam types changes. |
 | `docs/adr/0006-course-folder-as-cli-argument.md` | Documents the decided course-folder argument and independent destination. | Course selection or output-location policy changes. |

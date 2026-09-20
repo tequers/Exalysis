@@ -4,7 +4,7 @@ Use the checkout containing ticket 33. Run the commands from that repository roo
 
 ## Prepare the run
 
-1. Install the dependencies with `python -m pip install -r pipeline/requirements.txt`.
+1. Install the dependencies with `python -m pip install -r requirements.txt`.
 2. Configure the provider, API key, and exact Stage 1 and Stage 2 model IDs in this checkout's `.env`. See [provider setup](../development/workflow.md#optional-live-provider-setup). A `.env` in another checkout is not loaded automatically. Existing process environment values take precedence.
 3. Set the course path in PowerShell:
 
@@ -66,4 +66,5 @@ To replace a bad analysis, rerun the analysis command with `--force`. That makes
 | `pipeline/exam_roi/prototype.py` | Supplies total validation and offline report recovery. | Supported paper structure or export behavior changes. |
 | `docs/guides/prototype-output-format.md` | Defines the files and human checks used in this guide. | Workbook structure or JSON fields change. |
 | `docs/development/workflow.md` | Supplies provider setup and private-data constraints. | Configuration or live-run authorization changes. |
+| `requirements.txt` | Provides the fresh-clone dependency-install entry point used above. | The public install command or dependency-file location changes. |
 <!-- doc-dependencies:end -->

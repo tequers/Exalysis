@@ -86,13 +86,13 @@ From the repository root, create a virtual environment and install dependencies:
 ```powershell
 python --version
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r pipeline/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 On Windows, activate it with `.\.venv\Scripts\Activate.ps1` if your shell permits
 scripts. Otherwise use `.\.venv\Scripts\python.exe` in place of `python` in every
 command below. On macOS or Linux, activate with `source .venv/bin/activate`, then
-run `python -m pip install -r pipeline/requirements.txt`.
+run `python -m pip install -r requirements.txt`.
 
 Dependency installation needs package access, but subsequent offline checks need
 no network or credentials. Do not create `.env` for offline development. The
@@ -388,6 +388,7 @@ OCR is outside the MVP and needs a separate approved change with an expected cos
 | `scripts/tickets.py` | Publishes ticket commands and their enforcement limits. | CLI arguments, preflight, transitions, or verification behavior change. |
 | `scripts/check_tickets.py` | Defines the local tooling check developers must run. | Tests executed, validation behavior, or exit handling change. |
 | `.github/workflows/tickets.yml` | States the CI platforms, Python versions, and limits of automation. | CI matrix, required checks, or impact reporting change. |
+| `requirements.txt` | Provides the standard dependency-install entry point used by fresh clones. | The public install command or dependency-file location changes. |
 | `pipeline/requirements.txt` | Supplies the dependencies used by the setup instructions. | Dependency lists, pins, or installation requirements change. |
 | `.env.example` | Supplies the provider configuration template used in live setup. | Environment variable names, providers, or defaults change. |
 | `pipeline/pipeline.py` | Documents offline commands, live startup, and disabled MVP features. | CLI help, environment loading, provider setup, or availability gates change. |

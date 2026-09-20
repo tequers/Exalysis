@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "ad5f3a60c1fcd05040105422ac6cf6fb362864b6",
-    "checked_at": "2026-09-20T17:10:54+00:00",
+    "commit": "b17ff4717bfcb2562fbdcbe60adf6f1df7eeea75",
+    "checked_at": "2026-09-20T17:36:09+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
-    "checker": "/root/review_prototype",
+    "checker": "/root",
     "result": "still_valid",
     "evidence": [
-      "Independent review confirmed the UnoRouter environment variable names, relative exams/ resolution, and prototype output paths match the implementation. The README now also tells readers to supply the ignored LAW PDFs. All 245 offline pipeline tests pass; ticket and documentation checks pass."
+      "Reopened for the owner-approved fresh-clone follow-up. Inspection confirms changes since the prior independent review are the separately approved license update; the LAW prototype behavior and existing run instructions remain valid."
     ],
     "provisional": false
   },
@@ -66,6 +66,10 @@ a clearly labeled placeholder for a future screenshot or GIF.
 The owner then approved documenting the exact UnoRouter PowerShell configuration,
 LAW command, relative-path behavior, and generated output paths used for that run.
 
+The owner then approved a fresh-clone setup path for the public LAW example: add a
+root dependency-install entry point, document the installation commands, and link
+the three exact external exam PDFs without tracking the papers in Git.
+
 ## Delivery and verification
 
 Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
@@ -87,6 +91,15 @@ Commands ran from the repository root with `PYTHONIOENCODING=utf-8`:
 The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. It also reviewed the Stage 2 relaxations and confirmed supplied edges remain validated, unsupported labels do not enter the aggregated taxonomy, advisory quotes propagate through storage and rebuild, and the normal path remains strict. No remaining actionable findings were reported.
 
 Documentation now links the prototype implementation to its specification, glossary, architecture, run guide, and format reference. Existing default-workflow, reviewer, storage, and provider documentation remains applicable. After separate owner approval, the README now includes a concise, recruiter-facing example from the three-exam LAW run. The local dependency maps were refreshed; no generated maps or course artifacts are committed.
+
+The fresh-clone follow-up adds a root requirements wrapper and exact download and
+PowerShell instructions for the published `codex/mvp-two-stage` branch. Pip's
+dry-run resolved the wrapper and all declared packages. All 245 pipeline tests and
+76 ticket-tool tests pass; documentation dependency and diff checks also pass.
+Independent review confirmed that the wrapper delegates to the authoritative
+dependency list, the commands and paths are consistent, and no exam or generated
+course data is tracked. The three external downloads were also compared locally
+with the prototype inputs and matched byte for byte.
 
 ## Required owner review
 

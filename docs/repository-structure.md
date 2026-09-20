@@ -40,6 +40,8 @@ visible; this exception does not permit tracking course data or other generated 
   that name at the root. Definitions live only in [the glossary](glossary.md).
 - `.env.example` is the tracked environment template. `.env` and private variants
   remain ignored.
+- `requirements.txt` is the standard fresh-clone install entry point. It delegates
+  to the authoritative application dependency list in `pipeline/requirements.txt`.
 - `.gitignore`, `.gitattributes`, `.ignore`, and `.mcp.json` stay where their tools
   read them. Shared tool directories retain their required locations as listed
   above.
@@ -97,6 +99,8 @@ committing to catch private or generated files.
 | File | Reason | Review when |
 |---|---|---|
 | `.gitignore` | States which course data, scratch files, and generated artifacts stay local. | Ignore rules or tracking policy change. |
+| `requirements.txt` | Records the approved root exception for the dependency-install wrapper. | The wrapper moves or gains another purpose. |
+| `pipeline/requirements.txt` | Remains the authoritative application dependency list. | The dependency-file location or ownership changes. |
 | `CONTEXT.md` | Assigns the root context file a glossary-discovery role. | The pointer location or authoritative vocabulary home changes. |
 | `docs/development/workflow.md` | Assigns this file the maintained development-instructions role. | The workflow file location or assigned documentation role changes. |
 | `docs/development/ticket-workflow.md` | Assigns this file the maintained ticket-procedure role. | The ticket guide location or assigned documentation role changes. |
