@@ -1,6 +1,6 @@
 # Exam ROI Pipeline
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pipeline/requirements.txt)
 
 A Python CLI that reads past exam papers and ranks topics by relative study priority.
@@ -413,7 +413,8 @@ does today.
 
 ## License
 
-[MIT](LICENSE) © 2026 Alberto Antequera Fernandez Palacios
+Licensed under [PolyForm Noncommercial 1.0.0](LICENSE).
+Copyright © 2026 Alberto Antequera Fernandez Palacios.
 
 ## Dependencies
 
