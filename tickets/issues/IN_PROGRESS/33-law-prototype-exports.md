@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "7b1350d5a44b623b8a55c3d1261347a6ca81a119",
-    "checked_at": "2026-09-19T22:33:04+00:00",
+    "commit": "2661406b1412b81fac54802a196713abb5bfa016",
+    "checked_at": "2026-09-20T08:48:22+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
-    "checker": "/root/review_prototype",
+    "checker": "Codex",
     "result": "still_valid",
     "evidence": [
-      "Independent review found no issues; Conn accepts integers 1-3 independently of unlock count, supplied edges remain validated, and all 243 pipeline tests pass without live model calls."
+      "Owner explicitly approved advisory Stage 2 evidence quotes in prototype mode: missing, empty, or non-verbatim quotes must not block candidate saving or prototype exports."
     ],
     "provisional": false
   },
@@ -57,6 +57,8 @@ The owner additionally approved relaxing Stage 2 dependency completeness for the
 
 On 2026-09-20, the owner also approved removing the requirement that `Conn` match the count of listed `unlocks`. Stage 2 still requires an integer `Conn` from 1 through 3; the temporary taxonomy recomputes its connection score from validated edges.
 
+The owner then approved advisory Stage 2 evidence quotes for prototype mode. Missing, null, empty, or non-verbatim quotes must not block candidate storage or the Excel and agent JSON exports. Supplied strings are retained, missing values are normalized to empty strings, and ordinary non-prototype analysis remains strict.
+
 ## Delivery and verification
 
 Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
@@ -73,8 +75,9 @@ Commands ran from the repository root with `PYTHONIOENCODING=utf-8`:
 - A dry run against the owner's LAW course selected only `exams/2025_june.pdf`, with no model configuration or AI calls. `rebuild --help` exposes the offline prototype option.
 - The approved Stage 2 relaxation is covered by `test_missing_edge_evidence_does_not_reject_mvp_candidate`: unmatched prerequisite and unlock lists remain in the candidate, do not block processing, and do not create unsupported taxonomy edges. The cumulative-taxonomy and prototype suites each pass 11 tests; the full suite still passes 242 tests.
 - The approved `Conn` relaxation is covered by `test_scores_accept_conn_that_does_not_match_unlock_count`. Candidate-validation tests pass 12 tests, cumulative-taxonomy and prototype tests each pass 11 tests, and the full suite passes 243 tests without live model calls.
+- Advisory quotes are covered at each Stage 2 evidence location and through candidate storage, Excel/JSON export, and offline rebuild. Candidate-validation tests pass 13 tests, prototype tests pass 12 tests, CLI outcome tests pass 13 tests, and the full suite passes 245 tests without live model calls.
 
-The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. It also reviewed the Stage 2 relaxation, reran all 11 cumulative-taxonomy tests, and confirmed supplied edges remain validated while unsupported labels do not enter the aggregated taxonomy. No remaining actionable findings were reported.
+The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. It also reviewed the Stage 2 relaxations and confirmed supplied edges remain validated, unsupported labels do not enter the aggregated taxonomy, advisory quotes propagate through storage and rebuild, and the normal path remains strict. No remaining actionable findings were reported.
 
 Documentation now links the prototype implementation to its specification, glossary, architecture, run guide, and format reference. Existing default-workflow, reviewer, storage, and provider documentation remains applicable. README revision is deferred as requested. The local dependency maps were refreshed; no generated maps or course artifacts are committed.
 

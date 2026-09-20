@@ -50,6 +50,8 @@ The file is UTF-8 JSON containing an array of topic objects in the same order as
 
 This is a study-priority summary for an agent. Full question text, topic assignments, and extraction/model provenance remain in `candidates/PAPER_ID.json`. The ranked JSON does not contain the full exam questions.
 
+Prototype candidates mark `evaluation_context.quote_validation` as `advisory`. Stage 2 quotes are retained when supplied, including non-verbatim text. Missing or null quotes are stored as empty strings. These quote limitations do not block either report; inspect the candidate file when assessing model evidence quality.
+
 ## Interpretation limits
 
 Each question receives one or two topics. Its marks are split equally between those topics, so a 30-mark scenario with two topics contributes 15 marks to each. This is an estimate, not an allocation from a marking scheme.

@@ -725,7 +725,8 @@ def _fmt_taxonomy(topic_names: list) -> str:
     return "\n".join(f"- {n}" for n in sorted(topic_names))
 
 
-def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None) -> tuple:
+def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None,
+                allow_unverified_quotes=False) -> tuple:
     """Tag full evidence in size-aware batches, preserving exact ID coverage."""
     client, limits = _stage_request(2, client, limits)
     tags, new_names = {}, []
@@ -743,7 +744,8 @@ def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None)
         raw = client(system, user, max_tokens=max_tokens)
         try:
             validate_tags(
-                parse_json_from(raw), active_batch, list(topic_names) + new_names)
+                parse_json_from(raw), active_batch, list(topic_names) + new_names,
+                allow_unverified_quotes=allow_unverified_quotes)
         except CandidateValidationError as exc:
             if exc.disposition != "correction_required":
                 raise
@@ -765,7 +767,9 @@ def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None)
         return raw
 
     def consume(raw, batch):
-        batch_tags, names = validate_tags(parse_json_from(raw), batch, list(topic_names) + new_names)
+        batch_tags, names = validate_tags(
+            parse_json_from(raw), batch, list(topic_names) + new_names,
+            allow_unverified_quotes=allow_unverified_quotes)
         if set(tags) & set(batch_tags):
             raise CandidateValidationError("topic tagging", "Duplicate question IDs across batches")
         tags.update(batch_tags)
@@ -774,7 +778,9 @@ def _stage2_tag(questions: list, topic_names: list, *, client=None, limits=None)
     run_batches(questions, prompt, consume, system=_S2_SYSTEM,
                 client=call_with_one_correction, limits=limits,
                 output_estimate=lambda batch: 512 * len(batch), label="topic tagging")
-    return validate_tags({"tags": tags, "new_topic_names": new_names}, questions, topic_names)
+    return validate_tags(
+        {"tags": tags, "new_topic_names": new_names}, questions, topic_names,
+        allow_unverified_quotes=allow_unverified_quotes)
 
 
 def _merge_topic_parts(parts):
@@ -795,7 +801,8 @@ def _merge_topic_parts(parts):
 
 
 def _stage2_score_topics(tested_topic_names: list, taxonomy_list: str, questions: list,
-                         allowed_topics: list, *, client=None, limits=None) -> dict:
+                         allowed_topics: list, *, client=None, limits=None,
+                         allow_unverified_quotes=False) -> dict:
     """Batch topics and, when necessary, their questions without dropping evidence."""
     if not tested_topic_names:
         return {}
@@ -811,7 +818,9 @@ def _stage2_score_topics(tested_topic_names: list, taxonomy_list: str, questions
     def validate(raw, names, evidence):
         data = parse_json_from(raw)
         try:
-            validate_topic_scores(data, names, evidence, allowed_topics)
+            validate_topic_scores(
+                data, names, evidence, allowed_topics,
+                allow_unverified_quotes=allow_unverified_quotes)
         except CandidateValidationError:
             raise
         except ValueError as exc:
@@ -850,7 +859,9 @@ def _stage2_score_topics(tested_topic_names: list, taxonomy_list: str, questions
 
     score_group(tested_topic_names)
     try:
-        return validate_topic_scores(scores, tested_topic_names, questions, allowed_topics)
+        return validate_topic_scores(
+            scores, tested_topic_names, questions, allowed_topics,
+            allow_unverified_quotes=allow_unverified_quotes)
     except CandidateValidationError:
         raise
     except ValueError as exc:
@@ -875,7 +886,8 @@ def refresh_connections(paper, topic_names, *, client, limits=None):
                                       paper["questions"], topic_names)
 
 
-def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, client=None, limits=None) -> dict:
+def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, client=None,
+                     limits=None, allow_unverified_quotes=False) -> dict:
     """
     Tag every question with topics and build the per-topic score table.
 
@@ -891,7 +903,9 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, cli
     taxonomy_list = _fmt_taxonomy(topic_names)
 
     dependencies = {"client": client, "limits": limits} if client is not None or limits is not None else {}
-    tags, proposed_new = _stage2_tag(questions, topic_names, **dependencies)
+    tags, proposed_new = _stage2_tag(
+        questions, topic_names, allow_unverified_quotes=allow_unverified_quotes,
+        **dependencies)
 
     tagged = [
         {**q, "topics": tags[q["q_id"]]["topics"],
@@ -906,7 +920,9 @@ def stage2_tag_score(questions: list, taxonomy: dict, total_marks: float, *, cli
                    if t not in taxonomy["topics"] and t not in new_names]
 
     paper_scores = _stage2_score_topics(sorted(seen_topics), taxonomy_list, tagged,
-                                  topic_names + new_names, **dependencies)
+                                  topic_names + new_names,
+                                  allow_unverified_quotes=allow_unverified_quotes,
+                                  **dependencies)
 
     return aggregate_paper_scores(
         questions=questions,
@@ -1087,7 +1103,9 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
         if feedback is not None:
             analysis_dependencies = _with_review_feedback(
                 2, analysis_client, analysis_limits, feedback)
-        result = stage2_tag_score(questions, taxonomy, total_marks, **analysis_dependencies)
+        result = stage2_tag_score(
+            questions, taxonomy, total_marks,
+            allow_unverified_quotes=prototype, **analysis_dependencies)
         per_topic = result.get("per_topic", {})
         new_names = result.get("new_topic_names", [])
         print(f"   → {len(per_topic)} topics tagged  ({len(new_names)} new)")
@@ -1097,6 +1115,7 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
 
         # Build the candidate and its proposed taxonomy completely in memory. Invalid
         # model output raises before accepted paper or taxonomy files are touched.
+        candidate_dependencies = ({"allow_unverified_quotes": True} if prototype else {})
         candidate = build_candidate_analysis(
             exam_id=exam_id,
             year=year,
@@ -1114,6 +1133,7 @@ def process_exam_file(path: Path, year=None, total_marks=None, exam_id=None, for
             },
             model_provenance=_model_provenance(extraction_client, analysis_client),
             processed_at=datetime.now().isoformat(),
+            **candidate_dependencies,
         )
         # Model work can take minutes. Check both boundaries again before reading
         # accepted records or saving a candidate, including forced reprocessing.

@@ -188,9 +188,13 @@ def _validate(record, path, *, taxonomy=False):
                 require(isinstance(references, list) and all(isinstance(value, str) for value in references),
                         f"topic judgment {name!r}: {field} must be a list of topic names")
                 allowed.update(references)
+        context = record.get("evaluation_context") or {}
+        advisory_quotes = (
+            isinstance(context, dict) and context.get("quote_validation") == "advisory")
         try:
             validate_topic_scores(judgments, list(judgments), record["questions"], allowed,
-                                  already_validated=True)
+                                  already_validated=True,
+                                  allow_unverified_quotes=advisory_quotes)
             if record.get("connection_review", {}).get("evaluation_contract_version") == CONTRACT_VERSION:
                 edges = record["connection_review"].get("edges", [])
                 for edge in edges:

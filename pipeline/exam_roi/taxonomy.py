@@ -35,9 +35,13 @@ def aggregate_taxonomy(taxonomy, exams):
         if paper.get("evaluation_contract_version") != CONTRACT_VERSION or "topic_judgments" not in paper:
             excluded.append(eid)
             continue
-        judgments = validate_topic_scores(paper["topic_judgments"],
-                                         list(paper["topic_judgments"]),
-                                         paper["questions"], allowed, already_validated=True)
+        context = paper.get("evaluation_context") or {}
+        advisory_quotes = (
+            isinstance(context, dict) and context.get("quote_validation") == "advisory")
+        judgments = validate_topic_scores(
+            paper["topic_judgments"], list(paper["topic_judgments"]),
+            paper["questions"], allowed, already_validated=True,
+            allow_unverified_quotes=advisory_quotes)
         for name, judgment in judgments.items():
             samples.setdefault(name, {})[eid] = judgment
         review = paper.get("connection_review")

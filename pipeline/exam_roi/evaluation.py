@@ -107,12 +107,26 @@ def quote_in_question(quote, question):
     return quote in question["text"] or quote in question.get("source_context", "")
 
 
+def _clean_evidence_quote(value, question, *, allow_unverified_quotes, absent_message):
+    """Normalize an optional prototype quote while keeping strict validation elsewhere."""
+    if allow_unverified_quotes:
+        if value is None:
+            return ""
+        if not isinstance(value, str):
+            raise ValueError("quote must be text when provided")
+        return value
+    _text(value, "quote")
+    if not quote_in_question(value, question):
+        raise ValueError(absent_message)
+    return value
+
+
 def tag_evidence(judgment):
     """Copy the evidence fields stored beside a question's topic labels."""
     return {key: judgment[key] for key in TAG_EVIDENCE_FIELDS}
 
 
-def validate_tags(data, questions, known_topics):
+def validate_tags(data, questions, known_topics, *, allow_unverified_quotes=False):
     """Require exactly one complete, canonical 1–2-label assignment per question."""
     stage = "topic tagging"
     if not isinstance(data, dict) or set(data) != {"tags", "new_topic_names"}:
@@ -146,8 +160,11 @@ def validate_tags(data, questions, known_topics):
     clean = {}
     for q_id in question_ids:
         judgment = tags[q_id]
-        if not isinstance(judgment, dict) or set(judgment) != {
-                "topics", "quote", "rationale", "uncertainties"}:
+        required = {"topics", "rationale", "uncertainties"}
+        allowed_fields = required | {"quote"}
+        if (not isinstance(judgment, dict) or not required <= set(judgment)
+                or set(judgment) - allowed_fields
+                or (not allow_unverified_quotes and set(judgment) != allowed_fields)):
             _reject(stage, f"{q_id} tag judgment has an incomplete or unsupported structure")
         labels = judgment["topics"]
         if (not isinstance(labels, list) or not 1 <= len(labels) <= 2
@@ -159,16 +176,18 @@ def validate_tags(data, questions, known_topics):
         if unknown:
             _reject(stage, f"{q_id} uses undeclared topic labels: {', '.join(unknown)}")
         try:
-            _text(judgment["quote"], "tag quote")
+            quote = _clean_evidence_quote(
+                judgment.get("quote"), by_id[q_id],
+                allow_unverified_quotes=allow_unverified_quotes,
+                absent_message="tag quote is absent from its source question")
             _text(judgment["rationale"], "tag rationale")
             _strings(judgment["uncertainties"], "tag uncertainties")
         except ValueError as exc:
-            _reject(stage, f"{q_id}: {exc}")
-        if not quote_in_question(judgment["quote"], by_id[q_id]):
-            _reject(stage, f"{q_id} tag quote is absent from its source question")
+            separator = " " if str(exc) == "tag quote is absent from its source question" else ": "
+            _reject(stage, f"{q_id}{separator}{exc}")
         clean[q_id] = {
             "topics": list(labels),
-            "quote": judgment["quote"],
+            "quote": quote,
             "rationale": judgment["rationale"],
             "uncertainties": list(judgment["uncertainties"]),
         }
@@ -228,9 +247,12 @@ def _require_fields(value, required, label, allowed_extra=()):
         raise ValueError(f"{label} has invalid fields ({'; '.join(details)})")
 
 
-def _validate_connection_edge(edge, by_id, allowed_topics, topic_name=None):
-    _require_fields(edge, {"prerequisite", "dependent", "q_id", "quote", "rationale"},
-                    "connection edge")
+def _validate_connection_edge(edge, by_id, allowed_topics, topic_name=None,
+                              *, allow_unverified_quotes=False):
+    fields = {"prerequisite", "dependent", "q_id", "quote", "rationale"}
+    required = fields - {"quote"} if allow_unverified_quotes else fields
+    _require_fields(edge, required, "connection edge",
+                    allowed_extra={"quote"} if allow_unverified_quotes else set())
     source, target = edge["prerequisite"], edge["dependent"]
     if source not in allowed_topics or target not in allowed_topics or source == target:
         raise ValueError("Invalid connection endpoints")
@@ -239,15 +261,16 @@ def _validate_connection_edge(edge, by_id, allowed_topics, topic_name=None):
     question = by_id.get(edge["q_id"])
     if not question or not ({source, target} & set(question["topics"])):
         raise ValueError("Connection evidence must cite a task testing an endpoint")
-    for field in ("quote", "rationale"):
-        _text(edge[field], field)
-    if not quote_in_question(edge["quote"], question):
-        raise ValueError("Connection quote is absent from the source question")
-    return {key: edge[key]
-            for key in ("prerequisite", "dependent", "q_id", "quote", "rationale")}
+    quote = _clean_evidence_quote(
+        edge.get("quote"), question, allow_unverified_quotes=allow_unverified_quotes,
+        absent_message="Connection quote is absent from the source question")
+    _text(edge["rationale"], "rationale")
+    return {"prerequisite": source, "dependent": target, "q_id": edge["q_id"],
+            "quote": quote, "rationale": edge["rationale"]}
 
 
-def validate_topic_scores(scores, names, questions, allowed_topics, already_validated=False):
+def validate_topic_scores(scores, names, questions, allowed_topics, already_validated=False,
+                          *, allow_unverified_quotes=False):
     """Validate the new qualitative representation before persisting it.
 
     Extraction and tag coverage are validated at their own boundaries. Only
@@ -258,12 +281,13 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
         raise ValueError("Paper scores must cover exactly the requested topics")
     by_id = {q["q_id"]: q for q in questions}
 
-    def evidence(item):
+    def evidence(item, absent_message="Evidence quote is absent from its source question"):
         if not isinstance(item, dict) or item.get("q_id") not in by_id:
             raise ValueError("Evidence requires a known question ID")
-        _text(item.get("quote"), "quote")
-        if not quote_in_question(item["quote"], by_id[item["q_id"]]):
-            raise ValueError("Evidence quote is absent from its source question")
+        return _clean_evidence_quote(
+            item.get("quote"), by_id[item["q_id"]],
+            allow_unverified_quotes=allow_unverified_quotes,
+            absent_message=absent_message)
 
     result = {}
     score_fields = {
@@ -286,16 +310,22 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
         assumptions = score.get("prerequisite_evidence")
         if not isinstance(assumptions, list):
             raise ValueError(f"{name}: prerequisite evidence must be a list")
-        covered = set()
+        covered, clean_assumptions = set(), []
         for item in assumptions:
-            _require_fields(item, {"prerequisite", "q_id", "quote", "rationale"},
-                            f"{name} prerequisite evidence")
-            evidence(item)
+            fields = {"prerequisite", "q_id", "quote", "rationale"}
+            required = fields - {"quote"} if allow_unverified_quotes else fields
+            _require_fields(item, required, f"{name} prerequisite evidence",
+                            allowed_extra={"quote"} if allow_unverified_quotes else set())
+            quote = evidence(item)
             _text(item.get("rationale"), "prerequisite rationale")
             _text(item.get("prerequisite"), "prerequisite")
             if item["prerequisite"] not in score["assumed_prerequisites"]:
                 raise ValueError(f"{name}: evidence names an unlisted prerequisite")
             covered.add(item["prerequisite"])
+            clean_assumptions.append({
+                "prerequisite": item["prerequisite"], "q_id": item["q_id"],
+                "quote": quote, "rationale": item["rationale"],
+            })
         if covered != set(score["assumed_prerequisites"]):
             raise ValueError(f"{name}: every inferred prerequisite needs exam evidence")
         for field in ("prerequisites", "unlocks"):
@@ -307,14 +337,20 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
         connections = score.get("connection_evidence")
         if not isinstance(connections, list) or not connections:
             raise ValueError(f"{name}: connection evidence is required")
+        clean_connections = []
         for item in connections:
-            _require_fields(item, {"q_id", "quote"}, f"{name} connection evidence")
-            evidence(item)
+            fields = {"q_id", "quote"}
+            required = fields - {"quote"} if allow_unverified_quotes else fields
+            _require_fields(item, required, f"{name} connection evidence",
+                            allowed_extra={"quote"} if allow_unverified_quotes else set())
+            clean_connections.append({"q_id": item["q_id"], "quote": evidence(item)})
         edges = score.get("connection_edges")
         if not isinstance(edges, list):
             raise ValueError(f"{name}: connection_edges must be a list")
         clean_edges = [
-            _validate_connection_edge(edge, by_id, allowed_topics, topic_name=name)
+            _validate_connection_edge(
+                edge, by_id, allowed_topics, topic_name=name,
+                allow_unverified_quotes=allow_unverified_quotes)
             for edge in edges
         ]
         judgments = score.get("question_difficulty")
@@ -323,14 +359,17 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
         expected_ids = {q["q_id"] for q in questions if name in q["topics"]}
         ids, clean = [], []
         for item in judgments:
-            _require_fields(item, {"q_id", "level", "quote", "rationale", "uncertainties"},
-                            f"{name} question difficulty")
-            evidence(item)
+            fields = {"q_id", "level", "quote", "rationale", "uncertainties"}
+            required = fields - {"quote"} if allow_unverified_quotes else fields
+            _require_fields(item, required, f"{name} question difficulty",
+                            allowed_extra={"quote"} if allow_unverified_quotes else set())
+            quote = evidence(item)
             _text(item.get("rationale"), "question rationale")
             _strings(item.get("uncertainties"), "question uncertainties")
             ids.append(item["q_id"])
-            clean.append({k: item.get(k) for k in
-                          ("q_id", "level", "quote", "rationale", "uncertainties")})
+            clean.append({"q_id": item["q_id"], "level": item.get("level"),
+                          "quote": quote, "rationale": item["rationale"],
+                          "uncertainties": item["uncertainties"]})
         if len(ids) != len(set(ids)) or set(ids) != expected_ids:
             raise ValueError(f"{name}: difficulty must cover each tagged question once")
         levels = [item["level"] for item in clean]
@@ -343,11 +382,8 @@ def validate_topic_scores(scores, names, questions, allowed_topics, already_vali
             **{k: score[k] for k in ("Conn", "difficulty_rationale", "connection_rationale",
                 "assumed_prerequisites", "prerequisites", "unlocks", "uncertainties")},
             "connection_edges": clean_edges,
-            "prerequisite_evidence": [
-                {k: i[k] for k in ("prerequisite", "q_id", "quote", "rationale")}
-                for i in assumptions],
-            "connection_evidence": [{"q_id": i["q_id"], "quote": i["quote"]}
-                                    for i in connections],
+            "prerequisite_evidence": clean_assumptions,
+            "connection_evidence": clean_connections,
         }
     return result
 
@@ -486,7 +522,7 @@ def _validate_provenance(source, model):
 
 def build_candidate_analysis(*, exam_id, year, year_label, total_marks, analysis,
                              known_topics, source_provenance, model_provenance,
-                             processed_at):
+                             processed_at, allow_unverified_quotes=False):
     """Create a validated, traceable candidate without mutating accepted state."""
     stage = "candidate analysis"
     try:
@@ -521,7 +557,8 @@ def build_candidate_analysis(*, exam_id, year, year_label, total_marks, analysis
         "new_topic_names": analysis["new_topic_names"],
     }
     clean_tags, new_names = validate_tags(
-        tag_data, clean_questions, known_topics)
+        tag_data, clean_questions, known_topics,
+        allow_unverified_quotes=allow_unverified_quotes)
     tagged_questions = [
         {
             **question,
@@ -535,7 +572,8 @@ def build_candidate_analysis(*, exam_id, year, year_label, total_marks, analysis
     try:
         judgments = validate_topic_scores(
             analysis["topic_judgments"], topic_names, tagged_questions,
-            list(known_topics) + new_names, already_validated=True)
+            list(known_topics) + new_names, already_validated=True,
+            allow_unverified_quotes=allow_unverified_quotes)
     except CandidateValidationError:
         raise
     except ValueError as exc:
@@ -552,6 +590,9 @@ def build_candidate_analysis(*, exam_id, year, year_label, total_marks, analysis
         or judgment["difficulty_review_required"]
         for judgment in judgments.values()
     )
+    evaluation_context = {"canonical_topic_names": sorted(known_topics)}
+    if allow_unverified_quotes:
+        evaluation_context["quote_validation"] = "advisory"
     return {
         **contract_metadata(),
         "record_kind": "candidate-analysis",
@@ -566,7 +607,7 @@ def build_candidate_analysis(*, exam_id, year, year_label, total_marks, analysis
         "processed_at": processed_at,
         "source_provenance": deepcopy(source_provenance),
         "model_provenance": deepcopy(model_provenance),
-        "evaluation_context": {"canonical_topic_names": sorted(known_topics)},
+        "evaluation_context": evaluation_context,
         "questions": tagged_questions,
         "topic_judgments": judgments,
         "per_topic": clean_per_topic,

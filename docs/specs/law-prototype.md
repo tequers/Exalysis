@@ -20,6 +20,8 @@ Keep the existing one-or-two-topic assignments, equal mark shares, difficulty ju
 
 For the MVP, Stage 2 may list `prerequisites` or `unlocks` without duplicating every relationship in `connection_edges`. Missing matching edges do not reject or prevent saving a candidate. `Conn` must remain an integer from 1 through 3, but it does not have to match the number of listed `unlocks`. Any supplied edge must still pass structural and citation validation, and the temporary taxonomy derives relationships and its connection score only from validated edges.
 
+In prototype mode, Stage 2 evidence quotes are advisory. Preserve a supplied string even when it is not a verbatim source substring, and normalize a missing or null quote to an empty string. Quote absence or mismatch must not prevent candidate storage, Excel generation, JSON generation, or offline rebuild. Question IDs, topic references, rationales, score ranges, and the remaining evidence structure stay validated. Non-prototype analysis keeps strict verbatim quote validation.
+
 ## Acceptance and failure cases
 
 - A synthetic full command with injected model responses saves candidates and generates matching Excel and JSON rankings with visible unreviewed status and a shared generation identifier.

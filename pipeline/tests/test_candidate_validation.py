@@ -165,6 +165,43 @@ class ResponseValidationTests(unittest.TestCase):
 
         self.assertEqual(result["Equations"]["Conn"], 2)
 
+    def test_advisory_quotes_allow_missing_or_nonverbatim_stage2_evidence(self):
+        tag_data = {
+            "tags": {"Q1": {
+                "topics": ["Equations"],
+                "rationale": "The task tests equations.",
+                "uncertainties": [],
+            }},
+            "new_topic_names": [],
+        }
+        tags, _ = validate_tags(
+            tag_data, [question()], ["Equations"], allow_unverified_quotes=True)
+        self.assertEqual(tags["Q1"]["quote"], "")
+
+        data = scores(conn=2)
+        judgment = data["Equations"]
+        judgment["assumed_prerequisites"] = ["linear reasoning"]
+        judgment["prerequisite_evidence"] = [{
+            "prerequisite": "linear reasoning", "q_id": "Q1",
+            "rationale": "The task assumes this background.",
+        }]
+        judgment["question_difficulty"][0].pop("quote")
+        judgment["connection_evidence"][0]["quote"] = "not in the question"
+        judgment["unlocks"] = ["Law"]
+        judgment["connection_edges"] = [{
+            "prerequisite": "Equations", "dependent": "Law", "q_id": "Q1",
+            "rationale": "The question uses equations in a legal context.",
+        }]
+
+        result = validate_topic_scores(
+            data, ["Equations"], [question()], ["Equations", "Law"],
+            allow_unverified_quotes=True)["Equations"]
+
+        self.assertEqual(result["question_difficulty"][0]["quote"], "")
+        self.assertEqual(result["prerequisite_evidence"][0]["quote"], "")
+        self.assertEqual(result["connection_evidence"][0]["quote"], "not in the question")
+        self.assertEqual(result["connection_edges"][0]["quote"], "")
+
 
 class Stage2CorrectionTests(unittest.TestCase):
     def test_invalid_tag_quote_gets_one_complete_correction_attempt(self):

@@ -107,6 +107,35 @@ class PrototypeTests(unittest.TestCase):
         self.assertNotEqual(rows[0].pop("generation_id"), rebuilt[0].pop("generation_id"))
         self.assertEqual(rows, rebuilt)
 
+    def test_missing_or_unmatched_stage2_quotes_do_not_block_prototype_exports(self):
+        clients = fake_clients()
+        tag_raw, score_raw = list(clients["analysis_client"].side_effect)
+        tags = json.loads(tag_raw)
+        scores = json.loads(score_raw)
+        tags["tags"]["Q1"].pop("quote")
+        tags["tags"]["Q2"]["quote"] = "not present in the question"
+        judgment = scores["Legal reasoning"]
+        judgment["question_difficulty"][0].pop("quote")
+        judgment["question_difficulty"][1]["quote"] = "not present in the question"
+        judgment["connection_evidence"][0].pop("quote")
+        judgment["connection_evidence"][1]["quote"] = "not present in the question"
+        clients["analysis_client"].side_effect = [json.dumps(tags), json.dumps(scores)]
+
+        self.assertEqual(self.analyze(clients), app.EXIT_OK, self.output.getvalue())
+        self.assertTrue((self.course.folder / "prototype/Exam_ROI_Pipeline.xlsx").exists())
+        self.assertTrue((self.course.folder / "prototype/Exam_ROI_Pipeline.json").exists())
+        with CourseStore(self.course) as store:
+            candidate = store.load().candidates["2025_june"]
+        self.assertEqual(candidate["evaluation_context"]["quote_validation"], "advisory")
+        self.assertEqual(candidate["questions"][0]["topic_tagging"]["quote"], "")
+        self.assertEqual(candidate["questions"][1]["topic_tagging"]["quote"],
+                         "not present in the question")
+        self.assertEqual(
+            candidate["topic_judgments"]["Legal reasoning"]["question_difficulty"][0]["quote"], "")
+        self.assertEqual(
+            candidate["topic_judgments"]["Legal reasoning"]["connection_evidence"][0]["quote"], "")
+        self.assertEqual(self.cli("rebuild", "--prototype"), app.EXIT_OK, self.output.getvalue())
+
     def test_invalid_total_stops_before_client_configuration(self):
         for value in (None, "nan", "inf", "0", "-1"):
             with self.subTest(value=value):
