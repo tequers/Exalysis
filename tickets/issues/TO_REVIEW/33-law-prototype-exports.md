@@ -27,13 +27,13 @@
     "docs/guides/prototype-output-format.md"
   ],
   "verification": {
-    "commit": "2661406b1412b81fac54802a196713abb5bfa016",
-    "checked_at": "2026-09-20T08:48:22+00:00",
+    "commit": "42c6b783fab2a3a8b0a0d6ce87c09e770acdec5a",
+    "checked_at": "2026-09-20T09:02:10+00:00",
     "criteria_digest": "40143fad9075da976e59ce5dae63635d1ae09ca5ec3585d749082fc846d08ccd",
-    "checker": "Codex",
+    "checker": "/root/review_prototype",
     "result": "still_valid",
     "evidence": [
-      "Owner explicitly approved advisory Stage 2 evidence quotes in prototype mode: missing, empty, or non-verbatim quotes must not block candidate saving or prototype exports."
+      "Independent review found no issues; prototype-only advisory quotes propagate through all Stage 2 evidence, storage, Excel/JSON export, and rebuild while normal validation remains strict. All 245 pipeline tests pass without live model calls."
     ],
     "provisional": false
   },
