@@ -17,7 +17,9 @@ Use these documents to understand and run the project:
 > The current `add-exam` command saves validated analyses to `candidates/`. It does
 > not promote them into accepted `parsed/` records. The repository does not yet have
 > a CLI command for that promotion, so adding a new paper is not an end-to-end path
-> to a new ranking. `rebuild` only uses records already accepted into `parsed/`.
+> to an accepted ranking. For an unreviewed demonstration, `--prototype` builds
+> Excel and JSON directly from saved candidates. `rebuild` without that flag only
+> uses records already accepted into `parsed/`.
 
 ---
 
@@ -104,6 +106,37 @@ illustrative excerpt. The repository does not include accepted sample course dat
 Each successful rebuild also writes this ranking as a flat JSON array
 (`Exam_ROI_Pipeline.json`) alongside the formatted `.xlsx`. A script or model can read
 the JSON without a spreadsheet library.
+
+## Real example: three LAW exams
+
+The first complete prototype run processed three LAW papers from 2023, 2024, and
+2025. The two model stages extracted the questions, marks, topics, and provisional
+judgments. Python then calculated the ranking and produced two views of the same
+32-topic result:
+
+```text
+3 LAW exam PDFs -> question extraction -> topic analysis -> Excel + agent JSON
+```
+
+- `Exam_ROI_Pipeline.xlsx` gives a person a ranked overview, topic taxonomy, and
+  exam log.
+- `Exam_ROI_Pipeline.json` gives an AI agent the same ranked data in a flat array.
+
+The top of this unreviewed prototype was:
+
+| Rank | Topic                                 | Exams | Priority |
+| ---: | ------------------------------------- | ----: | -------: |
+|    1 | Lay Magistrates                       |   2/3 |   3.3333 |
+|    2 | Criminal Courts and Trial Procedure   |   2/3 |   3.2945 |
+|    3 | Non-Fatal Offences Against the Person |   2/3 |   2.7083 |
+
+These values demonstrate the workflow; they still require subject-matter review.
+See [run the LAW prototype](docs/guides/run-law-prototype.md) for the commands and
+[prototype output format](docs/guides/prototype-output-format.md) for the workbook
+and JSON fields.
+
+> **Visual placeholder:** Add a screenshot or short GIF that shows the ranked LAW
+> topics in the Excel workbook, then opens the matching JSON output.
 
 ## Quickstart
 

@@ -59,6 +59,10 @@ On 2026-09-20, the owner also approved removing the requirement that `Conn` matc
 
 The owner then approved advisory Stage 2 evidence quotes for prototype mode. Missing, null, empty, or non-verbatim quotes must not block candidate storage or the Excel and agent JSON exports. Supplied strings are retained, missing values are normalized to empty strings, and ordinary non-prototype analysis remains strict.
 
+On 2026-09-20, the owner approved a small README section that explains the real
+three-exam LAW prototype to recruiters, links its run and output guides, and leaves
+a clearly labeled placeholder for a future screenshot or GIF.
+
 ## Delivery and verification
 
 Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
@@ -79,7 +83,7 @@ Commands ran from the repository root with `PYTHONIOENCODING=utf-8`:
 
 The independent read-only reviewer `/root/review_prototype` passed the final code and documentation against the agreement. Its initial finding, inconsistent saved topic totals, is fixed and covered by a regression test. It independently reran all 11 prototype tests. It also reviewed the Stage 2 relaxations and confirmed supplied edges remain validated, unsupported labels do not enter the aggregated taxonomy, advisory quotes propagate through storage and rebuild, and the normal path remains strict. No remaining actionable findings were reported.
 
-Documentation now links the prototype implementation to its specification, glossary, architecture, run guide, and format reference. Existing default-workflow, reviewer, storage, and provider documentation remains applicable. README revision is deferred as requested. The local dependency maps were refreshed; no generated maps or course artifacts are committed.
+Documentation now links the prototype implementation to its specification, glossary, architecture, run guide, and format reference. Existing default-workflow, reviewer, storage, and provider documentation remains applicable. After separate owner approval, the README now includes a concise, recruiter-facing example from the three-exam LAW run. The local dependency maps were refreshed; no generated maps or course artifacts are committed.
 
 ## Required owner review
 
@@ -87,4 +91,5 @@ Documentation now links the prototype implementation to its specification, gloss
 2. Compare `candidates/2025_june.json` with the paper. Expect Q1 through Q11 once each and marks `1, 1, 1, 1, 1, 5, 5, 10, 15, 30, 30`, totaling 100.
 3. Open both prototype reports. Confirm matching generation IDs and rankings, readable sheets, and sensible topic assignments for Q10 and Q11 before selecting portfolio material.
 
-The live run and content review remain pending. No model accuracy or publication readiness is claimed from offline tests alone.
+The live run is complete; subject-matter review of its content remains pending. No
+model accuracy is claimed from offline tests alone.
