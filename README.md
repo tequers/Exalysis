@@ -118,9 +118,34 @@ judgments. Python then calculated the ranking and produced two views of the same
 3 LAW exam PDFs -> question extraction -> topic analysis -> Excel + agent JSON
 ```
 
-- `Exam_ROI_Pipeline.xlsx` gives a person a ranked overview, topic taxonomy, and
-  exam log.
-- `Exam_ROI_Pipeline.json` gives an AI agent the same ranked data in a flat array.
+Create `Courses/LAW_1/exams/` and place the three LAW PDFs there first; exam files
+are intentionally not included in the repository. Run the example from the
+repository root in PowerShell and replace the API key placeholder with your own
+UnoRouter key:
+
+```powershell
+$env:LLM_PROVIDER = "unorouter"
+$env:UNOROUTER_API_KEY = "<your-api-key>"
+$env:LLM_MODEL_STAGE1 = "deepseek-v4.1-flash"
+$env:LLM_MODEL_STAGE2 = "deepseek-v4.1-flash"
+
+$env:LLM_CONTEXT_TOKENS_STAGE1 = "1000000"
+$env:LLM_CONTEXT_TOKENS_STAGE2 = "1000000"
+$env:LLM_MAX_OUTPUT_TOKENS_STAGE1 = "655536"
+$env:LLM_MAX_OUTPUT_TOKENS_STAGE2 = "655536"
+
+python -X utf8 pipeline/pipeline.py "Courses/LAW_1" add-exam exams/ --prototype --total-marks 100
+```
+
+`Courses/LAW_1` is relative to the repository root. For an explicit input such as
+`exams/`, the CLI first checks the current working directory and then the course
+folder. Because the repository root has no `exams/` folder, this command resolves
+it to `Courses/LAW_1/exams/`.
+
+- `Courses/LAW_1/prototype/Exam_ROI_Pipeline.xlsx` gives a person a ranked
+  overview, topic taxonomy, and exam log.
+- `Courses/LAW_1/prototype/Exam_ROI_Pipeline.json` gives an AI agent the same
+  ranked data in a flat array.
 
 The top of this unreviewed prototype was:
 

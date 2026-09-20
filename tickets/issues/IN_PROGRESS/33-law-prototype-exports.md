@@ -63,6 +63,9 @@ On 2026-09-20, the owner approved a small README section that explains the real
 three-exam LAW prototype to recruiters, links its run and output guides, and leaves
 a clearly labeled placeholder for a future screenshot or GIF.
 
+The owner then approved documenting the exact UnoRouter PowerShell configuration,
+LAW command, relative-path behavior, and generated output paths used for that run.
+
 ## Delivery and verification
 
 Implemented on `codex/33-law-prototype-exports`, based on `origin/codex/mvp-two-stage` at `d386546e3ef952a732c930ed5bc79058fe8236b6`.
