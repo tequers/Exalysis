@@ -188,8 +188,14 @@ See [run the LAW prototype](docs/guides/run-law-prototype.md) for the commands a
 [prototype output format](docs/guides/prototype-output-format.md) for the workbook
 and JSON fields.
 
-> **Visual placeholder:** Add a screenshot or short GIF that shows the ranked LAW
-> topics in the Excel workbook, then opens the matching JSON output.
+> **Excel output**
+> <img width="800" height="283" alt="excel_gif" src="https://github.com/user-attachments/assets/c43c04dc-7d10-4946-b4a2-e8820a9bd8f9" /><img width="800" height="422" alt="json_gif" src="https://github.com/user-attachments/assets/8e99704d-99b7-4f22-bc67-ae19d53c7166" />
+
+> **LLM Agent JSON output**
+<img width="800" height="422" alt="json_gif" src="https://github.com/user-attachments/assets/84ba2101-5940-458a-a411-a9c63b83a294" />
+
+> 
+
 
 ## Quickstart
 
