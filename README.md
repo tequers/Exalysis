@@ -199,9 +199,14 @@ and JSON fields.
 
 ## Quickstart
 
-Before you run a command:
+New here? [Rank three LAW exams yourself](docs/guides/first-run.md) walks you from
+installing Python to opening the ranked workbook. It reproduces the example above
+and assumes no Python knowledge.
 
-- Complete the [offline environment setup](docs/development/workflow.md#set-up-offline-development).
+The rest of this section is the command reference. Before you run a command:
+
+- Install Python 3.10 or newer, then run
+  `python -m pip install -r requirements.txt` from the repository root.
 - Run commands from the repository root.
 - You do not need provider credentials for tests, help, `status`, dry runs, or
   rebuilding accepted records.
@@ -460,7 +465,8 @@ Copyright © 2026 Alberto Antequera Fernandez Palacios.
 | `docs/guides/scoring-methodology.md` | Summarizes ranking arithmetic and evidence limits. | Formula, score interpretation, or aggregation rules change. |
 | `docs/adr/0007-one-record-per-paper-and-the-sitting-year.md` | Describes current paper identity and year behavior beside the accepted naming decision. | The decision, its implementation status, or runtime identity rules change. |
 | `docs/repository-structure.md` | Publishes a condensed repository map and tracking rules. | Maintained file locations or root exceptions change. |
-| `docs/development/workflow.md` | Directs setup, offline checks, and approval before live analysis. | Setup commands, provider approval, or required checks change. |
+| `docs/development/workflow.md` | Directs provider approval before live analysis. | Provider approval or required checks change. |
+| `docs/guides/first-run.md` | Carries the first-run setup route that Quickstart sends a new user to. | Setup steps, the install command, or the guide's location changes. |
 | `pipeline/pipeline.py` | Documents commands, flags, exit codes, and candidate-only writes. | CLI arguments, outcomes, defaults, or acceptance behavior change. |
 | `pipeline/exam_roi/inputs.py` | Documents input selection, extraction checks, and provenance. | Supported files, discovery order, exclusions, or text validation change. |
 | `pipeline/exam_roi/identity.py` | Documents safe paper IDs and record paths. | ID validation, filename limits, or path guards change. |
