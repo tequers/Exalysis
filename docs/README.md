@@ -5,7 +5,6 @@ setup, agreement and approval, ticket selection, implementation, checks, review,
 
 | I want to... | Read |
 |---|---|
-| Run the project for the first time, without Python experience | [Rank three LAW exams yourself](guides/first-run.md) |
 | Decide where a file belongs | [Repository structure](repository-structure.md) |
 | Understand the application vocabulary | [Application glossary](glossary.md) |
 | Understand workflow terms such as spec, ADR, and verified | [Development workflow glossary](development/glossary.md) |
@@ -42,5 +41,4 @@ suppressed history.
 | `docs/guides/independent-review.md` | Labels the retained reviewer as unavailable in the MVP CLI. | Production review availability changes. |
 | `docs/development/workflow.md` | Names the development route, required skills, and enforcement limits. | Workflow stages, skill requirements, or enforcement claims change. |
 | `docs/adr/README.md` | Directs readers to the current-versus-suppressed decision index. | Decision index location or status classification changes. |
-| `docs/guides/first-run.md` | Advertises the first-run route for a reader with no Python experience. | The guide's title, scope, or intended reader changes. |
 <!-- doc-dependencies:end -->

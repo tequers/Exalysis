@@ -118,15 +118,22 @@ judgments. Python then calculated the ranking and produced two views of the same
 3 LAW exam PDFs -> question extraction -> topic analysis -> Excel + agent JSON
 ```
 
+You can reproduce this run yourself. You need Python 3.10 or newer from
+[python.org](https://www.python.org/downloads/), and an API key with credit on it
+for one of the supported providers.
+
 The commands below use Windows PowerShell. Clone the repository, create an isolated
 Python environment, and install the dependencies:
 
 ```powershell
-git clone --branch codex/mvp-two-stage --single-branch https://github.com/tequers/exam-roi-pipeline.git
+git clone https://github.com/tequers/exam-roi-pipeline.git
 cd exam-roi-pipeline
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+On macOS or Linux, use `.venv/bin/python` in place of `.\.venv\Scripts\python.exe`
+in this and every later command.
 
 Dependency installation is not automatic after a clone. The root
 `requirements.txt` is the standard install entry point and delegates to the
@@ -148,8 +155,18 @@ New-Item -ItemType Directory -Force -Path "Courses/LAW_1/exams"
 The links were verified against the files used for the displayed result. The PDFs
 remain external because exam files are intentionally not included in the repository.
 
+Confirm that the pipeline finds all three papers before you spend anything:
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 pipeline/pipeline.py "Courses/LAW_1" add-exam exams/ --prototype --dry-run
+```
+
+The command lists the three filenames and makes no API calls. If one is missing,
+check its name and its folder.
+
 Run the example from the repository root and replace the API key placeholder with
-your own UnoRouter key:
+your own UnoRouter key. This command sends the extracted exam text to the provider
+and charges your key:
 
 ```powershell
 $env:LLM_PROVIDER = "unorouter"
@@ -183,7 +200,9 @@ The top of this unreviewed prototype was:
 |    2 | Criminal Courts and Trial Procedure   |   2/3 |   3.2945 |
 |    3 | Non-Fatal Offences Against the Person |   2/3 |   2.7083 |
 
-These values demonstrate the workflow; they still require subject-matter review.
+Your rows can differ. A language model produces the topics and the judgments, so
+two runs of the same papers do not always agree. These values demonstrate the
+workflow, and they still require subject-matter review.
 See [run the LAW prototype](docs/guides/run-law-prototype.md) for the commands and
 [prototype output format](docs/guides/prototype-output-format.md) for the workbook
 and JSON fields.
@@ -199,11 +218,11 @@ and JSON fields.
 
 ## Quickstart
 
-New here? [Rank three LAW exams yourself](docs/guides/first-run.md) walks you from
-installing Python to opening the ranked workbook. It reproduces the example above
-and assumes no Python knowledge.
+To reproduce a full run from a fresh clone, follow
+[Real example: three LAW exams](#real-example-three-law-exams) above. This section
+is the command reference.
 
-The rest of this section is the command reference. Before you run a command:
+Before you run a command:
 
 - Install Python 3.10 or newer, then run
   `python -m pip install -r requirements.txt` from the repository root.
@@ -466,7 +485,6 @@ Copyright © 2026 Alberto Antequera Fernandez Palacios.
 | `docs/adr/0007-one-record-per-paper-and-the-sitting-year.md` | Describes current paper identity and year behavior beside the accepted naming decision. | The decision, its implementation status, or runtime identity rules change. |
 | `docs/repository-structure.md` | Publishes a condensed repository map and tracking rules. | Maintained file locations or root exceptions change. |
 | `docs/development/workflow.md` | Directs provider approval before live analysis. | Provider approval or required checks change. |
-| `docs/guides/first-run.md` | Carries the first-run setup route that Quickstart sends a new user to. | Setup steps, the install command, or the guide's location changes. |
 | `pipeline/pipeline.py` | Documents commands, flags, exit codes, and candidate-only writes. | CLI arguments, outcomes, defaults, or acceptance behavior change. |
 | `pipeline/exam_roi/inputs.py` | Documents input selection, extraction checks, and provenance. | Supported files, discovery order, exclusions, or text validation change. |
 | `pipeline/exam_roi/identity.py` | Documents safe paper IDs and record paths. | ID validation, filename limits, or path guards change. |
