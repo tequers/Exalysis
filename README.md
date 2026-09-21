@@ -141,7 +141,7 @@ New-Item -ItemType Directory -Force -Path "Courses/LAW_1/exams"
 
 | Year | Paper | Download | Save as |
 | ---: | ----- | -------- | ------- |
-| 2023 | AQA A-level Law Paper 2, 7162/2 | [PDF](https://filestore.aqa.org.uk/sample-papers-and-mark-schemes/2023/june/AQA-71622-QP-JUN23.PDF) | `2023_june_2.pdf` |
+| 2023 | AQA A-level Law Paper 2, 7162/2 | [PDF](https://filestore.aqa.org.uk/sample-papers-and-mark-schemes/2023/june/AQA-71622-QP-JUN23.PDF) | `2023_june.pdf` |
 | 2024 | AQA A-level Law Paper 1, 7162/1 | [PDF](https://cdn.sanity.io/files/p28bar15/green/4cff369e127824d15c8bc708e9492a4e2e16a60d.pdf) | `2024_may.pdf` |
 | 2025 | AQA A-level Law Paper 1, 7162/1 | [PDF](https://revisionworld.com/sites/default/files/revisionworld/documents/AALA251.PDF) | `2025_june.pdf` |
 
