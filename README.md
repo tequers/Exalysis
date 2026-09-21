@@ -189,11 +189,12 @@ See [run the LAW prototype](docs/guides/run-law-prototype.md) for the commands a
 and JSON fields.
 
 **Excel output**
-<img width="800" height="283" alt="excel_gif" src="https://github.com/user-attachments/assets/c43c04dc-7d10-4946-b4a2-e8820a9bd8f9" /><img width="800" height="422" alt="json_gif" src="https://github.com/user-attachments/assets/8e99704d-99b7-4f22-bc67-ae19d53c7166" />
 
-**LLM Agent JSON output**
-<img width="800" height="422" alt="json_gif" src="https://github.com/user-attachments/assets/84ba2101-5940-458a-a411-a9c63b83a294" />
+![Excel workbook produced by the LAW prototype run, showing the ranked topic sheet](docs/assets/law-excel-output.gif)
 
+**LLM agent JSON output**
+
+![Agent JSON produced by the LAW prototype run, a flat array of ranked topics](docs/assets/law-agent-json-output.gif)
 
 
 ## Quickstart
