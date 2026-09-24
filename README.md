@@ -7,6 +7,14 @@ A Python CLI that reads past exam papers and ranks topics by relative study prio
 It accepts text files and PDFs with a text layer, keeps each course's state in one
 folder, and writes the ranking as Excel and JSON.
 
+**Excel output**
+
+![Excel workbook produced by the LAW prototype run, showing the ranked topic sheet](docs/assets/law-excel-output.gif)
+
+**LLM agent JSON output**
+
+![Agent JSON produced by the LAW prototype run, a flat array of ranked topics](docs/assets/law-agent-json-output.gif)
+
 Use these documents to understand and run the project:
 
 - [Documentation index](docs/README.md). Find a guide by task.
@@ -206,6 +214,10 @@ workflow, and they still require subject-matter review.
 See [run the LAW prototype](docs/guides/run-law-prototype.md) for the commands and
 [prototype output format](docs/guides/prototype-output-format.md) for the workbook
 and JSON fields.
+
+**Terminal run**
+
+![Terminal showing question extraction and topic analysis for the LAW exams](docs/assets/law-terminal.gif)
 
 **Excel output**
 
